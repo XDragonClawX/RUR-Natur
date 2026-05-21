@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import emailjs from '@emailjs/browser';
 import { 
   TileData, BuildingType, ActionCard, ActionCardType, 
   ResearchNode, Species, PaperFactoryMode, GameLog, GameStats, ClimateEvent, TerrainType 
@@ -15,10 +16,10 @@ import { SpeciesTracker } from './components/SpeciesTracker';
 import { DashboardReports } from './components/DashboardReports';
 import { IsometricMap } from './components/IsometricMap';
 import { OekoZentraleHUD } from './components/OekoZentraleHUD';
-import { 
-  Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw, 
+import {
+  Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
-  X, Save, FolderOpen
+  X, Save, FolderOpen, MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -126,6 +127,13 @@ export default function App() {
   const [pdfSimulated, setPdfSimulated] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
   const [tutorialStep, setTutorialStep] = useState<number>(0);
+
+  const [showFeedback, setShowFeedback] = useState<boolean>(false);
+  const [feedbackText, setFeedbackText] = useState<string>('');
+  const [feedbackName, setFeedbackName] = useState<string>('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState<boolean>(false);
+  const [feedbackSending, setFeedbackSending] = useState<boolean>(false);
+  const [feedbackError, setFeedbackError] = useState<string>('');
 
   // Kontext-abhängige Tipps & Hilfestellungen für neue Features
   const [seenTips, setSeenTips] = useState<string[]>([]);
@@ -1407,6 +1415,33 @@ export default function App() {
     }
   };
 
+  const handleSubmitFeedback = async () => {
+    if (!feedbackText.trim() || feedbackSending) return;
+    setFeedbackSending(true);
+    setFeedbackError('');
+    try {
+      const result = await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+        {
+          from_name: feedbackName.trim() || 'Anonym',
+          message: feedbackText.trim(),
+          to_email: 'rurnatur@proton.me',
+        },
+        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+      );
+      console.log('EmailJS Antwort:', result);
+      setFeedbackSubmitted(true);
+      setFeedbackText('');
+      setFeedbackName('');
+    } catch (e: any) {
+      console.error('EmailJS Fehler:', e);
+      setFeedbackError(`Fehler: ${e?.text || e?.message || JSON.stringify(e)}`);
+    } finally {
+      setFeedbackSending(false);
+    }
+  };
+
   // --- Seasons indicator string helper ---
   const currentSeasonString = useMemo(() => {
     const seasonsList = ['Frühling', 'Sommer', 'Herbst', 'Winter'];
@@ -1521,6 +1556,16 @@ export default function App() {
           >
             <HelpCircle className="w-4 h-4 text-[#5A7247]" />
             Regeln
+          </button>
+
+          {/* Feedback button */}
+          <button
+            onClick={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
+            className="px-3.5 py-2.5 rounded-lg bg-[#EDE8F5] hover:bg-[#E0D8F0] text-[#3D2C6E] border border-[#C8BAE8] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            title="Feedback zur Simulation geben"
+          >
+            <MessageSquare className="w-4 h-4 text-[#6B52AE]" />
+            Feedback
           </button>
 
           {/* Advance Turn trigger button */}
@@ -2110,6 +2155,93 @@ export default function App() {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* FEEDBACK MODAL */}
+      {showFeedback && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-[#F2EDE4] border-2 border-[#6B52AE] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#D4CCBA] pb-3">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-6 h-6 text-[#6B52AE]" />
+                <div>
+                  <span className="text-[9px] font-mono tracking-widest text-[#6B52AE] uppercase font-black block">RUR NATUR SIMULATOR</span>
+                  <h3 className="text-base font-black text-[#2C3322]">Feedback geben</h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowFeedback(false)}
+                className="text-[#8B8273] hover:text-[#2C3311] p-1.5 rounded-full hover:bg-[#E8E2D6]/70 transition-colors cursor-pointer border border-[#D4CCBA]/50"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {feedbackSubmitted ? (
+              <div className="text-center space-y-3 py-4">
+                <div className="text-4xl">🌿</div>
+                <p className="text-sm font-black text-[#5A7247]">Vielen Dank für dein Feedback!</p>
+                <p className="text-xs text-[#5C5549]">Deine Nachricht wurde an das RUR NATUR-Team gesendet. Vielen Dank!</p>
+                <button
+                  onClick={() => setShowFeedback(false)}
+                  className="mt-2 px-5 py-2.5 bg-[#5A7247] hover:bg-[#4E613C] text-white text-xs font-black uppercase rounded-lg cursor-pointer shadow-md transition-transform active:scale-95"
+                >
+                  Schließen
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8B8273] block mb-1">
+                      Name (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={feedbackName}
+                      onChange={e => setFeedbackName(e.target.value)}
+                      placeholder="Dein Name..."
+                      className="w-full bg-white border border-[#D4CCBA] rounded-lg px-3 py-2 text-xs text-[#2C3322] placeholder-[#C4BBAA] focus:outline-none focus:border-[#6B52AE] transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8B8273] block mb-1">
+                      Dein Feedback <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={feedbackText}
+                      onChange={e => setFeedbackText(e.target.value)}
+                      placeholder="Was gefällt dir? Was könnte besser sein? Hast du Ideen oder Fehler entdeckt?"
+                      rows={5}
+                      className="w-full bg-white border border-[#D4CCBA] rounded-lg px-3 py-2 text-xs text-[#2C3322] placeholder-[#C4BBAA] focus:outline-none focus:border-[#6B52AE] transition-colors resize-none"
+                    />
+                  </div>
+                </div>
+
+                {feedbackError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-800 font-mono">
+                    {feedbackError}
+                  </div>
+                )}
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => setShowFeedback(false)}
+                    className="flex-1 py-2.5 bg-[#E8E2D6] hover:bg-[#DCD4C4] text-[#2C3311] text-xs font-bold uppercase rounded-lg border border-[#D4CCBA] cursor-pointer transition-transform active:scale-95"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={handleSubmitFeedback}
+                    disabled={!feedbackText.trim() || feedbackSending}
+                    className="flex-1 py-2.5 bg-[#6B52AE] hover:bg-[#5A3F9A] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-black uppercase rounded-lg cursor-pointer shadow-md transition-transform active:scale-95"
+                  >
+                    {feedbackSending ? 'Wird gesendet...' : 'Absenden ✓'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
