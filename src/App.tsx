@@ -109,7 +109,14 @@ export default function App() {
     continuity: 30,
     climateRisk: 15,
     paperFactoryMode: 'PRODUCTION',
-    rurtalbahnSlotsUsed: 0
+    rurtalbahnSlotsUsed: 0,
+    biosecurity: 100,
+    renewableEnergy: 25,
+    citizenAcceptance: 80,
+    cooperativesActive: false,
+    oekoZentraleLevel: 1,
+    oekoZentraleMode: 'STANDARD',
+    earlyWarningSystemActive: false
   });
 
   const [cards, setCards] = useState<ActionCard[]>([]);
@@ -117,6 +124,14 @@ export default function App() {
   const [speciesList, setSpeciesList] = useState<Species[]>([]);
   const [logs, setLogs] = useState<GameLog[]>([]);
   const [activeEvent, setActiveEvent] = useState<ClimateEvent | null>(null);
+  const [roundInvested, setRoundInvested] = useState<boolean>(false);
+  const [activeYearChallengeModal, setActiveYearChallengeModal] = useState<number | null>(null);
+  const [invasiveThreatEnabled, setInvasiveThreatEnabled] = useState<boolean>(false);
+  const [showInvasiveRules, setShowInvasiveRules] = useState<boolean>(false);
+  const [isHoveringToggle, setIsHoveringToggle] = useState<boolean>(false);
+  const [energyChallengeEnabled, setEnergyChallengeEnabled] = useState<boolean>(false);
+  const [showEnergyRules, setShowEnergyRules] = useState<boolean>(false);
+  const [isHoveringEnergyToggle, setIsHoveringEnergyToggle] = useState<boolean>(false);
   
   // UI Panels / Tabs
   const [activeTab, setActiveTab] = useState<'map' | 'schoeller' | 'research' | 'species' | 'reports'>('map');
@@ -127,6 +142,7 @@ export default function App() {
   const [pdfSimulated, setPdfSimulated] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
   const [tutorialStep, setTutorialStep] = useState<number>(0);
+  const [showSpielregeln, setShowSpielregeln] = useState<boolean>(false);
 
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
@@ -397,7 +413,10 @@ export default function App() {
         rurtalbahnLeased,
         rurtalbahnTimeRemaining,
         preLeaseCard,
-        seenTips
+        seenTips,
+        invasiveThreatEnabled,
+        energyChallengeEnabled,
+        activeYearChallengeModal
       };
       localStorage.setItem('rurnova_save_state', JSON.stringify(stateToSave));
       addLog('💾 Spielstand erfolgreich im Browser gespeichert!', 'success');
@@ -416,7 +435,13 @@ export default function App() {
       }
       const loadedState = JSON.parse(saved);
       if (loadedState.grid) setGrid(loadedState.grid);
-      if (loadedState.stats) setStats(loadedState.stats);
+      if (loadedState.stats) {
+        setStats({
+          ...loadedState.stats,
+          biosecurity: loadedState.stats.biosecurity !== undefined ? loadedState.stats.biosecurity : 100,
+          renewableEnergy: loadedState.stats.renewableEnergy !== undefined ? loadedState.stats.renewableEnergy : 25
+        });
+      }
       if (loadedState.cards) setCards(loadedState.cards);
       if (loadedState.researchTree) setResearchTree(loadedState.researchTree);
       if (loadedState.speciesList) setSpeciesList(loadedState.speciesList);
@@ -425,6 +450,9 @@ export default function App() {
       if (loadedState.hasOwnProperty('rurtalbahnTimeRemaining')) setRurtalbahnTimeRemaining(loadedState.rurtalbahnTimeRemaining);
       if (loadedState.preLeaseCard !== undefined) setPreLeaseCard(loadedState.preLeaseCard);
       if (loadedState.seenTips) setSeenTips(loadedState.seenTips);
+      if (loadedState.hasOwnProperty('invasiveThreatEnabled')) setInvasiveThreatEnabled(loadedState.invasiveThreatEnabled);
+      if (loadedState.hasOwnProperty('energyChallengeEnabled')) setEnergyChallengeEnabled(loadedState.energyChallengeEnabled);
+      if (loadedState.hasOwnProperty('activeYearChallengeModal')) setActiveYearChallengeModal(loadedState.activeYearChallengeModal);
       
       addLog('📂 Spielstand erfolgreich geladen!', 'success');
     } catch (e) {
@@ -911,6 +939,7 @@ export default function App() {
       researchPoints: prev.researchPoints - node.cost,
       naturePoints: prev.naturePoints + 5
     }));
+    setRoundInvested(true);
     addLog(`🔬 FORSCHUNG ERFOLG: '${node.name}' erforscht! Bonuseffekte jetzt permanent aktiv. (+5 Naturpunkte)`, 'success');
     
     // Recalculate metrics on new research benefits
@@ -929,11 +958,42 @@ export default function App() {
       }
     }
 
-    setStats(prev => ({
-      ...prev,
-      paperFactoryMode: mode
-    }));
-    addLog(`🏭 SCHOELLERSHAMMER: Modus geändert auf '${mode === 'PRODUCTION' ? 'Vollbetrieb' : mode === 'RETROFITTING' ? 'Umrüstung' : mode === 'SHUTDOWN' ? 'Stilllegung' : 'Forschungspark'}'.`, 'info');
+    let acceptanceDelta = 0;
+    let logMsgSuffix = "";
+    if (stats.year > 2026) {
+      if (mode === 'PRODUCTION') {
+        acceptanceDelta = 15;
+        logMsgSuffix = " Vollbeschäftigung bei Schoellershammer sichert lokale Jobs (+15% Bürgerakzeptanz).";
+      } else if (mode === 'RETROFITTING') {
+        acceptanceDelta = -5;
+        logMsgSuffix = " Umbaumaßnahmen drosseln kurzfristig den Ertrag. Geringer Dämpfer (-5% Bürgerakzeptanz).";
+      } else if (mode === 'SHUTDOWN') {
+        acceptanceDelta = -30;
+        logMsgSuffix = " Drohende Werks-Stilllegung führt zu Protesten der Arbeitnehmer-Gewerkschaft (-30% Bürgerakzeptanz!)";
+      } else if (mode === 'RENATURIZATION') {
+        const isCoop = stats.cooperativesActive;
+        if (isCoop) {
+          acceptanceDelta = 10;
+          logMsgSuffix = " Dank Bürger-Energiegenossenschaften begleiten die Bürger den Strukturwandel begeistert (+10% Bürgerakzeptanz!)";
+        } else {
+          acceptanceDelta = -15;
+          logMsgSuffix = " Skeptischer Kulturwandel. Die Bevölkerung bedauert das Ende der industriellen Ära (-15% Bürgerakzeptanz.)";
+        }
+      }
+    } else {
+      logMsgSuffix = " (Im Einführungsjahr 2026 hat die Modus-Wahl noch keine Auswirkungen auf die Bürgerzufriedenheit).";
+    }
+
+    setStats(prev => {
+      const nextAcceptance = Math.max(0, Math.min(100, prev.citizenAcceptance + acceptanceDelta));
+      return {
+        ...prev,
+        paperFactoryMode: mode,
+        citizenAcceptance: nextAcceptance
+      };
+    });
+
+    addLog(`🏭 SCHOELLERSHAMMER: Modus geändert auf '${mode === 'PRODUCTION' ? 'Vollbetrieb' : mode === 'RETROFITTING' ? 'Umrüstung' : mode === 'SHUTDOWN' ? 'Stilllegung' : 'Forschungspark'}'.${logMsgSuffix}`, 'info');
     
     // Trigger immediate water change shifts
     setTimeout(() => {
@@ -1053,11 +1113,21 @@ export default function App() {
 
     const railwayDiscount = hasRurtalbahnStationNearby(x, y);
     const finalRebate = constructRebate + (railwayDiscount ? 1 : 0);
-    const finalCost = Math.max(1, building.cost - finalRebate);
+    
+    // Protest-Aufschlag if citizen acceptance is critically low (<40%)
+    let acceptanceSurcharge = 0;
+    if (stats.year > 2026 && stats.citizenAcceptance !== undefined && stats.citizenAcceptance < 40) {
+      acceptanceSurcharge = 2;
+    }
+    const finalCost = Math.max(1, building.cost - finalRebate + acceptanceSurcharge);
 
     if (stats.budget < finalCost) {
-      addLog(`❌ BAUFEHLER: Unzureichendes Guthaben. Erfordert ${finalCost} € (Rabatt eingerechnet).`, 'error');
+      addLog(`❌ BAUFEHLER: Unzureichendes Guthaben. Erfordert ${finalCost} € (Rabatt und evtl. Protest-Aufschlag eingerechnet).`, 'error');
       return;
+    }
+
+    if (acceptanceSurcharge > 0) {
+      addLog(`⚠️ PROTEST-AUFSCHLAG: Wegen geringer Bürgerakzeptanz (<40%) verzögern Verwaltungs-Eilklagen den Bau! +2 € zusätzliche Erschließungskosten geladen.`, 'warning');
     }
 
     // 3. Complete placement
@@ -1100,14 +1170,69 @@ export default function App() {
       return nextGrid;
     });
 
+    // Compute citizen acceptance changes based on placed buildings
+    let acceptanceDelta = 0;
+    let specialLog = "";
+
+    // ONLY active if Year is 2027 or later (progressive level challenge)
+    if (stats.year > 2026) {
+      if (building.id === 'windkraft') {
+        let adjSiedlung = false;
+        const dirs = [[-1,0], [1,0], [0,-1], [0,1], [-1,-1], [-1,1], [1,-1], [1,1]];
+        for (const [dx, dy] of dirs) {
+          const tx = x + dx;
+          const ty = y + dy;
+          if (tx >= 0 && tx < grid[0].length && ty >= 0 && ty < grid.length) {
+            if (grid[ty][tx]?.terrain === 'Siedlung') {
+              adjSiedlung = true;
+              break;
+            }
+          }
+        }
+
+        if (adjSiedlung) {
+          if (stats.cooperativesActive) {
+            acceptanceDelta = -5;
+            specialLog = "🪙 GENOSSENSCHAFTS-EFFEKT: Da Bürger am Ertrag der Anlage beteiligt sind, bleiben die Proteste gering (-5% Akzeptanz).";
+          } else {
+            acceptanceDelta = -20;
+            specialLog = "🚨 ANWOHNER-WIDERSTAND: Protestaktionen wegen Rotoren nahe der Wohnsiedlung (-20% Bürgerakzeptanz!)";
+          }
+        } else {
+          if (stats.cooperativesActive) {
+            acceptanceDelta = 5;
+            specialLog = "🪙 AKZEPTANZ-BONUS: Windpark fernab von Wohngebieten bringt Genossenschaftsmitglieder-Dividenden (+5% Akzeptanz).";
+          }
+        }
+      } else if (building.id === 'solarpark') {
+        if (stats.cooperativesActive) {
+          acceptanceDelta = 10;
+          specialLog = "🪙 ÖKO-RENDITE: Der neue Solarpark schüttet Gewinne an die Bürgergenossenschaft aus (+10% Akzeptanz).";
+        } else {
+          acceptanceDelta = -3;
+          specialLog = "📢 FLÄCHENSKESPIS: Die Bevölkerung bedauert unbeteiligte Freiflächen-Solarkonstrukte (-3% Akzeptanz).";
+        }
+      }
+    } else if (building.id === 'windkraft' || building.id === 'solarpark') {
+      specialLog = "ℹ️ LERNEMODUS: Im ersten Jahr (2026) sind Bürgerproteste noch inaktiv. Baue frei und entdecke die Spielmechanik!";
+    }
+
     setStats(prev => ({
       ...prev,
       budget: prev.budget - finalCost,
       naturePoints: prev.naturePoints + 3,
-      climateRisk: Math.max(0, prev.climateRisk - (building.category === 'ecology' || building.category === 'water' ? 3 : 0))
+      climateRisk: Math.max(0, prev.climateRisk - (building.category === 'ecology' || building.category === 'water' ? 3 : 0)),
+      citizenAcceptance: Math.max(0, Math.min(100, (prev.citizenAcceptance !== undefined ? prev.citizenAcceptance : 80) + acceptanceDelta))
     }));
 
+    if (building.category === 'ecology' || building.category === 'fauna') {
+      setRoundInvested(true);
+    }
+
     addLog(`🏗️ ERFOLG: '${building.name}' auf Feld (${x}, ${y}) errichtet. Kosten: ${finalCost} € (Rabatt: -${finalRebate} €)`, 'success');
+    if (specialLog) {
+      addLog(specialLog, acceptanceDelta > 0 ? 'success' : 'warning');
+    }
     setSelectedBuilding(null); // Clear selected placement shadow
 
     // Rotate action slots for BUILD card only on successful placement
@@ -1170,6 +1295,8 @@ export default function App() {
       researchPoints: prev.researchPoints - researchCost,
       naturePoints: prev.naturePoints + 15
     }));
+
+    setRoundInvested(true);
 
     addLog(`🚀 UPGRADE ERFOLGREICH: '${building.name}' im Sektor (${x}, ${y}) wurde auf Stufe ${nextLevel} aufgewertet! Kosten: ${researchCost} 🧪 (+15 Naturpunkte, FFH +15%, WRRL verbessert)`, 'success');
 
@@ -1259,6 +1386,12 @@ export default function App() {
     let passiveResearch = 0;
     let passiveNature = 0;
 
+    // ÖKO-ZENTRALE LEVEL 3: AUTONOME KLIMAWARTE BONUS
+    if (stats.oekoZentraleLevel === 3) {
+      passiveResearch += 1;
+      passiveNature += 2;
+    }
+
     // Info center triggers
     const centerBuilt = grid.flat().some(t => t.buildingId === 'natura_zentrum');
     if (centerBuilt) {
@@ -1278,22 +1411,250 @@ export default function App() {
       passiveResearch += 1;
     }
 
-    // Global native Climate risk escalation (2% per round due to global shift counters, mitigated by Auwalds)
+    // ACTIVE FOCUS MODE INFLUENCE ON SCIENCE AND FAUNA PROGRESS
+    if (stats.oekoZentraleMode === 'FAUNA') {
+      // deduct 1 research as we coordinate rangers
+      passiveResearch = Math.max(0, passiveResearch - 1);
+      // Advance species progress for all uncompleted species
+      setSpeciesList(prev => prev.map(s => {
+        if (!s.unlocked) {
+          const nextProg = Math.min(100, s.currentProgress + 8);
+          const unlocked = nextProg >= 100;
+          if (unlocked) {
+            addLog(`🐾 ARTENSCHUTZ-ERFOLG: ${s.name} hat sich erfolgreich im Rurtal angesiedelt!`, 'success');
+          }
+          return { ...s, currentProgress: nextProg, unlocked };
+        }
+        return s;
+      }));
+      addLog('🐾 ÖKO-STATUS FAUNA: Intensivierte Ranger-Streifen beschleunigen die Ansiedlung aller freien Arten (+8% Populationsfortschritt, -1 🧪)', 'success');
+    }
+
+    // Calculate new biosecurity level (invasive species mechanism)
+    let nextBiosecurity = 100;
+
+    if (invasiveThreatEnabled) {
+      let biosecurityDelta = -25; // Base decay of 25% if neglected
+      let hasInvested = roundInvested;
+      
+      if (hasInvested) {
+        biosecurityDelta = 15; // Recovery if active investments made
+      }
+
+      // HQ Level 2 bonus (Netzwerk-Abdeckung) decreases biotop vulnerability
+      if (stats.oekoZentraleLevel && stats.oekoZentraleLevel >= 2) {
+        biosecurityDelta += 10;
+      }
+
+      // Fauna mode gives active protective barrier
+      if (stats.oekoZentraleMode === 'FAUNA') {
+        biosecurityDelta += 15;
+      }
+      
+      const prevBiosecurity = stats.biosecurity !== undefined ? stats.biosecurity : 100;
+      nextBiosecurity = Math.max(0, Math.min(100, prevBiosecurity + biosecurityDelta));
+
+      let triggerInvasive = false;
+      if (nextBiosecurity === 0 && prevBiosecurity > 0) {
+        triggerInvasive = true;
+      }
+
+      if (triggerInvasive) {
+        const invasiveEvent: ClimateEvent = {
+          id: 'invasive_plage',
+          name: 'Invasion des Signalkrebses & Riesen-Bärenklaus',
+          description: 'Mangelnde Investitionen in Forschung und biologischen Artenschutz haben zum Zusammenbruch der Biologischen Sicherheit geführt! Biologisch invasive Signalkrebse überwuchern die Gewässerlebensräume und jagen heimische Bachforellen, während der Riesen-Bärenklau die Flussufer instabil macht.',
+          effectDescription: 'Die Gewässerökologie erleidet starken Verfall (WRRL +0.6, FFH -15%). Entscheide schnell: Finanzierung einer Erradikations-Kampagne (6 €) [Option A], Entwicklung biologischer Abwehrmaßnahmen (3 🧪) [Option B], oder die Krise ignorieren (-10 Naturpunkte, massiver Artenverlust) [Option C].',
+          triggerCondition: 'Biologische Sicherheit auf 0% gesunken.',
+          active: true,
+          duration: 1
+        };
+        setActiveEvent(invasiveEvent);
+        addLog(`🚨 VOLLSTÄNDIGER BIOM-KOLLAPS (0% Bio-Sicherheit): Eine extrem invasive Fremdartenwelle bricht an der Rur aus!`, 'error');
+      } else {
+        if (nextBiosecurity <= 50 && biosecurityDelta < 0) {
+          addLog(`⚠️ BIOLOGIE-WARNUNG: Der biologische Schutzgürtel schwindet! Bio-Sicherheit sinkt auf ${nextBiosecurity}%. Errichte Fauna-Projekte, führe Upgrades durch oder schalte Forschung frei, um die Natur zu stabilisieren.`, 'warning');
+        } else if (biosecurityDelta < 0) {
+          addLog(`⚠️ BIOLOGISCHE VERNACHLÄSSIGUNG: Keine Investitionen in Artenschutz, Upgrades oder Forschung in dieser Runde. Bio-Sicherheit sinkt auf ${nextBiosecurity}%.`, 'warning');
+        } else {
+          addLog(`🛡️ BIOM-SCHUTZ: Deine Bemühungen stabilisieren die Biosphäre. Bio-Sicherheitslevel steigt auf ${nextBiosecurity}%.`, 'success');
+        }
+      }
+
+      // Apply continuous silent damage while biosecurity is critical (< 30%)
+      if (nextBiosecurity <= 30 && !triggerInvasive) {
+        // Slowly worsen WRRL and decrease FFH across the region
+        setGrid(prev => prev.map(row => row.map(t => {
+          if (t.terrain === 'Water') {
+            return {
+              ...t,
+              wrrl_quality: Math.min(5.0, t.wrrl_quality + 0.05),
+              ffh_value: Math.max(0, t.ffh_value - 1)
+            };
+          } else if (t.terrain === 'Wiese' || t.terrain === 'Auwald') {
+            return {
+              ...t,
+              ffh_value: Math.max(0, t.ffh_value - 1)
+            };
+          }
+          return t;
+        })));
+        addLog(`🦠 SCHÄDLINGS-MELDUNG: Wegen kritischer Bio-Sicherheit (<30%) belasten Kleinstplagen (z.B. Springkraut) schleichend die Gewässerqualität und Biotop-Potenziale (FFH).`, 'warning');
+      }
+    } else {
+      nextBiosecurity = 100;
+    }
+
+    // Calculate new renewable energy level (energy transition mechanism)
+    let nextRenewableEnergy = stats.renewableEnergy !== undefined ? stats.renewableEnergy : 25;
+    let actualYield = netYield;
+    let extraClimateRisk = 0;
+
+    // ACTIVE MODE: WATER FOCUS
+    if (stats.oekoZentraleMode === 'WATER') {
+      actualYield -= 1; // Operational cost
+      // Slowly improve WRRL of all river/water tiles
+      setGrid(prev => prev.map(row => row.map(t => {
+        if (t.terrain === 'Water') {
+          return { ...t, wrrl_quality: Math.max(1.0, t.wrrl_quality - 0.1) };
+        }
+        return t;
+      })));
+      addLog('💧 ÖKO-STATUS WASSER: Fortlaufende Bachbett-Entschlammung & Algenkontrolle optimiert Rurgüte (WRRL -0.1) (-1 €).', 'success');
+    }
+
+    // ACTIVE MODE: RESILIENCE SHIELD
+    if (stats.oekoZentraleMode === 'RESILIENCE') {
+      actualYield -= 1; // Operational cost
+      extraClimateRisk -= 2; // mitigates global temperature/risk spikes
+      addLog('🛡️ ÖKO-STATUS RESILIENZ: Aktiver Krisenstab & Sandsack-Disponierung schützt das Sektor-Umland (-2% Klimarisiko, -1 €).', 'success');
+    }
+
+    // HQ LEVEL 3 PASSIVE PROTECTION
+    if (stats.oekoZentraleLevel === 3) {
+      extraClimateRisk -= 1; // additional passive eco-tracking
+    }
+
+    if (energyChallengeEnabled) {
+      // Base decay: -10% per round due to energy-intensive industry in Düren
+      let decay = -10;
+      
+      const isGreenEnergyTechUnlocked = researchTree.find(r => r.id === 'green_energy_tech')?.unlocked || false;
+      if (isGreenEnergyTechUnlocked) {
+        decay = -5; // Green energy research cuts decay speed by half!
+      }
+
+      const hydroCount = grid.flat().filter(t => t.buildingId === 'wasserkraft').length;
+      const solarCount = grid.flat().filter(t => t.buildingId === 'solarpark').length;
+      const windCount = grid.flat().filter(t => t.buildingId === 'windkraft').length;
+
+      let investmentBonus = 0;
+      if (roundInvested) {
+        investmentBonus = 10; // active investment modernizes processes
+      }
+
+      const generationOffset = (hydroCount * 12) + (solarCount * 10) + (windCount * 15);
+      const netDelta = decay + generationOffset + investmentBonus;
+      const prevEnergy = stats.renewableEnergy !== undefined ? stats.renewableEnergy : 25;
+      nextRenewableEnergy = Math.max(0, Math.min(100, prevEnergy + netDelta));
+
+      // Financial and environmental penalties/bonuses based on renewable status
+      if (nextRenewableEnergy < 35) {
+        // Penalty: -2 budget and +2 climate risk
+        actualYield -= 2;
+        extraClimateRisk = 2;
+        addLog(`⚠️ ENERGIE-KRISE: Grüne Energiequote ist bedenklich niedrig (${nextRenewableEnergy}%)! Dürens energieintensive Fabriken zahlen CO2-Fossil-Gebühren (-2 €/Runde) und belasten das Stadtklima (+2% Klimarisiko).`, 'warning');
+      } else if (nextRenewableEnergy >= 75) {
+        // Bonus: +2 budget and -1 climate risk
+        actualYield += 2;
+        extraClimateRisk = -1;
+        addLog(`⚡ ENERGIE-REFORM: Vorbildliche Ökostrom-Abdeckung (${nextRenewableEnergy}%)! Die lokale Industrie gilt als CO2-neutraler Pionier (+2 €/Runde Förderprämie, -1% Klimarisiko).`, 'success');
+      } else {
+        addLog(`⚡ GRÜNE ENERGIE: Die erneuerbare Versorgungsquote der Dürener Betriebe liegt stabil bei ${nextRenewableEnergy}%.`, 'info');
+      }
+
+      // If renewable energy drops to 0%, trigger a severe energy crisis blackout event!
+      if (nextRenewableEnergy === 0 && prevEnergy > 0) {
+        const energyEvent: ClimateEvent = {
+          id: 'energy_crisis',
+          name: 'Dürener Industrie-Stromausfall (Netzkollaps)',
+          description: 'Die totale Abhängigkeit von fossiler Kohle/Gas und der vernachlässigte Netzausbau haben zu einer massiven Überlastung geführt. Das Dürener Stromnetz kollabiert unter der industriellen Peak-Last!',
+          effectDescription: 'Das wirtschaftliche Leben steht still. CO2-Probleme verschlimmern sich und Blackouts kosten dich sofort Finanzmittel. Wähle Notstrom-Hilfspakete kaufen (5 €) [Option A] oder Ausgleichsflächen liquidieren (-10 Naturpunkte) [Option B].',
+          triggerCondition: 'Erneuerbare Energien bei 0%.',
+          active: true,
+          duration: 1
+        };
+        setActiveEvent(energyEvent);
+        addLog(`🚨 VOLLSTÄNDIGER NETZCOLLAPS (0% Erneuerbare Energien): Dürens Industrie bricht mangels Stromversorgung zusammen!`, 'error');
+      }
+    } else {
+      nextRenewableEnergy = 100;
+    }
+
+    // Reset round-level investment tracker for next round
+    setRoundInvested(false);
+
+    // Global native Climate risk escalation (mitigated by Auwalds, accelerated in final stage)
     const auwaldPlanted = grid.flat().filter(t => t.terrain === 'Auwald').length;
-    const climateDamper = Math.max(0.5, 2.0 - (auwaldPlanted * 0.25));
+    const baseEscalation = nextYear >= 2029 ? 2.5 : 2.0;
+    const climateDamper = Math.max(0.5, baseEscalation - (auwaldPlanted * 0.25));
+
+    // Calculate citizen acceptance dynamic shift per round
+    const coopsActive = stats.cooperativesActive;
+    let acceptanceDeltaRound = 0;
+    let localAcceptanceLog = "";
+
+    // ONLY active if Year is 2027 or later (progressive level challenge)
+    if (nextYear > 2026) {
+      if (coopsActive) {
+        acceptanceDeltaRound = 5;
+        localAcceptanceLog = "🪙 GENOSSENSCHAFTS-RENDITE: Die Bürger-Energiegenossenschaft schüttet Dividenden aus. Bürgerakzeptanz steigt (+5%).";
+      } else {
+        const currentEnergy = stats.renewableEnergy !== undefined ? stats.renewableEnergy : 25;
+        if (currentEnergy > 45) {
+          acceptanceDeltaRound = -4;
+          localAcceptanceLog = "📢 NIMBY-EFFEKT: Anwohner kritisieren Wind/Solar-Infrastruktur ohne finanzielle Beteiligung (-4% Akzeptanz). Überlege Bürger-Energiegenossenschaften zu gründen!";
+        }
+      }
+    }
+
+    // Trigger progressive modal on transition into a new year
+    if (nextRound === 5) {
+      setActiveYearChallengeModal(2027);
+      addLog("📅 JAHR 2027 ANGEBRECHEN: Neue Herausforderung freigeschaltet - Bürgerakzeptanz im Sektor!", "warning");
+    } else if (nextRound === 9) {
+      setActiveYearChallengeModal(2028);
+      setInvasiveThreatEnabled(true);
+      setEnergyChallengeEnabled(true);
+      addLog("📅 JAHR 2028 ANGEBRECHEN: Neue Herausforderung freigeschaltet - Extreme Katastrophen & Biosicherheit!", "warning");
+    } else if (nextRound === 13) {
+      setActiveYearChallengeModal(2029);
+      addLog("📅 JAHR 2029 ANGEBRECHEN: Finale Herausforderung freigeschaltet - Systemische Gesamtkrise!", "warning");
+    }
 
     // Update state stats
-    setStats(prev => ({
-      ...prev,
-      round: nextRound,
-      year: nextYear,
-      budget: Math.max(0, prev.budget + netYield),
-      researchPoints: prev.researchPoints + passiveResearch,
-      naturePoints: prev.naturePoints + passiveNature,
-      climateRisk: Math.min(100, Math.max(0, prev.climateRisk + Math.round(climateDamper)))
-    }));
+    setStats(prev => {
+      const currentAcc = prev.citizenAcceptance !== undefined ? prev.citizenAcceptance : 80;
+      const nextAcc = Math.max(0, Math.min(100, currentAcc + acceptanceDeltaRound));
+      return {
+        ...prev,
+        round: nextRound,
+        year: nextYear,
+        budget: Math.max(0, prev.budget + actualYield),
+        researchPoints: prev.researchPoints + passiveResearch,
+        naturePoints: prev.naturePoints + passiveNature,
+        climateRisk: Math.min(100, Math.max(0, prev.climateRisk + Math.round(climateDamper) + extraClimateRisk)),
+        biosecurity: nextBiosecurity,
+        renewableEnergy: nextRenewableEnergy,
+        citizenAcceptance: nextYear > 2026 ? nextAcc : currentAcc
+      };
+    });
 
-    addLog(`Finanzlage: Steuereinnahmen +${dynamicRevenue + factoryTaxRevenue} € erhalten, Instandhaltung -${netMaintenance} € abgezogen (Netto: ${netYield} €).`, 'info');
+    if (localAcceptanceLog) {
+      addLog(localAcceptanceLog, coopsActive ? 'success' : 'warning');
+    }
+
+    addLog(`Finanzlage: Steuereinnahmen +${dynamicRevenue + factoryTaxRevenue} € erhalten, Instandhaltung -${netMaintenance} € abgezogen (Netto: ${actualYield} €).`, 'info');
     if (passiveResearch > 0 || passiveNature > 0) {
       addLog(`Rurtal-Ertrag: +${passiveResearch} 🧪 Forschung, +${passiveNature} 🌿 Artenschutz-Erkenntnisse gesammelt.`, 'success');
     }
@@ -1309,6 +1670,10 @@ export default function App() {
 
   const resolveAnnualClimateEvents = (roundNum: number, currentRisk: number) => {
     // Check constraints to trigger random event cards
+    if (roundNum < 9) {
+      addLog("🌤️ RUHE VOR DEM STURM: In den ersten beiden Jahren bleibt das Rurtal vor großen Naturkatastrophen verschont. Mache dich vertraut mit der Karte!", "info");
+      return;
+    }
     const roll = Math.random() * 100;
     
     if (currentRisk >= 35 && roll < 50) {
@@ -1351,9 +1716,16 @@ export default function App() {
         addLog('🛡️ HOCHWASSERSCHUTZ ERFOLGREICH: Deine errichteten Retentionsräume und Deichrückverlegungen fangen die Flutwelle sicher ab! Keine Gebäudeschäden im Kreis Düren.', 'success');
         setStats(prev => ({ ...prev, naturePoints: prev.naturePoints + 10 }));
       } else {
-        // Punish player
-        setStats(prev => ({ ...prev, budget: Math.max(0, prev.budget - 12) }));
-        addLog('❌ FLUT-KATASTROPHE: Fehlende Deichrückverlegungen oder Polder führen zu Überschwemmungen in städtischen Sektoren. Reparaturen kosten dich -12 €.', 'error');
+        // Punish player but check Early Warning System of HQ
+        const isEwsActive = stats.earlyWarningSystemActive || stats.oekoZentraleLevel === 3;
+        const actualDamage = isEwsActive ? 6 : 12;
+
+        setStats(prev => ({ ...prev, budget: Math.max(0, prev.budget - actualDamage) }));
+        if (isEwsActive) {
+          addLog(`⚠️ FRÜHWARNSTAB AKTIV: Dank des installierten Frühwarnsystems am Hauptquartier wurden Sandsäcke rechtzeitig disponiert! Schaden auf -6 € halbiert (statt 12 €).`, 'success');
+        } else {
+          addLog('❌ FLUT-KATASTROPHE: Fehlende Deichrückverlegungen oder Polder führen zu Überschwemmungen in städtischen Sektoren. Reparaturen kosten dich -12 €.', 'error');
+        }
       }
     } 
     else if (activeEvent.id === 'duerre') {
@@ -1362,8 +1734,14 @@ export default function App() {
         setStats(prev => ({ ...prev, budget: Math.max(0, prev.budget - 4) }));
         addLog('💧 DÜRRESHIELD: Du leitest Notflutungen aus den Rurtalsperren ein. Störfaktoren stabilisiert (-4 €).', 'info');
       } else {
-        setStats(prev => ({ ...prev, naturePoints: Math.max(0, prev.naturePoints - 8) }));
-        addLog('❌ SCHWERE IMPAKTE: Fischsterben am Unterlauf der Rur zerstört regionale Artenpopulationen (-8 Artenschutz-Punkte).', 'error');
+        const hqMitigation = stats.earlyWarningSystemActive || stats.oekoZentraleLevel === 3;
+        const actualLoss = hqMitigation ? 4 : 8;
+        setStats(prev => ({ ...prev, naturePoints: Math.max(0, prev.naturePoints - actualLoss) }));
+        if (hqMitigation) {
+          addLog(`⚠️ DÜRRE-ABWEHR: Das modernisierte HQ Düren steuert Rurschwellen zur Minimalfeuchte! Artenschutz-Verlust halbiert auf -${actualLoss} 🌿 (statt 8 🌿).`, 'success');
+        } else {
+          addLog('❌ SCHWERE IMPAKTE: Fischsterben am Unterlauf der Rur zerstört regionale Artenpopulationen (-8 Artenschutz-Punkte).', 'error');
+        }
       }
     }
     else if (activeEvent.id === 'biber_schaden') {
@@ -1377,6 +1755,90 @@ export default function App() {
         // Demolish beaver dams, lower beaver progression
         setSpeciesList(prev => prev.map(s => s.id === 'biber' ? { ...s, currentProgress: Math.max(0, s.currentProgress - 30), unlocked: false } : s));
         addLog('❌ BIBER-DAMMRÜCKBAU: Der Biberdamm wurde entfernt. Das schädigt das Artenschutz-Verhältnis nachhaltig (-30% Biber-Prozess).', 'error');
+      }
+    }
+    else if (activeEvent.id === 'invasive_plage') {
+      if (decision === 'pay') {
+        setStats(prev => ({
+          ...prev,
+          budget: Math.max(0, prev.budget - 6),
+          biosecurity: 100
+        }));
+        addLog('🦠 INVASIVE BESEITIGUNG: Erfahrene Ranger und Freiwillige entfernen Bestände des Riesen-Bärenklaus und fangen Signalkrebse ab. Bio-Sicherheit wieder bei 100% (-6 €).', 'success');
+      } else if (decision === 'eco') {
+        if (stats.researchPoints < 3) {
+          addLog('❌ AKTION UNMÖGLICH: Nicht genügend Forschungspunkte vorhanden (3 🧪 benötigt).', 'error');
+          return;
+        }
+        setStats(prev => ({
+          ...prev,
+          researchPoints: prev.researchPoints - 3,
+          naturePoints: prev.naturePoints + 15,
+          biosecurity: 100
+        }));
+        addLog('🧪 NATIVE BIO-KONTROLLE: Durch Freisetzung modifizierter, steriler Signalkrebse dämmst du die Plage biologisch ein. Bio-Sicherheit wieder bei 100% (-3 🧪, +15 Naturpunkte).', 'success');
+      } else {
+        const isEwsActive = stats.earlyWarningSystemActive || stats.oekoZentraleLevel === 3;
+        const penaltyNature = isEwsActive ? 5 : 10;
+        setStats(prev => ({
+          ...prev,
+          biosecurity: 10,
+          naturePoints: Math.max(0, prev.naturePoints - penaltyNature)
+        }));
+        setGrid(prev => prev.map(row => row.map(t => {
+          if (t.terrain === 'Water') {
+            return {
+              ...t,
+              wrrl_quality: Math.min(5.0, t.wrrl_quality + 0.6),
+              ffh_value: Math.max(0, t.ffh_value - 15)
+            };
+          } else if (t.terrain === 'Wiese' || t.terrain === 'Auwald') {
+            return {
+              ...t,
+              ffh_value: Math.max(0, t.ffh_value - 15)
+            };
+          }
+          return t;
+        })));
+        setSpeciesList(prev => prev.map(s => ({
+          ...s,
+          currentProgress: Math.max(0, s.currentProgress - 20)
+        })));
+        if (isEwsActive) {
+          addLog(`🦠 INVASIONS-PEILUNG: Durch HQ-Artenschutzdrohnen wurden empfindliche Zuchträume vorübergehend verlagert. Naturschaden halbiert auf -${penaltyNature} 🌿.`, 'success');
+        } else {
+          addLog('❌ KATASTROPHE AUSGESESSEN: Du hast die invasive Artenplage ignoriert. Beide Uferseiten sind von Riesen-Bärenklau überwuchert und Signalkrebse dominieren das Flussbett. Arten geschädigt (-10 Naturpunkte, WRRL & FFH-Potenziale verschlechtert).', 'error');
+        }
+      }
+    }
+    else if (activeEvent.id === 'energy_crisis') {
+      if (decision === 'pay') {
+        setStats(prev => ({
+          ...prev,
+          budget: Math.max(0, prev.budget - 5),
+          renewableEnergy: 40
+        }));
+        addLog('⚡ NOTSTROM GEKAUFT: Du finanzierst teure temporäre Ökostrom-Importe und Netzkupplungen. Die Energieversorgung stabilisiert sich auf 40% (-5 €).', 'success');
+      } else {
+        setStats(prev => ({
+          ...prev,
+          naturePoints: Math.max(0, prev.naturePoints - 10),
+          renewableEnergy: 20
+        }));
+        setGrid(prev => prev.map(row => row.map(t => {
+          if (t.buildingId === 'solarpark' || t.buildingId === 'windkraft' || t.buildingId === 'wasserkraft') {
+            return t;
+          }
+          if (t.terrain === 'Auwald' && Math.random() < 0.3) {
+            return {
+              ...t,
+              terrain: 'Wiese' as TerrainType,
+              ffh_value: Math.max(10, t.ffh_value - 30)
+            };
+          }
+          return t;
+        })));
+        addLog('❌ AUSGLEICHSFLÄCHEN GEOPFERT: Um Übertragungsleitungen zu bauen, werden geschützte Waldflächen gerodet und Kohlenkraftwerke behelfsmäßig reaktiviert (-10 Naturpunkte, teilweiser Artenverlust).', 'error');
       }
     }
 
@@ -1405,12 +1867,24 @@ export default function App() {
         continuity: 30,
         climateRisk: 15,
         paperFactoryMode: 'PRODUCTION',
-        rurtalbahnSlotsUsed: 0
+        rurtalbahnSlotsUsed: 0,
+        biosecurity: 100,
+        renewableEnergy: 25,
+        citizenAcceptance: 80,
+        cooperativesActive: false,
+        oekoZentraleLevel: 1,
+        oekoZentraleMode: 'STANDARD',
+        earlyWarningSystemActive: false
       });
       setActiveEvent(null);
       setRurtalbahnLeased(false);
       setPdfSimulated(false);
       setSelectedTileInfo(null);
+      setInvasiveThreatEnabled(false);
+      setShowInvasiveRules(false);
+      setEnergyChallengeEnabled(false);
+      setShowEnergyRules(false);
+      setActiveYearChallengeModal(null);
       addLog('Simulation zurückgesetzt.', 'info');
     }
   };
@@ -1553,9 +2027,22 @@ export default function App() {
               setShowTutorial(true);
             }}
             className="px-3.5 py-2.5 rounded-lg bg-[#E8E2D6] hover:bg-[#DCD4C4] text-[#2C3311] border border-[#D4CCBA] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            title="Schritt-für-Schritt Einführung anzeigen"
           >
             <HelpCircle className="w-4 h-4 text-[#5A7247]" />
-            Regeln
+            Einführung
+          </button>
+
+          {/* Detailed game rules manual button */}
+          <button
+            onClick={() => {
+              setShowSpielregeln(true);
+            }}
+            className="px-3.5 py-2.5 rounded-lg bg-[#F5EAD4] hover:bg-[#ECDEBF] text-[#7A3F1F] border border-[#DCC5A3] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            title="Detaillierte Spielregeln und mechanische Zusammenhänge anzeigen"
+          >
+            <BookOpen className="w-4 h-4 text-[#BC6C25]" />
+            Spielanleitung
           </button>
 
           {/* Feedback button */}
@@ -1624,6 +2111,289 @@ export default function App() {
         {/* RIGHT COLUMN: Tab selection & specific control modules */}
         <div className="w-full md:w-2/5 shrink-0 flex flex-col gap-6 h-full max-h-[920px]">
           
+          {/* Simulation-Szenarien & Extra-Herausforderungen (Invasive & Energiewende) */}
+          <div className="bg-[#EADECE]/85 border-2 border-[#BC6C25]/45 rounded-xl p-4 shadow-sm flex flex-col gap-4 relative">
+            
+            {/* INVASIVE SPECIES CHALLENGE */}
+            <div className="border-b border-[#D4CCBA] pb-3.5">
+              {(() => {
+                const currentBio = stats.biosecurity !== undefined ? stats.biosecurity : 100;
+                const projectedDelta = roundInvested ? 15 : -25;
+                const projectedNext = Math.max(0, Math.min(100, currentBio + projectedDelta));
+                
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm select-none">🦠</span>
+                        <span className="text-xs font-black text-[#2C3311] uppercase tracking-wide">
+                          Invasive Bedrohung (Schwer)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowInvasiveRules(true)}
+                          className="text-[#BC6C25] hover:text-[#9e5212] underline text-[10px] font-black cursor-pointer transition-colors"
+                        >
+                          [Regeln]
+                        </button>
+                      </div>
+                      
+                      {/* Switch style toggle */}
+                      <div 
+                        className="flex items-center gap-2 relative"
+                        onMouseEnter={() => setIsHoveringToggle(true)}
+                        onMouseLeave={() => setIsHoveringToggle(false)}
+                      >
+                        <span className={`text-[10px] font-mono font-black uppercase transition-colors duration-200 ${invasiveThreatEnabled ? 'text-[#BC6C25]' : 'text-[#8B8273]'}`}>
+                          {invasiveThreatEnabled ? 'Aktiv' : 'Aus'}
+                        </span>
+                        
+                        <label className="relative inline-flex items-center cursor-pointer select-none">
+                          <input
+                            id="invasive-difficulty-toggle"
+                            type="checkbox"
+                            checked={invasiveThreatEnabled}
+                            onChange={(e) => {
+                              const enabled = e.target.checked;
+                              setInvasiveThreatEnabled(enabled);
+                              if (enabled) {
+                                setShowInvasiveRules(true);
+                                addLog('🚨 BIOLOGISCHER STRESSOR-MODUS AKTIVIERT: Biologische Sicherheit sinkt nun und bricht bei Vernachlässigung zusammen!', 'warning');
+                              } else {
+                                addLog('🛡️ Biologischer Stressor-Modus deaktiviert. Biologische Sicherheit stabilisiert.', 'success');
+                              }
+                            }}
+                            onFocus={() => setIsHoveringToggle(true)}
+                            onBlur={() => setIsHoveringToggle(false)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-[#D4CCBA] rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#BC6C25]"></div>
+                        </label>
+
+                        {/* PROJECTION PREVIEW TOOLTIP */}
+                        {isHoveringToggle && (
+                          <div 
+                            id="biosecurity-hover-preview" 
+                            className="absolute right-0 top-6 mt-1.5 w-64 bg-[#2C3311] text-[#F2EDE4] text-[10px] p-3 rounded-xl border-2 border-[#BC6C25] shadow-xl z-[9999] pointer-events-none space-y-2 animate-fade-in text-left font-sans animate-scale-up"
+                          >
+                            <div className="flex items-center justify-between border-b border-white/10 pb-1 font-extrabold text-[9px] uppercase tracking-wider text-[#BC6C25]">
+                              <span>🔮 Prognose-Vorschau</span>
+                              <span className="font-mono bg-white/10 px-1 py-0.5 rounded text-[8px] tracking-normal text-white">Nächste Runde</span>
+                            </div>
+
+                            {!invasiveThreatEnabled ? (
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] text-white/90 leading-normal block">
+                                  Vor der Aktivierung beachten:
+                                </p>
+                                <div className="flex justify-between font-mono bg-white/5 p-1 rounded text-[9.5px]">
+                                  <span className="text-white/60">Aktueller Wert:</span>
+                                  <span className="text-white font-bold">{currentBio}%</span>
+                                </div>
+                                <p className="text-[9.5px] text-stone-300 leading-tight">
+                                  Nach Aktivierung sinkt die Bio-Sicherheit bei Inaktivität um <strong className="text-rose-400 font-black">-25%</strong>, lässt sich jedoch durch gezielten Bio- &amp; Artenschutz um <strong className="text-emerald-400 font-black">+15%</strong> stabilisieren.
+                                </p>
+                                <div className="text-[9px] font-mono text-[#BC6C25] bg-amber-950/20 p-1.5 rounded border border-[#BC6C25]/30">
+                                  Erwartet bei Aktivierung:<br/>
+                                  • Erholung: <strong className="text-emerald-400">{Math.min(100, currentBio + 15)}%</strong><br/>
+                                  • Verfall: <strong className="text-rose-400">{Math.max(0, currentBio - 25)}%</strong>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between font-mono text-[9.5px]">
+                                  <span className="text-white/60">Aktueller Status:</span>
+                                  <span className="text-white font-bold">{currentBio}%</span>
+                                </div>
+                                <div className="flex justify-between font-mono text-[9.5px]">
+                                  <span className="text-white/60 text-left">Investition getätigt:</span>
+                                  <span className={roundInvested ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                                    {roundInvested ? "Ja (+15%)" : "Nein (-25%)"}
+                                  </span>
+                                </div>
+                                <hr className="border-white/10 my-1" />
+                                <div className="flex justify-between font-mono font-bold leading-tight text-[9.5px]">
+                                  <span className="text-[#BC6C25]">Trend nächste Runde:</span>
+                                  <span className={projectedDelta >= 0 ? "text-emerald-400 bg-emerald-950/50 px-1.5 py-0.5 rounded font-black text-[10px]" : "text-rose-400 bg-rose-950/50 px-1.5 py-0.5 rounded font-black text-[10px]"}>
+                                    ➔ {projectedNext}% ({projectedDelta >= 0 ? '+' : ''}{projectedDelta}%)
+                                  </span>
+                                </div>
+
+                                {projectedNext <= 30 && (
+                                  <div className="text-[9px] text-rose-300 leading-tight bg-rose-950/60 p-1.5 rounded border border-rose-900/30">
+                                    {projectedNext === 0 
+                                      ? '🚨 KRITISCH: Drohender Plagen-Ausbruch bei 0%!' 
+                                      : '⚠️ ACHTUNG: Schleichender Gewässerverfall bei <30%!'}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <p className="text-[10px] text-[#554A3C]/95 leading-normal">
+                      Aktiviert biologische Bedrohungszyklen: Runder-Zollschritt verringert die Bio-Sicherheit kontinuierlich um <span className="font-extrabold">-25%</span> bei Inaktivität. Bei biom-kritischem Wert (<span className="font-extrabold">&lt;30%</span>) degradieren Flussqualitäten (WRRL) schleichend, bei <span className="font-extrabold">0%</span> droht ein unkontrollierter Befall (Plagen-Event).
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* RENEWABLE ENERGY CHALLENGE */}
+            <div>
+              {(() => {
+                const currentEnergy = stats.renewableEnergy !== undefined ? stats.renewableEnergy : 25;
+                
+                // Calculate projected delta
+                let decay = -10;
+                const isGreenEnergyTechUnlocked = researchTree.find(r => r.id === 'green_energy_tech')?.unlocked || false;
+                if (isGreenEnergyTechUnlocked) {
+                  decay = -5;
+                }
+                const hydroCount = grid.flat().filter(t => t.buildingId === 'wasserkraft').length;
+                const solarCount = grid.flat().filter(t => t.buildingId === 'solarpark').length;
+                const windCount = grid.flat().filter(t => t.buildingId === 'windkraft').length;
+
+                let investmentBonus = 0;
+                if (roundInvested) {
+                  investmentBonus = 10;
+                }
+
+                const generationOffset = (hydroCount * 12) + (solarCount * 10) + (windCount * 15);
+                const netDelta = decay + generationOffset + investmentBonus;
+                const projectedNext = Math.max(0, Math.min(100, currentEnergy + netDelta));
+
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm select-none">⚡</span>
+                        <span className="text-xs font-black text-[#2C3311] uppercase tracking-wide">
+                          Energiewende-Zwang (Mittel)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowEnergyRules(true)}
+                          className="text-[#BC6C25] hover:text-[#9e5212] underline text-[10px] font-black cursor-pointer transition-colors"
+                        >
+                          [Regeln]
+                        </button>
+                      </div>
+
+                      {/* Switch style toggle */}
+                      <div 
+                        className="flex items-center gap-2 relative"
+                        onMouseEnter={() => setIsHoveringEnergyToggle(true)}
+                        onMouseLeave={() => setIsHoveringEnergyToggle(false)}
+                      >
+                        <span className={`text-[10px] font-mono font-black uppercase transition-colors duration-200 ${energyChallengeEnabled ? 'text-[#BC6C25]' : 'text-[#8B8273]'}`}>
+                          {energyChallengeEnabled ? 'Aktiv' : 'Aus'}
+                        </span>
+                        
+                        <label className="relative inline-flex items-center cursor-pointer select-none">
+                          <input
+                            id="energy-difficulty-toggle"
+                            type="checkbox"
+                            checked={energyChallengeEnabled}
+                            onChange={(e) => {
+                              const enabled = e.target.checked;
+                              setEnergyChallengeEnabled(enabled);
+                              if (enabled) {
+                                setShowEnergyRules(true);
+                                addLog('⚡ ENERGIEWENDE GELADEN: Dürens Industrie gerät unter Dekarbonisierungsdruck! Baue grüne Kraftwerke zur Versorgung.', 'warning');
+                              } else {
+                                addLog('🛡️ Energiewende-Szenario deaktiviert. Ökostromversorgung stabilisiert.', 'success');
+                              }
+                            }}
+                            onFocus={() => setIsHoveringEnergyToggle(true)}
+                            onBlur={() => setIsHoveringEnergyToggle(false)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-[#D4CCBA] rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#BC6C25]"></div>
+                        </label>
+
+                        {/* PROJECTION PREVIEW TOOLTIP */}
+                        {isHoveringEnergyToggle && (
+                          <div 
+                            id="energy-hover-preview" 
+                            className="absolute right-0 top-6 mt-1.5 w-64 bg-[#2C3311] text-[#F2EDE4] text-[10px] p-3 rounded-xl border-2 border-[#BC6C25] shadow-xl z-[9999] pointer-events-none space-y-2 animate-fade-in text-left font-sans animate-scale-up"
+                          >
+                            <div className="flex items-center justify-between border-b border-white/10 pb-1 font-extrabold text-[9px] uppercase tracking-wider text-[#BC6C25]">
+                              <span>🔮 Energiewende-Prognose</span>
+                              <span className="font-mono bg-white/10 px-1 py-0.5 rounded text-[8px] tracking-normal text-white">Nächste Runde</span>
+                            </div>
+
+                            {!energyChallengeEnabled ? (
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] text-white/90 leading-normal block">
+                                  Vor der Aktivierung beachten:
+                                </p>
+                                <div className="flex justify-between font-mono bg-white/5 p-1 rounded text-[9.5px]">
+                                  <span className="text-white/60">Aktuelle Versorgung:</span>
+                                  <span className="text-white font-bold">{currentEnergy}%</span>
+                                </div>
+                                <p className="text-[9.5px] text-stone-300 leading-tight">
+                                  Dürens Industrie verlangt Dekarbonisierung. Ohne Erzeuger droht ein Runden-Abfall von <strong className="text-rose-400 font-black">{decay}%</strong>.
+                                </p>
+                                <div className="text-[9px] font-mono text-[#BC6C25] bg-amber-950/20 p-1.5 rounded border border-[#BC6C25]/30">
+                                  Wirkung auf der Karte:<br/>
+                                  • Klein-Wasserkraft: <strong className="text-emerald-400">+{hydroCount * 12}%</strong><br/>
+                                  • Solarwiesen: <strong className="text-emerald-400">+{solarCount * 10}%</strong><br/>
+                                  • Bürger-Windturbinen: <strong className="text-emerald-400">+{windCount * 15}%</strong>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5 font-sans">
+                                <div className="flex justify-between font-mono text-[9.5px]">
+                                  <span className="text-white/60 text-left">Grüne Quote:</span>
+                                  <span className="text-white font-bold">{currentEnergy}%</span>
+                                </div>
+                                <div className="flex justify-between font-mono text-[9.5px]">
+                                  <span className="text-white/60 text-left">Basis-Industriewert:</span>
+                                  <span className="text-rose-400 font-bold">{decay}% / Runde</span>
+                                </div>
+                                <div className="flex justify-between font-mono text-[9.5px]">
+                                  <span className="text-white/60 text-left">Grüne Generierung:</span>
+                                  <span className="text-emerald-400 font-bold">+{generationOffset}% / Runde</span>
+                                </div>
+                                <div className="flex justify-between font-mono text-[9.5px]">
+                                  <span className="text-white/60 text-left">Bautätigkeit-Boost:</span>
+                                  <span className="text-emerald-400 font-bold">+{investmentBonus}%</span>
+                                </div>
+                                <hr className="border-white/10 my-1" />
+                                <div className="flex justify-between font-mono font-bold leading-tight text-[9.5px]">
+                                  <span className="text-[#BC6C25]">Ziel-Wert nächste Runde:</span>
+                                  <span className={netDelta >= 0 ? "text-emerald-400 bg-emerald-950/50 px-1.5 py-0.5 rounded font-black text-[10px]" : "text-rose-400 bg-rose-950/50 px-1.5 py-0.5 rounded font-black text-[10px]"}>
+                                    ➔ {projectedNext}% ({netDelta >= 0 ? '+' : ''}{netDelta}%)
+                                  </span>
+                                </div>
+
+                                {projectedNext < 35 && (
+                                  <div className="text-[9px] text-rose-300 leading-tight bg-rose-950/60 p-1.5 rounded border border-rose-900/30">
+                                    {projectedNext === 0 
+                                      ? '🚨 NETZCOLLAPS: Drohender Netzausfall bei 0%!' 
+                                      : '⚠️ GEBÜHR: CO2-Fossil-Steuer droht bei <35%!'}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-[#554A3C]/95 leading-normal">
+                      Simuliert den industriellen Ökostrom-Zwang: Verfall von <span className="font-extrabold">-10%</span> pro Runde (reduzierbar auf <span className="font-extrabold">-5%</span> per Forschung). Halte die Quote über <span className="font-extrabold">35%</span>, um Strafsteuern abzuwenden, oder erreiche <span className="font-extrabold">75%</span> für lukrative Boni.
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+
+          </div>
+
           {/* Tabs header panel */}
           <div className="flex bg-[#E8E2D6] border border-[#D4CCBA] p-1.5 rounded-xl justify-between shadow-sm">
             {(['map', 'schoeller', 'research', 'species', 'reports'] as const).map(tab => (
@@ -1851,8 +2621,209 @@ export default function App() {
             setSelectedBuilding(null);
             setIsDemolishMode(!isDemolishMode);
           }}
+          invasiveThreatEnabled={invasiveThreatEnabled}
+          energyChallengeEnabled={energyChallengeEnabled}
+          onUpdateStats={(updater) => setStats(prev => updater(prev))}
+          addLog={addLog}
         />
       </div>
+
+      {/* SEPARATE RULE POPUP FOR INVASIVE THREAT MECHANISM */}
+      {showInvasiveRules && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-[#F2EDE4] border-w-2 border-[#BC6C25] border-2 rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 animate-scale-up text-[#2C3311]">
+            
+            <div className="flex items-start justify-between border-b border-[#D4CCBA] pb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl filter drop-shadow-sm select-none">🦠</span>
+                <div>
+                  <span className="text-[9px] font-mono tracking-[0.2em] text-[#BC6C25] uppercase font-black block">
+                    Zusatz-Regelwerk
+                  </span>
+                  <h3 className="text-base font-black text-[#2C3311] leading-tight">
+                    Invasive Arten &amp; Biologische Sicherheit
+                  </h3>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowInvasiveRules(false)}
+                className="text-[#8B8273] hover:text-[#2C3311] font-bold text-sm p-1.5 rounded-full hover:bg-[#E8E2D6]/70 transition-colors leading-none cursor-pointer border border-[#D4CCBA]/50"
+                title="Schließen"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs leading-relaxed bg-white/65 p-3 rounded-xl border border-[#D4CCBA]/50">
+              Du hast den <strong>invasiven Schwierigkeitsmodus</strong> aktiviert! Diese Mechanik simuliert das Vordringen unkontrollierter Fremdarten (z.B. Signalkrebs, Riesen-Bärenklau, Drüsiges Springkraut) an der Rur.
+            </p>
+
+            <div className="space-y-3.5 max-h-[350px] overflow-y-auto pr-1">
+              {/* Regel 1 */}
+              <div className="bg-amber-50/55 border border-[#BC6C25]/25 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">📉</span>
+                <div>
+                  <h4 className="font-extrabold text-[#BC6C25] text-xs">Aktivitäts-Zwang (Verfall)</h4>
+                  <p className="text-[10px] text-[#554A3C] mt-0.5 leading-relaxed">
+                    Tätigst du in einer Runde <strong>keine</strong> aktive Naturschutzinvestition (z.B. Fauna-Projekte, Aufwertungen oder neue Forschungen), sinkt die Bio-Sicherheit automatisch um <strong>-25%</strong>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Regel 2 */}
+              <div className="bg-emerald-50/45 border border-emerald-600/20 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">🛡️</span>
+                <div>
+                  <h4 className="font-extrabold text-emerald-800 text-xs">Stabilisierung &amp; Rettung</h4>
+                  <p className="text-[10px] text-emerald-900 mt-0.5 leading-relaxed">
+                    Jede aktive Investition in Artenschutz, bauliche Maßnahmen, Upgrades oder Forschung stabilisiert die Abwehrmechanismen des Bioms und erhöht die Bio-Sicherheit um <strong>+15%</strong> (bis max. 100%).
+                  </p>
+                </div>
+              </div>
+
+              {/* Regel 3 */}
+              <div className="bg-rose-50/50 border border-rose-200 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">⚠️</span>
+                <div>
+                  <h4 className="font-extrabold text-rose-800 text-xs">Laufender Schaden bei Kritischer Stufe</h4>
+                  <p className="text-[10px] text-rose-900 mt-0.5 leading-relaxed">
+                    Fällt dein Sicherheitslevel <strong>unter 30%</strong>, leidet der Fluss schleichend unter Kleinstplagen. Gewässerpotenzial (WRRL) und Artenvielfalt (FFH-Werte) degradieren jede Runde unaufhaltsam!
+                  </p>
+                </div>
+              </div>
+
+              {/* Regel 4 */}
+              <div className="bg-red-50/60 border border-red-350/30 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">🚨</span>
+                <div>
+                  <h4 className="font-extrabold text-red-800 text-xs">Plagen-Kollaps bei 0%</h4>
+                  <p className="text-[10px] text-[#2C3311] mt-0.5 leading-relaxed">
+                    Sollte deine biologische Sicherheit auf <strong>0%</strong> abstürzen, bricht eine invasive Fremdarten-Welle aus. Du wirst gezwungen, sofort massive Geldmittel (6 €) oder Forschungsressourcen (3 🧪) einzusetzen, um verheerende Habitatschäden abzuwenden.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-[#D4CCBA] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowInvasiveRules(false)}
+                className="px-5 py-2 rounded-xl bg-[#5A7247] hover:bg-[#4A5D3A] text-white font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-150 transition-all shadow-md"
+              >
+                Verstanden &amp; Weiter
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* SEPARATE RULE POPUP FOR RENEWABLE ENERGY CHALLENGE */}
+      {showEnergyRules && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-[#F2EDE4] border-w-2 border-[#BC6C25] border-2 rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 animate-scale-up text-[#2C3311]">
+            
+            <div className="flex items-start justify-between border-b border-[#D4CCBA] pb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl filter drop-shadow-sm select-none">⚡</span>
+                <div>
+                  <span className="text-[9px] font-mono tracking-[0.2em] text-[#BC6C25] uppercase font-black block">
+                    Zusatz-Regelwerk
+                  </span>
+                  <h3 className="text-base font-black text-[#2C3311] leading-tight">
+                    Energiewende &amp; Industrieller CO2-Druck
+                  </h3>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowEnergyRules(false)}
+                className="text-[#8B8273] hover:text-[#2C3311] font-bold text-sm p-1.5 rounded-full hover:bg-[#E8E2D6]/70 transition-colors leading-none cursor-pointer border border-[#D4CCBA]/50"
+                title="Schließen"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs leading-relaxed bg-white/65 p-3 rounded-xl border border-[#D4CCBA]/50">
+              Du hast die <strong>Energiewende-Herausforderung</strong> aktiviert! Düren besitzt eine hochentwickelte, aber extrem energieintensive Industrie (Papierwerke, Metallverarbeitung). Ohne grüne Stromerzeugung drohen CO2-Strafen und Klimarisiken.
+            </p>
+
+            <div className="space-y-3.5 max-h-[350px] overflow-y-auto pr-1 font-sans">
+              {/* Regel 1 */}
+              <div className="bg-amber-50/55 border border-[#BC6C25]/25 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">📈</span>
+                <div>
+                  <h4 className="font-extrabold text-[#BC6C25] text-xs">Fossiler Verfall der Stromdeckung</h4>
+                  <p className="text-[10px] text-[#554A3C] mt-0.5 leading-relaxed">
+                    Durch steigendes Wirtschaftswachstum sinkt die Grüne Energiequote der Stadt jede Runde automatisch um <strong>-10%</strong>, außer du steuerst mit Kraftwerken der erneuerbaren Energie gegen.
+                  </p>
+                </div>
+              </div>
+
+              {/* Regel 2 */}
+              <div className="bg-[#EAE0D5] border border-[#BC6C25]/20 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">🔬</span>
+                <div>
+                  <h4 className="font-extrabold text-[#2C3322] text-xs font-sans">Energiewende-Konzept (Forschung)</h4>
+                  <p className="text-[10px] text-[#554A3C] mt-0.5 leading-relaxed">
+                    Erforsche das <strong>Dürener Energiewende-Konzept</strong> (Forschungsstufe, 8 🧪), um die Infrastruktur zu modernisieren und den fossilen Runden-Verfall permanent um <strong>-50%</strong> (auf nur -5% pro Runde) zu bremsen.
+                  </p>
+                </div>
+              </div>
+
+              {/* Regel 3 */}
+              <div className="bg-emerald-50/45 border border-emerald-600/20 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">🏗️</span>
+                <div>
+                  <h4 className="font-extrabold text-emerald-800 text-xs">Grüne Energie-Pioniere (Gebäude)</h4>
+                  <p className="text-[10px] text-emerald-900 mt-0.5 leading-relaxed">
+                    Baue Generatoren auf der Karte für permanenten Runden-Ausgleich:
+                    <br />• <strong>Klein-Wasserkraftwerk</strong> liefert <strong>+12%</strong>/Runde.
+                    <br />• <strong>Solarpark Rurwiese</strong> liefert <strong>+10%</strong>/Runde.
+                    <br />• <strong>Bürger-Windturbine</strong> liefert <strong>+15%</strong>/Runde.
+                    <br />• <i>Außerdem gibt jede beliebige Bauaktivität/Upgrade einen einmaligen Modernisierungs-Boost von +10% Erneuerbare.</i>
+                  </p>
+                </div>
+              </div>
+
+              {/* Regel 4 */}
+              <div className="bg-rose-50/50 border border-rose-200 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">💶</span>
+                <div>
+                  <h4 className="font-extrabold text-rose-800 text-xs text-left">Strafzahlungen &amp; Klimabelastung (&lt;35%)</h4>
+                  <p className="text-[10px] text-rose-900 mt-0.5 leading-relaxed text-left">
+                    Sinkt die Grüne Energiequote <strong>unter 35%</strong>, zahlen Betriebe CO2-Abgaben (<strong>-2 €</strong> pro Runde) und die fossilen Abgase erhöhen das städtische Klimarisiko um <strong>+2%</strong> pro Runde!
+                  </p>
+                </div>
+              </div>
+
+              {/* Regel 5 */}
+              <div className="bg-[#D4E0C1] border border-[#5A7247]/25 rounded-xl p-3 flex gap-3 text-left">
+                <span className="text-lg shrink-0">🏆</span>
+                <div>
+                  <h4 className="font-extrabold text-[#2C3322] text-xs text-left">Wirtschaftlicher Bonus (&gt;=75%)</h4>
+                  <p className="text-[10px] text-[#2C3322] mt-0.5 leading-relaxed text-left">
+                    Erreicht deine grüne Quote vorbildliche <strong>&gt;= 75%</strong>, gilt Düren als grüne Modellstadt und zieht lukrative Ökoförderung an (<strong>+2 €</strong> Netto-Ertrag/Runde und <strong>-1%</strong> Klimarisiko).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-[#D4CCBA] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowEnergyRules(false)}
+                className="px-5 py-2 rounded-xl bg-[#5A7247] hover:bg-[#4A5D3A] text-white font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-150 transition-all shadow-md"
+              >
+                Verstanden &amp; Weiter
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* DYNAMIC MODAL: CLIMATE EVENTS CHALLENGES */}
       {activeEvent && (
@@ -1899,6 +2870,49 @@ export default function App() {
                     Naturereignis aussitzen
                   </button>
                 </>
+              ) : activeEvent.id === 'invasive_plage' ? (
+                <>
+                  <button
+                    onClick={() => handleResolveEvent('pay')}
+                    className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] uppercase rounded-lg cursor-pointer flex flex-col items-center justify-center min-h-[46px]"
+                  >
+                    <span>Erradikation finanzieren</span>
+                    <span className="text-[9px] text-indigo-100 font-normal normal-case">-6 € Steuermittel</span>
+                  </button>
+                  <button
+                    onClick={() => handleResolveEvent('eco')}
+                    disabled={stats.researchPoints < 3}
+                    className="flex-1 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-[11px] uppercase rounded-lg cursor-pointer flex flex-col items-center justify-center min-h-[46px]"
+                  >
+                    <span>Biom-Modellierung</span>
+                    <span className="text-[9px] text-sky-100 font-normal normal-case">-3 🧪 Forschung (+15 🌿)</span>
+                  </button>
+                  <button
+                    onClick={() => handleResolveEvent('ignore')}
+                    className="flex-1 py-2 bg-rose-800 hover:bg-rose-900 text-white font-extrabold text-[11px] uppercase rounded-lg cursor-pointer flex flex-col items-center justify-center min-h-[46px] border border-rose-950"
+                  >
+                    <span>Aussitzen</span>
+                    <span className="text-[9px] text-rose-100 font-normal normal-case">Schwerer Verfall</span>
+                  </button>
+                </>
+              ) : activeEvent.id === 'energy_crisis' ? (
+                <>
+                  <button
+                    onClick={() => handleResolveEvent('pay')}
+                    disabled={stats.budget < 5}
+                    className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-[11px] uppercase rounded-lg cursor-pointer flex flex-col items-center justify-center min-h-[46px]"
+                  >
+                    <span>Notstrom finanzieren</span>
+                    <span className="text-[9px] text-indigo-100 font-normal normal-case">-5 € (Benötigt 5 €)</span>
+                  </button>
+                  <button
+                    onClick={() => handleResolveEvent('ignore')}
+                    className="flex-1 py-2 bg-[#8B4513] hover:bg-[#70350B] text-white font-extrabold text-[11px] uppercase rounded-lg cursor-pointer flex flex-col items-center justify-center min-h-[46px]"
+                  >
+                    <span>Ausgleichsflächen opfern</span>
+                    <span className="text-[9px] text-orange-200 font-normal normal-case">-10 🌿 (Roden & Kohle)</span>
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -1916,6 +2930,120 @@ export default function App() {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROGRESSION CHALLENGE MODAL: ANNOUNCING DYNAMIC NEW DIFFICULTY LEVEL AFTER EACH YEAR */}
+      {activeYearChallengeModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[9999] p-4 text-[#2C3311]">
+          <div className="bg-[#F2EDE4] border-4 border-[#BC6C25] rounded-3xl w-full max-w-xl p-6.5 shadow-2xl relative flex flex-col gap-5 animate-scale-up">
+            
+            {/* Dynamic Header based on year */}
+            {activeYearChallengeModal === 2027 && (
+              <>
+                <div className="flex items-center gap-4 border-b border-[#BC6C25]/20 pb-3">
+                  <span className="text-4xl">👥</span>
+                  <div>
+                    <span className="text-[10px] font-mono tracking-widest text-[#BC6C25] uppercase font-black block">JAHR 2027 • STUFE 2</span>
+                    <h3 className="text-[#2C3311] text-base font-black">Regionale Stimme: Bürgerakzeptanz aktiv!</h3>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 leading-relaxed text-xs text-[#2C3311]">
+                  <p className="font-semibold text-amber-900 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/15">
+                    💡 <b>Die Schonzeit ist vorbei!</b> Deine ersten Baumaßnahmen haben Staub aufgewirbelt. Ab sofort ist die lokale Bevölkerung aufmerksam und reagiert sensibel auf deine Entscheidungen.
+                  </p>
+                  
+                  <div className="bg-white/90 p-3.5 rounded-2xl border border-[#D4CCBA] space-y-2">
+                    <h4 className="font-bold text-[#BC6C25] uppercase tracking-wider text-[11px]">⚠️ Neue Risiken &amp; Regeln:</h4>
+                    <ul className="list-disc list-inside space-y-1 text-[#4A4F3F] text-[11px] leading-relaxed">
+                      <li><b>Widerstand bei Windkraft:</b> Der Bau von Windenergieanlagen direkt neben Wohngebiet-Flurstücken senkt die Bürgerakzeptanz um <b>-20%</b>!</li>
+                      <li><b>Modustransformation:</b> Das Herunterfahren der Papierfabrik Schoellershammer führt zu Gewerkschaftsprotesten und schadet der Akzeptanz (<b>-30%</b>).</li>
+                      <li><b>Protest-Eileinlassung (<span className="text-red-700 font-bold">&lt;40% Akzeptanz</span>):</b> Sinkt die Akzeptanz unter 40%, verteuern Verwaltungs-Klagen und Blockaden jeden Neubau dauerhaft um <b>+2 € Sektoraufschlag</b>!</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-emerald-50 border border-emerald-600/10 p-3 rounded-xl flex items-start gap-2.5">
+                    <span className="text-lg">👥</span>
+                    <div className="text-[11px] text-emerald-950 leading-relaxed">
+                      <b>Deine Gegenmaßnahme:</b> Gründe unter der Öko-Zentrale eine <b>Bürger-Energiegenossenschaft</b> (12 €, 4 🧪). Dadurch profitiert die Gemeinde am Gewinn, die Akzeptanz springt um <b>+40%</b> nach oben und NIMBY-Abzüge erlöschen komplett!
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeYearChallengeModal === 2028 && (
+              <>
+                <div className="flex items-center gap-4 border-b border-[#BC6C25]/20 pb-3">
+                  <span className="text-4xl">🌊</span>
+                  <div>
+                    <span className="text-[10px] font-mono tracking-widest text-[#BC6C25] uppercase font-black block">JAHR 2028 • STUFE 3</span>
+                    <h3 className="text-[#2C3311] text-base font-black">Gewalt der Natur: Klimakampf &amp; Biosicherheit</h3>
+                  </div>
+                </div>
+
+                <div className="space-y-3 leading-relaxed text-xs text-[#2C3311]">
+                  <p className="font-semibold text-rose-950 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/15">
+                    ⚠️ <b>Klimakollaps naht!</b> Extreme saisonale Wetterwechsel lassen die Pegel der Rur unberechenbar schwanken. Zudem droht biologische Erosion.
+                  </p>
+
+                  <div className="bg-white/90 p-3.5 rounded-2xl border border-[#D4CCBA] space-y-2">
+                    <h4 className="font-bold text-red-700 uppercase tracking-wider text-[11px]">⚠️ Neue Gefahren:</h4>
+                    <ul className="list-disc list-inside space-y-1 text-[#4A4F3F] text-[11px] leading-relaxed">
+                      <li><b>Spontane Wetterkapriolen:</b> Ist dein Klimarisiko zu hoch (&gt;35%), können verheerende Sommer-Dürren oder jahrhundert-Fluten über dich hereinbrechen.</li>
+                      <li><b>Biologische Invasionen:</b> Der <i>Stressor-Modus: Invasive Krebse</i> ist ab jetzt automatisch aktiviert! Die biologische Sicherheit sinkt über die Zeit hinweg.</li>
+                      <li><b>Artenrückgang:</b> Sinkt deine Biosicherheit, bricht das Ökosystem zusammen und löscht seltene Rurtal-Tiere aus.</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-indigo-50 border border-indigo-600/10 p-3 rounded-xl flex items-start gap-2.5">
+                    <span className="text-lg">⚡</span>
+                    <div className="text-[11px] text-indigo-950 leading-relaxed">
+                      <b>Deine Antwort:</b> Nutze den <b>Auwald-Pflanzschutz</b> zur Klimadämpfung, schalte das <b>Frühwarnsystem (FWS)</b> der Öko-Zentrale frei oder nutze die <b>spezifischen Fokus-Modi</b> zur Stabilisierung!
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeYearChallengeModal === 2029 && (
+              <>
+                <div className="flex items-center gap-4 border-b border-red-900/20 pb-3">
+                  <span className="text-4xl">🔥</span>
+                  <div>
+                    <span className="text-[10px] font-mono tracking-widest text-red-700 uppercase font-black block">JAHR 2029+ • FINALES LEVEL</span>
+                    <h3 className="text-[#2C3311] text-base font-black">Die Systemische Gesamtkrise</h3>
+                  </div>
+                </div>
+
+                <div className="space-y-3 leading-relaxed text-xs text-[#2C3311]">
+                  <p className="font-semibold text-slate-900 bg-slate-200/50 p-2.5 rounded-xl border border-slate-300">
+                    🚨 <b>Das Endspiel hat begonnen!</b> Ab sofort greifen alle komplexen Herausforderungen lückenlos ineinander. Der globale Klimawandel beschleunigt sich.
+                  </p>
+
+                  <div className="bg-white/90 p-3.5 rounded-2xl border border-[#D4CCBA] space-y-2">
+                    <h4 className="font-bold text-red-800 uppercase tracking-wider text-[11px]">🔥 Erhöhter Schwierigkeitsgrad:</h4>
+                    <ul className="list-disc list-inside space-y-1 text-[#4A4F3F] text-[11px] leading-relaxed">
+                      <li>Die globale Erwärmung lässt das Basis-Klimarisiko jetzt um <b>+25% schneller</b> ansteigen.</li>
+                      <li>Energieversorgung, Naturschutz, industrielle Transformation der Papierfabrik Schoellershammer und die Akzeptanz der Dürener Bevölkerung prallen komplex aufeinander.</li>
+                      <li>Halte das Rurtal stabil, um die Bestnote im Nachhaltigkeitsgutachten der Universität Düren zu erringen!</li>
+                    </ul>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Button to confirm new phase and close */}
+            <button
+              onClick={() => setActiveYearChallengeModal(null)}
+              className="mt-2 w-full py-3 bg-[#5A7247] hover:bg-[#4E613C] text-white font-extrabold text-xs uppercase rounded-xl shadow-md transition-all duration-150 cursor-pointer active:scale-95 text-center flex items-center justify-center gap-2"
+            >
+              <span>Ich nehme die Herausforderung an!</span>
+              <span>👉</span>
+            </button>
+
           </div>
         </div>
       )}
@@ -2153,6 +3281,246 @@ export default function App() {
                   {tutorialStep === TUTORIAL_STEPS.length - 1 ? 'Simulation starten 🎮' : 'Weiter'}
                 </button>
               </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* DETAILED GAME RULES MANUAL (SPIELANLEITUNG IN CD) */}
+      {showSpielregeln && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-[9999] p-4 text-[#2C3311]">
+          <div className="bg-[#F2EDE4] border-4 border-[#BC6C25] rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-scale-up">
+            
+            {/* Modal Header */}
+            <div className="bg-white border-b border-[#BC6C25]/20 p-5 shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">📖</span>
+                <div>
+                  <span className="text-[10px] font-mono tracking-widest text-[#BC6C25] uppercase font-black block">REGIONALE CHRONIK &amp; HANDBUCH</span>
+                  <h3 className="text-lg font-black text-[#2C3311] font-display">RurNova: Offizielle Spielregeln &amp; Systemmechaniken</h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSpielregeln(false)}
+                className="text-[#8B8273] hover:text-[#2C3311] p-2 rounded-full hover:bg-[#E8E2D6]/70 transition-colors cursor-pointer border border-[#D4CCBA]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scrollable Rules Container */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-brand-lightsky/20">
+              
+              {/* Introduction Card */}
+              <div className="bg-emerald-500/10 border border-[#A7C080]/30 rounded-2xl p-4.5">
+                <p className="text-xs leading-relaxed text-[#2C3311]">
+                  Herzlichen Glückwunsch! Du leitest die **ökologische und strukturpolitische Transformation des Rurtals**. Deine Entscheidungen steuern das Schicksal der Region Düren. Dieses Handbuch erklärt dir die mathematischen und mechanischen Zusammenhänge, damit du deinen Nachhaltigkeitsbericht zur Bestnote führen kannst.
+                </p>
+              </div>
+
+              {/* 1. PROGRESSIVE DIFFICULTY TIMELINE */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>📅</span> 1. DER PROGRESSIVE SCHWIERIGKEITSGRAD (LERNEFFEKT)
+                </h4>
+                <p className="text-[11px] text-[#4A4F3F] leading-normal">
+                  Das Spiel startet einfach, damit du die Grundlagen verinnerlichen kannst. Mit jedem neuen Jahr zieht das Niveau spürbar an:
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 mt-2">
+                  
+                  {/* Year 2026 */}
+                  <div className="bg-white/85 p-3.5 rounded-2xl border border-[#D4CCBA] flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="px-1.5 py-0.5 bg-sky-100 text-[#2A6F7E] text-[9px] font-mono rounded font-black">Level 1</span>
+                        <span className="text-sm">🌱</span>
+                      </div>
+                      <h5 className="font-extrabold text-[11px] text-[#2C3311] uppercase tracking-wide">Jahr 2026</h5>
+                      <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed mt-1.5">
+                        <b>Schonzeit</b>. Bürgerakzeptanz ist stabilisiert, keine Naturkatastrophen, Biosicherheit bei 100%. Baue in Ruhe dein Fundament!
+                      </p>
+                    </div>
+                    <div className="text-[10px] mt-3 pt-2 border-t border-[#D4CCBA]/40 font-bold text-sky-700">
+                      👍 Zu 100% einsteigerfreundlich
+                    </div>
+                  </div>
+
+                  {/* Year 2027 */}
+                  <div className="bg-white/85 p-3.5 rounded-2xl border border-amber-600/35 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-mono rounded font-black">Level 2</span>
+                        <span className="text-sm">👥</span>
+                      </div>
+                      <h5 className="font-extrabold text-[11px] text-amber-900 uppercase tracking-wide">Jahr 2027</h5>
+                      <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed mt-1.5">
+                        <b>Bürgerakzeptanz</b>. Anwohner wehren sich gegen Windenergie direkt an Wohngebieten und Fabrikstilllegungen.
+                      </p>
+                    </div>
+                    <div className="text-[10px] mt-3 pt-2 border-t border-[#D4CCBA]/40 font-bold text-amber-700">
+                      💡 Schalte Genossenschaften frei!
+                    </div>
+                  </div>
+
+                  {/* Year 2028 */}
+                  <div className="bg-white/85 p-3.5 rounded-2xl border border-rose-500/30 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="px-1.5 py-0.5 bg-rose-100 text-rose-800 text-[9px] font-mono rounded font-black">Level 3</span>
+                        <span className="text-sm">🌊</span>
+                      </div>
+                      <h5 className="font-extrabold text-[11px] text-rose-950 uppercase tracking-wide">Jahr 2028</h5>
+                      <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed mt-1.5">
+                        <b>Naturkatastrophen</b>. Jährliche Fluten und Dürren drohen, falls das Klimarisiko &gt;35% ist. Die Biosicherheit schrumpft kontinuierlich.
+                      </p>
+                    </div>
+                    <div className="text-[10px] mt-3 pt-2 border-t border-[#D4CCBA]/40 font-bold text-rose-700">
+                      🦫 Schütze die Biosicherheit!
+                    </div>
+                  </div>
+
+                  {/* Year 2029+ */}
+                  <div className="bg-white/85 p-3.5 rounded-2xl border border-purple-500/30 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="px-1.5 py-0.5 bg-purple-100 text-purple-850 text-[9px] font-mono rounded font-black">Final</span>
+                        <span className="text-sm">🔥</span>
+                      </div>
+                      <h5 className="font-extrabold text-[11px] text-purple-950 uppercase tracking-wide">Jahr 2029+</h5>
+                      <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed mt-1.5">
+                        <b>Globale Krise</b>. Der Klimawandel beschleunigt sich. Das Rurtal leidet unter 25% schnellerer Risiko-Erhöhung.
+                      </p>
+                    </div>
+                    <div className="text-[10px] mt-3 pt-2 border-t border-[#D4CCBA]/40 font-bold text-purple-700">
+                      🌿 Bestnote ist nur im Gleichgewicht möglich!
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* 2. BÜRGERAKZEPTANZ */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>👥</span> 2. SOZIALE AKZEPTANZ &amp; DER NIMBY-EFFEKT (AB 2027)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-2">
+                    <h5 className="font-bold text-amber-900 text-[11px] uppercase">🚨 Der NIMBY-Effekt</h5>
+                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">
+                      Der Bau von Windenergieanlagen direkt angrenzend an Siedlung-Kacheln schadet der Akzeptanz sofort um <b>-20%</b>! Solarparks ohne Bürgerbeteiligung führen zu <b>-3%</b> Akzeptanz.
+                    </p>
+                  </div>
+
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-2">
+                    <h5 className="font-bold text-red-700 text-[11px] uppercase">💸 Teure Klagen (&lt;40% Akzeptanz)</h5>
+                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">
+                      Fällt deine Bürgerakzeptanz unter <b>40%</b>, rebelliert die Region. Verwaltungsanträge werden blockiert, was jeden Neubau auf der Karte um **+2 € Protest-Zuschlag** verteuert.
+                    </p>
+                  </div>
+
+                  <div className="bg-emerald-500/5 p-3.5 rounded-xl border border-emerald-600/20 space-y-2">
+                    <h5 className="font-bold text-emerald-950 text-[11px] uppercase flex items-center gap-1">🪙 Die Bürgergenossenschaft</h5>
+                    <p className="text-[10.5px] text-emerald-900 leading-relaxed">
+                      Gründe in der Öko-Zentrale Stufe I eine <b>Genossenschaft</b> (12 €, 4 🧪). Sie erhöht die Zufriedenheit augenblicklich um <b>+40%</b> und schaltet künftige NIMBY-Abzüge vollständig aus!
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* 3. SCHOELLERSHAMMER-GLEICHUNG */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>🏭</span> 3. DIE SCHOELLERSHAMMER-GLEICHUNG
+                </h4>
+                <p className="text-[11px] text-[#4A4F3F] leading-normal">
+                  Die Papierfabrik ist dein wichtigster Steuerzahler, belastet jedoch Schiene, Klima und Gewässer. Wähle die Transformation weise:
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
+                  <div className="bg-white/70 p-3 rounded-xl border border-[#D4CCBA]">
+                    <span className="font-black text-[10.5px] text-zinc-800 uppercase block">⚙️ Vollbetrieb</span>
+                    <div className="mt-1.5 text-[10px] text-[#4A4F3F] leading-normal space-y-1">
+                      <div>💵 <b>+15 €</b> Steuern / Runde</div>
+                      <div>👥 <b>+15%</b> Akzeptanz-Vorteil</div>
+                      <div className="text-red-700">💧 Massive Gewässerschäden</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/70 p-3 rounded-xl border border-[#D4CCBA]">
+                    <span className="font-black text-[10.5px] text-blue-800 uppercase block">🔧 Umrüstung</span>
+                    <div className="mt-1.5 text-[10px] text-[#4A4F3F] leading-normal space-y-1">
+                      <div>💵 <b>+5 €</b> Nettoeinnahme</div>
+                      <div>🧪 <b>+1 🧪</b> Passiv-Forschung</div>
+                      <div className="text-blue-700">⚙️ Verringert Emissionen</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/70 p-3 rounded-xl border border-[#D4CCBA]">
+                    <span className="font-black text-[10.5px] text-amber-800 uppercase block">⚠️ Stilllegung</span>
+                    <div className="mt-1.5 text-[10px] text-[#4A4F3F] leading-normal space-y-1">
+                      <div className="text-red-600">💵 Cost: <b>2 €</b> Notwartung</div>
+                      <div className="text-red-700">👥 <b>-30%</b> Akzeptanzschaden</div>
+                      <div>💧 Rur erholt sich prächtig</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-600/15">
+                    <span className="font-black text-[10.5px] text-emerald-950 uppercase block">🌿 Renaturierung</span>
+                    <div className="mt-1.5 text-[10px] text-emerald-900 leading-normal space-y-1">
+                      <div>💵 Cost: <b>3 €</b> Pachtschutz</div>
+                      <div>👥 <b>+10% Akzeptanz</b> (nur mit aktiver eG; sonst -15%)</div>
+                      <div className="text-emerald-800 font-bold">🌿 Maximale Naturpunkte</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. ECO-SYSTEM SYSTEM */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>🌲</span> 4. KLIMARISIKO &amp; NATURZAHNRÄDER
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  <div className="bg-white/80 p-4 rounded-xl border border-[#D4CCBA] space-y-2">
+                    <h5 className="font-bold text-[#2C3311] text-[11px] uppercase flex items-center gap-1.5">
+                      <span>🌲</span> Auwald-Dämpfung
+                    </h5>
+                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">
+                      Jedes Runde erhöht sich die Klimalast der Erde. Jede gepflanzte **Auwald-Fläche** bremst diesen Effekt dauerhaft ab! Viele Auwälder verringern die Wahrscheinlichkeit extremer Hochwasser.
+                    </p>
+                  </div>
+
+                  <div className="bg-white/80 p-4 rounded-xl border border-[#D4CCBA] space-y-2">
+                    <h5 className="font-bold text-[#2C3311] text-[11px] uppercase flex items-center gap-1.5">
+                      <span>🦠</span> Biologische Biosicherheit (ab 2028)
+                    </h5>
+                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">
+                      Ab 2028 dezimieren invasive Krebse ungeschützte Teiche kontinuierlich. Nutze gezielte Abwehrprojekte in der Öko-Zentrale oder investiere Forschung, um wertvolle Tierarten vor dem Aussterben zu bewahren!
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-white border-t border-[#BC6C25]/20 p-5 shrink-0 flex items-center justify-between">
+              <span className="text-[10px] text-brand-dark/60 font-mono">
+                RurNova Simulationshandbuch für den Landkreis Düren
+              </span>
+              <button
+                onClick={() => setShowSpielregeln(false)}
+                className="px-6 py-2.5 bg-[#5A7247] hover:bg-[#4E613C] text-white text-xs font-extrabold uppercase rounded-xl shadow-md transition-all duration-150 cursor-pointer active:scale-95 text-center"
+              >
+                Alles verstanden, bereit zur Simulation! 🚀
+              </button>
             </div>
 
           </div>

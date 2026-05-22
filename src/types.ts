@@ -92,4 +92,11 @@ export interface GameStats {
   climateRisk: number;      // 0 to 100
   paperFactoryMode: PaperFactoryMode;
   rurtalbahnSlotsUsed: number;
+  biosecurity: number;      // Biologischer Sicherheitsstatus (0-100%, sinkt bei Vernachlässigung)
+   renewableEnergy: number;  // Anteil erneuerbarer Energien (0-100%)
+  citizenAcceptance: number; // Bürger-Zufriedenheit / Akzeptanz-Metrik (0-100%)
+  cooperativesActive?: boolean;      // Bürger-Energiegenossenschaften aktiv
+  oekoZentraleLevel?: number; // 1 (Basis), 2 (Erweitert), 3 (Klimawarte)
+  oekoZentraleMode?: 'STANDARD' | 'WATER' | 'FAUNA' | 'RESILIENCE';
+  earlyWarningSystemActive?: boolean;
 }
