@@ -16,6 +16,7 @@ import { SpeciesTracker } from './components/SpeciesTracker';
 import { DashboardReports } from './components/DashboardReports';
 import { IsometricMap } from './components/IsometricMap';
 import { OekoZentraleHUD } from './components/OekoZentraleHUD';
+import { Spielanleitung } from './components/Spielanleitung';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
@@ -128,6 +129,7 @@ export default function App() {
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
   const [tutorialStep, setTutorialStep] = useState<number>(0);
 
+  const [showSpielanleitung, setShowSpielanleitung] = useState<boolean>(false);
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
   const [feedbackName, setFeedbackName] = useState<string>('');
@@ -1558,6 +1560,16 @@ export default function App() {
             Regeln
           </button>
 
+          {/* Full Rulebook / Spielanleitung button */}
+          <button
+            onClick={() => setShowSpielanleitung(true)}
+            className="px-3.5 py-2.5 rounded-lg bg-[#E2EBD5] hover:bg-[#D3E0C1] text-[#2C3311] border border-[#B8C8A3] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            title="Vollständige Spielanleitung öffnen"
+          >
+            <BookOpen className="w-4 h-4 text-[#5A7247]" />
+            Spielanleitung
+          </button>
+
           {/* Feedback button */}
           <button
             onClick={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
@@ -2157,6 +2169,11 @@ export default function App() {
 
           </div>
         </div>
+      )}
+
+      {/* VOLLSTÄNDIGE SPIELANLEITUNG MODAL */}
+      {showSpielanleitung && (
+        <Spielanleitung onClose={() => setShowSpielanleitung(false)} />
       )}
 
       {/* FEEDBACK MODAL */}
