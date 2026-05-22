@@ -186,9 +186,29 @@ export const BUILDIONS_CATALOG: BuildingType[] = [
     cost: 15,
     maintenance: 1,
     description: 'Nutzt den Abfluss der Rur zur klimaschonenden Stromerzeugung.',
-    detailEffect: 'Einkommen +5 €/Runde. Verringert jedoch Durchgängigkeit um -20%, außer Fischtreppe ist direkt benachbart.',
+    detailEffect: 'Einkommen +5 €/Runde. Erhöht Erneuerbare Energien um +25%. Verringert Durchgängigkeit um -20%, außer Fischtreppe ist direkt benachbart.',
     allowedTerrains: ['Water'],
     isRiverOnly: true,
+  },
+  {
+    id: 'solarpark',
+    name: 'Solarpark Düren-Rurwiese',
+    category: 'economy',
+    cost: 7,
+    maintenance: 0,
+    description: 'Photovoltaikanlage auf unversiegelten Wiesen oder Ackerrandstreifen.',
+    detailEffect: 'Steigert Erneuerbare Energien um +20%. Generiert +2 €/Runde Ökostrom-Dividende.',
+    allowedTerrains: ['Wiese', 'Acker'],
+  },
+  {
+    id: 'windkraft',
+    name: 'Bürger-Windkraftanlage',
+    category: 'economy',
+    cost: 12,
+    maintenance: 1,
+    description: 'Klimaneutrale Windstromanlage zur Entlastung der energieintensiven Dürener Betriebe.',
+    detailEffect: 'Steigert Erneuerbare Energien um +35%. Generiert +4 €/Runde Einspeisevergütung.',
+    allowedTerrains: ['Wiese', 'Acker'],
   },
   {
     id: 'intensiv_farm',
@@ -399,6 +419,15 @@ export const RESEARCH_TECH_TREE: ResearchNode[] = [
     description: 'Konzeptstudie zur vollständigen, CO2-neutralen Konvertierung der Papierproduktion in ein Bio-Forschungspark.',
     effect: 'Schaltet den 4. Modus der Papierfabrik Schoellershammer frei: "Vollständige Renaturierung".',
     dependencies: ['lachs_nrw', 'mikroschadstoffe']
+  },
+  {
+    id: 'green_energy_tech',
+    name: 'Dürener Energiewende-Konzept',
+    cost: 8,
+    unlocked: false,
+    description: 'Moderne Netzinfrastrukturen, intelligente Laststeuerung und industrielle Wärmepumpen für Dürens Großbetriebe.',
+    effect: 'Ausgleich der energieintensiven Industrie: Liefert permanent +15% Erneuerbare Energien und verringert den Rundenverfall im schweren Modus um 50%.',
+    dependencies: []
   }
 ];
 

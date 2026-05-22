@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { GameStats, TileData, BuildingType } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
-import { Award, Droplets, ShieldAlert, Sparkles, Check } from 'lucide-react';
+import { Award, Droplets, ShieldAlert, Sparkles, Check, Zap, Cpu, Activity, ShieldCheck, TrendingUp } from 'lucide-react';
 
 interface OekoZentraleHUDProps {
   stats: GameStats;
@@ -10,6 +10,10 @@ interface OekoZentraleHUDProps {
   onSelectBuilding: (b: BuildingType | null) => void;
   isDemolishMode: boolean;
   onDemolishModeToggle: () => void;
+  invasiveThreatEnabled: boolean;
+  energyChallengeEnabled: boolean;
+  onUpdateStats?: (updater: (prev: GameStats) => GameStats) => void;
+  addLog?: (msg: string, type?: 'info' | 'success' | 'warning' | 'error' | 'event') => void;
 }
 
 export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
@@ -19,6 +23,10 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
   onSelectBuilding,
   isDemolishMode,
   onDemolishModeToggle,
+  invasiveThreatEnabled,
+  energyChallengeEnabled,
+  onUpdateStats,
+  addLog,
 }) => {
   // 1. WASSERQUALITÄT PERCENT
   const [wasserPercent, wasserLabel, wasserColor] = useMemo(() => {
@@ -88,6 +96,78 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
     }
     return [pct, label, color];
   }, [grid, stats.climateRisk]);
+
+  // 4. BIOLOGISCHE SICHERHEIT (BIO-SECURITY) PERCENT
+  const [biosecurityPercent, biosecurityLabel, biosecurityColor] = useMemo(() => {
+    if (!invasiveThreatEnabled) {
+      return [100, 'INAKTIV', 'stroke-stone-400 text-stone-400'];
+    }
+    const pct = stats.biosecurity !== undefined ? stats.biosecurity : 100;
+    let label = 'STABIL';
+    let color = 'stroke-[#5A7247] text-[#5A7247]';
+    if (pct <= 30) {
+      label = 'BEDROHT';
+      color = 'stroke-rose-600 text-rose-600';
+    } else if (pct <= 60) {
+      label = 'GESTÖRT';
+      color = 'stroke-[#BC6C25] text-[#BC6C25]';
+    } else if (pct < 100) {
+      label = 'STABIL';
+      color = 'stroke-[#2A6F7E] text-[#2A6F7E]';
+    } else {
+      label = 'EXZELLENT';
+      color = 'stroke-[#4A7A3A] text-[#4A7A3A]';
+    }
+    return [pct, label, color];
+  }, [stats.biosecurity, invasiveThreatEnabled]);
+
+  // 5. ERNEUBARE ENERGIEN (RENEWABLE ENERGY) PERCENT
+  const [energyPercent, energyLabel, energyColor] = useMemo(() => {
+    if (!energyChallengeEnabled) {
+      return [100, 'INAKTIV', 'stroke-stone-400 text-stone-400'];
+    }
+    const pct = stats.renewableEnergy !== undefined ? stats.renewableEnergy : 25;
+    let label = 'STABIL';
+    let color = 'stroke-[#2A6F7E] text-[#2A6F7E]';
+    if (pct < 35) {
+      label = 'KRITISCH';
+      color = 'stroke-rose-600 text-rose-600';
+    } else if (pct >= 75) {
+      label = 'VORBILDLICH';
+      color = 'stroke-[#4A7A3A] text-[#4A7A3A]';
+    } else if (pct >= 50) {
+      label = 'STABIL';
+      color = 'stroke-[#5A7247] text-[#5A7247]';
+    } else {
+      label = 'MÄSSIG';
+      color = 'stroke-[#BC6C25] text-[#BC6C25]';
+    }
+    return [pct, label, color];
+  }, [stats.renewableEnergy, energyChallengeEnabled]);
+
+  // 6. BÜRGERAKZEPTANZ / SOZIAL-ÖKOLOGISCHE METRIK
+  const [acceptancePercent, acceptanceLabel, acceptanceColor] = useMemo(() => {
+    const pct = stats.citizenAcceptance !== undefined ? stats.citizenAcceptance : 80;
+    let label = 'STABIL';
+    let color = 'stroke-[#2A6F7E] text-[#2A6F7E]';
+    if (stats.year === 2026) {
+      label = 'SCHONZEIT';
+      color = 'stroke-[#7FA8B5] text-[#7FA8B5]';
+    } else if (pct < 40) {
+      label = 'PROTESTE';
+      color = 'stroke-rose-600 text-rose-600';
+    } else if (pct < 65) {
+      label = 'NIMBY-TREND';
+      color = 'stroke-orange-500 text-orange-500';
+    } else if (pct >= 85) {
+      label = 'BEGEISTERT';
+      color = 'stroke-[#4A7A3A] text-[#4A7A3A]';
+    } else {
+      label = 'STABIL';
+      color = 'stroke-[#5A7247] text-[#5A7247]';
+    }
+    return [pct, label, color];
+  }, [stats.citizenAcceptance, stats.year]);
 
   // 4. MAP DYNAMIC MEASURES SELECTORS FOR RAPID CLICK
   // Find key action buildings from the catalog corresponding to the template list
@@ -159,6 +239,96 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
     return coords.join(' ');
   }, [stats.climateRisk, stats.continuity, grid, wasserPercent, bioPercent]);
 
+  // Read ÖKO-Zentrale status parameters
+  const hqLevel = stats.oekoZentraleLevel !== undefined ? stats.oekoZentraleLevel : 1;
+  const hqMode = stats.oekoZentraleMode !== undefined ? stats.oekoZentraleMode : 'STANDARD';
+  const ewsActive = stats.earlyWarningSystemActive !== undefined ? stats.earlyWarningSystemActive : false;
+
+  const handleUpgradeHQ = () => {
+    if (!onUpdateStats) return;
+    const nextLevel = hqLevel + 1;
+    let costBudget = 0;
+    let costSci = 0;
+    let title = "";
+
+    if (nextLevel === 2) {
+      costBudget = 8;
+      costSci = 2;
+      title = "Stufe II: Vernetzte Umweltstation";
+    } else if (nextLevel === 3) {
+      costBudget = 14;
+      costSci = 4;
+      title = "Stufe III: Autonome Rurtal-Klimawarte";
+    } else {
+      return;
+    }
+
+    if (stats.budget < costBudget || stats.researchPoints < costSci) {
+      if (addLog) addLog(`❌ UPGRADE FEHLGESCHLAGEN: Für "${title}" werden ${costBudget} € und ${costSci} 🧪 benötigt!`, 'error');
+      return;
+    }
+
+    onUpdateStats(prev => ({
+      ...prev,
+      budget: prev.budget - costBudget,
+      researchPoints: prev.researchPoints - costSci,
+      oekoZentraleLevel: nextLevel
+    }));
+
+    if (addLog) addLog(`🎉 ÖKO-ZENTRALE REBOOT: Sektor Düren meldet erfolgreiches Upgrade auf ${title}! Neue passive Überwachungseffekte aktiv.`, 'success');
+  };
+
+  const handleToggleMode = (mode: 'STANDARD' | 'WATER' | 'FAUNA' | 'RESILIENCE') => {
+    if (!onUpdateStats) return;
+    onUpdateStats(prev => ({
+      ...prev,
+      oekoZentraleMode: mode
+    }));
+    const label = mode === 'STANDARD' ? 'Standard-Messung' : mode === 'WATER' ? 'Aquatische Sanierung' : mode === 'FAUNA' ? 'Ranger-Artenschutz' : 'Klimaresilienz-Stab';
+    if (addLog) addLog(`⚙️ SYSTEM-FOKUS GEWECHSELT: Die Öko-Zentrale operiert nun im Modus: "${label}".`, 'info');
+  };
+
+  const handleBuyEWS = () => {
+    if (!onUpdateStats) return;
+    if (ewsActive) return;
+    const costBudget = 5;
+    const costSci = 3;
+    if (stats.budget < costBudget || stats.researchPoints < costSci) {
+      if (addLog) addLog(`❌ UPGRADE FEHLGESCHLAGEN: Für das Frühwarn- & Schadensabwehrsystem werden ${costBudget} € und ${costSci} 🧪 benötigt!`, 'error');
+      return;
+    }
+
+    onUpdateStats(prev => ({
+      ...prev,
+      budget: prev.budget - costBudget,
+      researchPoints: prev.researchPoints - costSci,
+      earlyWarningSystemActive: true
+    }));
+
+    if (addLog) addLog('📡 MODULE INTEGRATION ONLINE: Das Frühwarnsystem registriert Rurpegel und Wettermuster. Katastrophenschäden dauerhaft halbiert.', 'success');
+  };
+
+  const handleCreateCooperatives = () => {
+    if (!onUpdateStats) return;
+    if (stats.cooperativesActive) return;
+    const costBudget = 12;
+    const costSci = 4;
+    if (stats.budget < costBudget || stats.researchPoints < costSci) {
+      if (addLog) addLog(`❌ UPGRADE FEHLGESCHLAGEN: Für die Gründung der Bürgergenossenschaft werden ${costBudget} € und ${costSci} 🧪 benötigt!`, 'error');
+      return;
+    }
+
+    onUpdateStats(prev => ({
+      ...prev,
+      budget: prev.budget - costBudget,
+      researchPoints: prev.researchPoints - costSci,
+      cooperativesActive: true,
+      citizenAcceptance: Math.min(100, (prev.citizenAcceptance !== undefined ? prev.citizenAcceptance : 80) + 40)
+    }));
+
+    if (addLog) addLog('👥 BÜRGER-ENERGIEGENOSSENSCHAFT ETRANSMISSION EG GEGRÜNDET: Die Dürener Bürger sind am Ertrag der Solarparks und Windkraftwerke beteiligt! Akzeptanz steigt schlagartig um +40%, und NIMBY-Abzüge bei künftigen Bauten sind passé!', 'success');
+  };
+
   return (
     <div className="bg-[#3A3F45] text-white rounded-xl p-5 border border-[#3A434D] shadow-xl w-full select-none shrink-0 font-sans">
       
@@ -178,22 +348,22 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
         
         {/* SECTION 1: ECOLOGICAL PROGRESS CIRCLES */}
-        <div className="md:col-span-5 grid grid-cols-3 gap-3 border-r border-white/5 pr-4">
+        <div className="md:col-span-6 grid grid-cols-3 sm:grid-cols-6 gap-2 border-r border-white/5 pr-3">
           
           {/* Circular item 1: WASSERQUALITÄT */}
-          <div className="bg-white/5 rounded-xl p-2.5 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors">
-            <span className="text-[10px] font-black tracking-wider text-white/70 block uppercase">
+          <div className="bg-white/5 rounded-xl p-2 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors">
+            <span className="text-[9px] font-black tracking-wider text-white/70 block uppercase leading-tight">
               Wasserqualität
             </span>
             
-            <div className="relative w-18 h-18 my-2">
+            <div className="relative w-16 h-16 my-2">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                 <path className="stroke-white/10" strokeWidth="2.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 <path className={`${wasserColor} transition-all duration-500`} strokeDasharray={`${wasserPercent}, 100`} strokeWidth="3" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-base font-black tracking-tight leading-none">{wasserPercent}</span>
-                <span className="text-[7.5px] font-bold text-white/60 leading-none mt-0.5">{wasserLabel}</span>
+                <span className="text-sm font-black tracking-tight leading-none">{wasserPercent}</span>
+                <span className="text-[6.5px] font-bold text-white/60 leading-none mt-0.5">{wasserLabel}</span>
               </div>
             </div>
 
@@ -206,19 +376,19 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
           </div>
 
           {/* Circular item 2: BIODIVERSITÄT */}
-          <div className="bg-white/5 rounded-xl p-2.5 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors">
-            <span className="text-[10px] font-black tracking-wider text-white/70 block uppercase">
+          <div className="bg-white/5 rounded-xl p-2 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors">
+            <span className="text-[9px] font-black tracking-wider text-white/70 block uppercase leading-tight">
               Biodiversität
             </span>
             
-            <div className="relative w-18 h-18 my-2">
+            <div className="relative w-16 h-16 my-2">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                 <path className="stroke-white/10" strokeWidth="2.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 <path className={`${bioColor} transition-all duration-500`} strokeDasharray={`${bioPercent}, 100`} strokeWidth="3" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-base font-black tracking-tight leading-none">{bioPercent}%</span>
-                <span className="text-[7.5px] font-bold text-white/60 leading-none mt-0.5">{bioLabel}</span>
+                <span className="text-sm font-black tracking-tight leading-none">{bioPercent}%</span>
+                <span className="text-[6.5px] font-bold text-white/60 leading-none mt-0.5">{bioLabel}</span>
               </div>
             </div>
 
@@ -231,19 +401,19 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
           </div>
 
           {/* Circular item 3: HOCHWASSER-RISIKO */}
-          <div className="bg-white/5 rounded-xl p-2.5 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors">
-            <span className="text-[10px] font-black tracking-wider text-white/70 block uppercase">
+          <div className="bg-white/5 rounded-xl p-2 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors">
+            <span className="text-[9px] font-black tracking-wider text-white/70 block uppercase leading-tight">
               Hochwasser-Risiko
             </span>
             
-            <div className="relative w-18 h-18 my-2">
+            <div className="relative w-16 h-16 my-2">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                 <path className="stroke-white/10" strokeWidth="2.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 <path className={`${floodColor} transition-all duration-500`} strokeDasharray={`${floodPercent}, 100`} strokeWidth="3" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-base font-black tracking-tight leading-none">{floodPercent}%</span>
-                <span className="text-[7.5px] font-bold text-white/60 leading-none mt-0.5">{floodLabel}</span>
+                <span className="text-sm font-black tracking-tight leading-none">{floodPercent}%</span>
+                <span className="text-[6.5px] font-bold text-white/60 leading-none mt-0.5">{floodLabel}</span>
               </div>
             </div>
 
@@ -254,10 +424,86 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
               </svg>
             </div>
           </div>
+
+          {/* Circular item 4: BIO-SICHERHEIT */}
+          <div className="bg-white/5 rounded-xl p-2 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors">
+            <span className="text-[9px] font-black tracking-wider text-white/70 block uppercase leading-tight" title="Biologische Sicherheit (Invasionsresistenz)">
+              Bio-Sicherheit
+            </span>
+            
+            <div className="relative w-16 h-16 my-2">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <path className="stroke-white/10" strokeWidth="2.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path className={`${biosecurityColor} transition-all duration-500`} strokeDasharray={`${invasiveThreatEnabled ? biosecurityPercent : 0}, 100`} strokeWidth="3" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-sm font-black tracking-tight leading-none">{invasiveThreatEnabled ? `${biosecurityPercent}%` : 'OFF'}</span>
+                <span className="text-[6.5px] font-bold text-white/60 leading-none mt-0.5">{biosecurityLabel}</span>
+              </div>
+            </div>
+
+            {/* Sparkline wave */}
+            <div className="w-full h-4 mt-1 overflow-hidden opacity-80">
+              <svg className="w-full h-full" viewBox="0 0 60 15" fill="none">
+                <path d="M0 5 L10 12 L20 2 L33 11 L45 4 L60 11" stroke={!invasiveThreatEnabled ? "#78716c" : biosecurityPercent <= 30 ? "#e11d48" : biosecurityPercent <= 60 ? "#D4A373" : "#5A7247"} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Circular item 5: GRÜNE ENERGIE */}
+          <div className="bg-white/5 rounded-xl p-2 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors">
+            <span className="text-[9px] font-black tracking-wider text-white/70 block uppercase leading-tight" title="Anteil erneuerbarer Stromdeckung der Dürener Industrie">
+              Grüne Energie
+            </span>
+            
+            <div className="relative w-16 h-16 my-2">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <path className="stroke-white/10" strokeWidth="2.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path className={`${energyColor} transition-all duration-500`} strokeDasharray={`${energyChallengeEnabled ? energyPercent : 100}, 100`} strokeWidth="3" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-sm font-black tracking-tight leading-none">{energyChallengeEnabled ? `${energyPercent}%` : 'OFF'}</span>
+                <span className="text-[6.5px] font-bold text-white/60 leading-none mt-0.5">{energyLabel}</span>
+              </div>
+            </div>
+
+            {/* Sparkline wave */}
+            <div className="w-full h-4 mt-1 overflow-hidden opacity-80">
+              <svg className="w-full h-full" viewBox="0 0 60 15" fill="none">
+                <path d="M0 12 L12 4 L24 10 L36 3 L48 8 L60 2" stroke={!energyChallengeEnabled ? "#78716c" : energyPercent < 35 ? "#e11d48" : energyPercent >= 75 ? "#5A7247" : "#BC6C25"} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Circular item 6: BÜRGERAKZEPTANZ */}
+          <div className="bg-white/5 rounded-xl p-2 flex flex-col items-center justify-between text-center border border-white/5 relative group hover:bg-white/10 transition-colors" title="Bürger-Zufriedenheit / Akzeptanz der grünen Wende">
+            <span className="text-[9px] font-black tracking-wider text-white/70 block uppercase leading-tight">
+              Bürgerakzeptanz
+            </span>
+            
+            <div className="relative w-16 h-16 my-2">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                <path className="stroke-white/10" strokeWidth="2.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path className={`${acceptanceColor} transition-all duration-500`} strokeDasharray={`${acceptancePercent}, 100`} strokeWidth="3" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-sm font-black tracking-tight leading-none">{acceptancePercent}%</span>
+                <span className="text-[6.5px] font-bold text-white/60 leading-none mt-0.5">{acceptanceLabel}</span>
+              </div>
+            </div>
+
+            {/* Sparkline wave */}
+            <div className="w-full h-4 mt-1 overflow-hidden opacity-80">
+              <svg className="w-full h-full" viewBox="0 0 60 15" fill="none">
+                <path d="M0 8 Q15 2, 30 8 T60 8" stroke={stats.cooperativesActive ? "#5A7247" : acceptancePercent < 40 ? "#e11d48" : "#2A6F7E"} strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+
         </div>
 
         {/* SECTION 2: MAP QUICK MEASURES (MASSNAHMEN) */}
-        <div className="md:col-span-3 flex flex-col justify-between border-r border-white/5 pr-4">
+        <div className="md:col-span-2 flex flex-col justify-between border-r border-white/5 pr-3">
           <div>
             <span className="text-[10px] font-mono font-bold tracking-widest text-white/60 uppercase block mb-2">
               🔧 MASSNAHMEN (BAUWERK)
@@ -302,7 +548,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
         </div>
 
         {/* SECTION 3: MONITORING RIVER LEVEL */}
-        <div className="md:col-span-2 flex flex-col justify-between border-r border-white/5 pr-4">
+        <div className="md:col-span-2 flex flex-col justify-between border-r border-white/5 pr-3">
           <div>
             <span className="text-[10px] font-mono font-bold tracking-widest text-white/60 uppercase block mb-2.5">
               💧 MONITORING PEGLING
@@ -410,6 +656,226 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
           </div>
         </div>
 
+      </div>
+
+      {/* SECTION 5: INTERACTIVE CONTROL PANEL & UPGRADE CENTER */}
+      <div className="border-t border-white/10 pt-4 mt-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Cpu className="w-4 h-4 text-emerald-400" />
+          <span className="text-[10px] font-mono font-bold tracking-widest text-[#7FA8B5] uppercase">
+            ⚡ HQ-ZENTRALEN CONTROL PANEL &amp; INTERAKTIVES UPGRADE-ARTEN-SYSTEM
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          
+          {/* Column A: HQ-Zentrale Stufe */}
+          <div className="bg-white/5 border border-white/5 rounded-xl p-3.5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-[#A7C080] uppercase tracking-wider">
+                  1. HQ-MODERNISIERUNG
+                </span>
+                <span className="text-[10px] font-mono select-none px-2 py-0.5 rounded bg-lime-950/40 text-emerald-400 border border-emerald-500/20">
+                  Stufe {hqLevel}
+                </span>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed mb-3">
+                Rüste die Öko-Zentrale Düren auf, um neue Drohnensensoren und automatisierte Satelliten-Umweltdiagnostik einzusetzen.
+              </p>
+              
+              {/* Level summary info */}
+              <div className="space-y-1.5 text-[10.5px] bg-black/20 p-2 rounded-lg border border-white/5 mb-4 font-mono">
+                <div className="flex justify-between">
+                  <span className="text-white/50">Stufe I (Basis):</span>
+                  <span className="text-white/80 font-medium">Ufer-Patrouillen</span>
+                </div>
+                <div className={`flex justify-between ${hqLevel >= 2 ? 'text-emerald-400 font-semibold' : 'text-white/30'}`}>
+                  <span>Stufe II (Ausbau):</span>
+                  <span>Bio-Schutz (+10% Schutz)</span>
+                </div>
+                <div className={`flex justify-between ${hqLevel >= 3 ? 'text-emerald-400 font-semibold' : 'text-white/30'}`}>
+                  <span>Stufe III (Klimawarte):</span>
+                  <span>+1 🧪, +2 🌿, -1% Risiko/Rd.</span>
+                </div>
+              </div>
+            </div>
+
+            {hqLevel < 3 ? (
+              <button
+                onClick={handleUpgradeHQ}
+                className="w-full py-2 px-3 rounded-lg text-xs font-bold bg-[#A7C080] hover:bg-[#8da765] text-slate-900 transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.01]"
+              >
+                <span>Upgrade auf Stufe {hqLevel + 1}</span>
+                <span className="font-mono text-[9.5px] opacity-85">
+                  ({hqLevel === 1 ? '8 € / 2 🧪' : '14 € / 4 🧪'})
+                </span>
+              </button>
+            ) : (
+              <div className="w-full py-1.5 px-3 rounded-lg text-xs font-bold bg-white/5 text-emerald-400 border border-emerald-400/20 text-center select-none flex items-center justify-center gap-1.5">
+                <Check className="w-3.5 h-3.5" />
+                <span>Rurtal-Klimawarte Stufe III (MAX LEVEL)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Column B: Betriebs-Fokus */}
+          <div className="bg-white/5 border border-white/5 rounded-xl p-3.5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-[#7FA8B5] uppercase tracking-wider">
+                  2. BETRIEBSFOKUS (OPERATIV)
+                </span>
+                <span className="text-[10px] font-mono select-none px-1.5 py-0.5 rounded bg-sky-950/40 text-sky-300 border border-sky-500/10">
+                  Fokus aktiv
+                </span>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed mb-3">
+                Wähle den saisonalen Einsatzbereich deiner Einsatztruppe. Jeder Betriebsmodus steuert gezielte Sanierungsaktivitäten.
+              </p>
+
+              {/* Focus mode Buttons */}
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                <button
+                  onClick={() => handleToggleMode('STANDARD')}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
+                    hqMode === 'STANDARD'
+                      ? 'bg-slate-700/60 text-white border-white/30'
+                      : 'bg-[#40454c] text-white/60 border-transparent hover:bg-slate-700/30'
+                  }`}
+                >
+                  <span className="text-xs">📊</span>
+                  <span className="mt-0.5">Basis-Messung</span>
+                  <span className="text-[8px] opacity-70 mt-0.5">Keine Boni/Kosten</span>
+                </button>
+
+                <button
+                  onClick={() => handleToggleMode('WATER')}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
+                    hqMode === 'WATER'
+                      ? 'bg-sky-900 text-sky-200 border-sky-500/40'
+                      : 'bg-[#40454c] text-white/60 border-transparent hover:bg-sky-950/20'
+                  }`}
+                >
+                  <span className="text-xs">🌊</span>
+                  <span className="mt-0.5">Rursanierung</span>
+                  <span className="text-[8px] text-sky-300/80 mt-0.5">-1 € • +0.1 Rurgüte</span>
+                </button>
+
+                <button
+                  onClick={() => handleToggleMode('FAUNA')}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
+                    hqMode === 'FAUNA'
+                      ? 'bg-emerald-900 text-emerald-200 border-emerald-500/40'
+                      : 'bg-[#40454c] text-white/60 border-transparent hover:bg-emerald-950/20'
+                  }`}
+                >
+                  <span className="text-xs">🐾</span>
+                  <span className="mt-0.5">Artenschutz</span>
+                  <span className="text-[8px] text-emerald-300/85 mt-0.5">-1 🧪 • +8% Arten</span>
+                </button>
+
+                <button
+                  onClick={() => handleToggleMode('RESILIENCE')}
+                  className={`py-1.5 px-2 rounded-lg text-[10px] font-bold border transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
+                    hqMode === 'RESILIENCE'
+                      ? 'bg-amber-900 text-amber-200 border-amber-500/40'
+                      : 'bg-[#40454c] text-white/60 border-transparent hover:bg-amber-950/20'
+                  }`}
+                >
+                  <span className="text-xs">🛡️</span>
+                  <span className="mt-0.5">Klimaresilienz</span>
+                  <span className="text-[8px] text-amber-300/85 mt-0.5">-1 € • -2% Risiko</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Column C: Katastrophen-Schutz EWS */}
+          <div className="bg-white/5 border border-white/5 rounded-xl p-3.5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-[#E6935C] uppercase tracking-wider">
+                  3. KATASTROPHEN-SCHUTZ
+                </span>
+                <span className="text-[10px] font-mono select-none px-1.5 py-0.5 rounded bg-orange-950/40 text-orange-400 border border-orange-500/10">
+                  Frühwarnung (EWS)
+                </span>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed mb-3">
+                Integriere ein dichtebezogenes Boden-Sensorennetzwerk und Alarmbojen zur Erkennung kritischer Pegelstände und Temperaturschocks.
+              </p>
+
+              {/* Status information */}
+              <div className="text-[10.5px] bg-black/20 p-2 rounded-lg border border-white/5 mb-4 space-y-2">
+                <div className="font-semibold text-[#E6935C] uppercase tracking-wide border-b border-white/5 pb-1 text-[9.5px]">
+                  Systemvorteile:
+                </div>
+                <div className="text-white/80 leading-relaxed text-[10px]">
+                  Halbiert jegliche budgetären und ökologischen Verluste bei unvorhersehbaren Extremereignissen (<b>Hochwasser</b>, <b>Dürrewelle</b>, <b>Schädlingsplage Sektor Rur</b>).
+                </div>
+              </div>
+            </div>
+
+            {ewsActive ? (
+              <div className="w-full py-1.5 px-3 rounded-lg text-xs font-bold bg-[#4A7A3A]/20 text-[#A7C080] border border-[#4A7A3A]/40 text-center select-none flex items-center justify-center gap-1.5">
+                <Check className="w-3.5 h-3.5" />
+                <span>FRÜHWARNANSTALTS-NETZWERK AKTIV</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleBuyEWS}
+                className="w-full py-2 px-3 rounded-lg text-xs font-bold bg-[#E6935C] hover:bg-[#c37b46] text-slate-950 transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.01]"
+              >
+                <span>Frühwarnsystem kaufen</span>
+                <span className="font-mono text-[9.5px] opacity-85">(5 € / 3 🧪)</span>
+              </button>
+            )}
+          </div>
+
+          {/* Column D: Bürger-Energiegenossenschaften */}
+          <div className="bg-white/5 border border-white/5 rounded-xl p-3.5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-[#7FA8B5] uppercase tracking-wider">
+                  4. SOZIALE AKZEPTANZ
+                </span>
+                <span className="text-[10px] font-mono select-none px-1.5 py-0.5 rounded bg-sky-950/40 text-sky-300 border border-sky-500/10">
+                  Genossenschaft
+                </span>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed mb-3">
+                Gründe Bürger-Energiegenossenschaften zur gemeinsamen Gewinnbeteiligung an Windrädern und Solarparks im Rurtal.
+              </p>
+
+              {/* Status information */}
+              <div className="text-[10.5px] bg-black/20 p-2 rounded-lg border border-white/5 mb-4 space-y-2">
+                <div className="font-semibold text-[#7FA8B5] uppercase tracking-wide border-b border-white/5 pb-1 text-[9.5px]">
+                  Effekte &amp; Vorteile:
+                </div>
+                <div className="text-white/80 leading-relaxed text-[10px]">
+                  Beteiligt Bürger an Erträgen. Steigert Akzeptanz schlagartig um <b>+40%</b> und verhindert jeglichen NIMBY-Verlust zukünftiger Sektor-Infrastrukturprojekte.
+                </div>
+              </div>
+            </div>
+
+            {stats.cooperativesActive ? (
+              <div className="w-full py-1.5 px-3 rounded-lg text-xs font-bold bg-[#4A7A3A]/20 text-[#A7C080] border border-[#4A7A3A]/40 text-center select-none flex items-center justify-center gap-1.5 font-mono">
+                <Check className="w-3.5 h-3.5" />
+                <span>GENOSSENSCHAFT AKTIV</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleCreateCooperatives}
+                className="w-full py-2 px-3 rounded-lg text-xs font-bold bg-[#7FA8B5] hover:bg-[#6c95a2] text-slate-950 transition-all duration-150 cursor-pointer flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.01]"
+              >
+                <span>Genossenschaft gründen</span>
+                <span className="font-mono text-[9.5px] opacity-85">(12 € / 4 🧪)</span>
+              </button>
+            )}
+          </div>
+
+        </div>
       </div>
 
     </div>
