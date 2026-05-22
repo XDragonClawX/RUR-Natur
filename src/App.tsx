@@ -17,10 +17,11 @@ import { DashboardReports } from './components/DashboardReports';
 import { IsometricMap } from './components/IsometricMap';
 import { OekoZentraleHUD } from './components/OekoZentraleHUD';
 import { Spielanleitung } from './components/Spielanleitung';
+import { generateRulebookPDF } from './generateRulebook';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
-  X, Save, FolderOpen, MessageSquare
+  X, Save, FolderOpen, MessageSquare, FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -1568,6 +1569,16 @@ export default function App() {
           >
             <BookOpen className="w-4 h-4 text-[#5A7247]" />
             Spielanleitung
+          </button>
+
+          {/* PDF Rulebook download button */}
+          <button
+            onClick={() => generateRulebookPDF()}
+            className="px-3.5 py-2.5 rounded-lg bg-[#FDF6EC] hover:bg-[#FAE8C8] text-[#7A3F1F] border border-[#DCC5A3] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            title="Vollständiges Regelwerk als PDF herunterladen"
+          >
+            <FileText className="w-4 h-4 text-[#BC6C25]" />
+            PDF
           </button>
 
           {/* Feedback button */}
