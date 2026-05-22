@@ -18,6 +18,7 @@ import { IsometricMap } from './components/IsometricMap';
 import { OekoZentraleHUD } from './components/OekoZentraleHUD';
 import { Spielanleitung } from './components/Spielanleitung';
 import { generateRulebookPDF } from './generateRulebook';
+import { generateCDManual } from './generateCDManual';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
@@ -1579,6 +1580,16 @@ export default function App() {
           >
             <FileText className="w-4 h-4 text-[#BC6C25]" />
             PDF
+          </button>
+
+          {/* CD Manual button */}
+          <button
+            onClick={() => generateCDManual()}
+            className="px-3.5 py-2.5 rounded-lg bg-[#EAF4F7] hover:bg-[#D0E8EF] text-[#1A4F5A] border border-[#A8CEDA] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            title="Corporate Design Manual als PDF öffnen"
+          >
+            <BookOpen className="w-4 h-4 text-[#2A6F7E]" />
+            CD
           </button>
 
           {/* Feedback button */}
