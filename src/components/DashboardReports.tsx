@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { GameStats, Species, GameLog } from '../types';
-import { FileText, Medal, Info, Download, Printer, Database, HeartHandshake } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { GameStats, Species, GameLog, TileData } from '../types';
+import { FileText, Medal, Info, Download, Printer, Database, HeartHandshake, Sparkles, AlertTriangle } from 'lucide-react';
+import * as d3 from 'd3';
 
 interface DashboardReportsProps {
   stats: GameStats;
@@ -8,6 +9,7 @@ interface DashboardReportsProps {
   logs: GameLog[];
   onTriggerPdfSim: () => void;
   pdfSimulated: boolean;
+  grid: TileData[][];
 }
 
 export const DashboardReports: React.FC<DashboardReportsProps> = ({
@@ -15,9 +17,185 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
   speciesList,
   logs,
   onTriggerPdfSim,
-  pdfSimulated
+  pdfSimulated,
+  grid
 }) => {
   const [reportType, setReportType] = useState<'real_data' | 'pdf' | 'achievements'>('real_data');
+  const [hoveredSector, setHoveredSector] = useState<any | null>(null);
+
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  // Generate 16 longitudinal sectors of the Rur river by searching each row of the isometric grid
+  const riverData = Array.from({ length: 16 }, (_, y) => {
+    const row = grid[y] || [];
+    // Priority: find actual water tile, then any candidate with baseTerrain of Water, or default to the first tile
+    const riverTile = row.find(t => t.terrain === 'Water') || row.find(t => t.baseTerrain === 'Water') || row[0];
+    
+    // Exact environmental and geographic labeling of the Rur longitudinal chain (South to North)
+    const labels: { [key: number]: string } = {
+      0: 'Heimbach',
+      1: 'Obermaubach',
+      2: 'Nideggen',
+      3: 'Untermaubach',
+      4: 'Kreuzau Wehr',
+      5: 'Krauthausen',
+      6: 'Schoellersh.',
+      7: 'Düren Cent.',
+      8: 'Birkesdorf',
+      9: 'Merken',
+      10: 'Huch.-Melnik',
+      11: 'Altenburg',
+      12: 'Jülich S.',
+      13: 'Jülich Cent.',
+      14: 'Broich',
+      15: 'Kirchberg'
+    };
+
+    return {
+      y,
+      x: riverTile ? riverTile.x : 0,
+      label: labels[y] || `Sektor y=${y}`,
+      wrrl: riverTile ? riverTile.wrrl_quality : 3.0,
+      buildingId: riverTile ? riverTile.buildingId : null,
+      tile: riverTile
+    };
+  });
+
+  useEffect(() => {
+    if (reportType !== 'real_data' || !svgRef.current) return;
+
+    const svgElement = svgRef.current;
+    
+    // Clear previous elements
+    d3.select(svgElement).selectAll('*').remove();
+
+    const margin = { top: 25, right: 15, bottom: 40, left: 35 };
+    const width = 530;
+    const height = 180;
+    const chartWidth = width - margin.left - margin.right;
+    const chartHeight = height - margin.top - margin.bottom;
+
+    const svg = d3.select(svgElement)
+      .attr('viewBox', `0 0 ${width} ${height}`)
+      .attr('width', '100%')
+      .attr('height', '100%')
+      .style('display', 'block');
+
+    const g = svg.append('g')
+      .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+    // X Scale (16 sectors)
+    const xScale = d3.scaleBand()
+      .domain(riverData.map(d => d.label))
+      .range([0, chartWidth])
+      .padding(0.25);
+
+    // Y Scale (WRRL water quality class goes from 1.0 Excellent to 5.0 Bad)
+    const yScale = d3.scaleLinear()
+      .domain([5.0, 1.0])
+      .range([chartHeight, 0]);
+
+    // Draw grid horizontal threshold helper lines for Classes 1 to 5
+    const wrrlClasses = [1, 2, 3, 4, 5];
+    wrrlClasses.forEach(c => {
+      g.append('line')
+        .attr('x1', 0)
+        .attr('x2', chartWidth)
+        .attr('y1', yScale(c))
+        .attr('y2', yScale(c))
+        .attr('stroke', 'rgba(44, 51, 17, 0.08)')
+        .attr('stroke-width', 0.8)
+        .attr('stroke-dasharray', c === 2 ? '4,4' : 'none');
+    });
+
+    // EU target threshold label/line (represented by 2.0 = "Guter ökologischer Zustand")
+    g.append('line')
+      .attr('x1', 0)
+      .attr('x2', chartWidth)
+      .attr('y1', yScale(2.0))
+      .attr('y2', yScale(2.0))
+      .attr('stroke', '#5A7247')
+      .attr('stroke-width', 1.2)
+      .attr('stroke-dasharray', '3,3');
+
+    // Axes
+    const xAxis = d3.axisBottom(xScale);
+    g.append('g')
+      .attr('transform', `translate(0, ${chartHeight})`)
+      .call(xAxis)
+      .selectAll('text')
+      .style('text-anchor', 'end')
+      .attr('dx', '-.5em')
+      .attr('dy', '.15em')
+      .attr('transform', 'rotate(-30)')
+      .style('font-family', 'JetBrains Mono, SFMono-Regular, monospace')
+      .style('font-size', '7px')
+      .style('fill', '#6B6356');
+
+    const yAxis = d3.axisLeft(yScale)
+      .tickValues([1, 2, 3, 4, 5])
+      .tickFormat(d => `${d}.0`);
+    
+    g.append('g')
+      .call(yAxis)
+      .selectAll('text')
+      .style('font-family', 'JetBrains Mono, SFMono-Regular, monospace')
+      .style('font-size', '7px')
+      .style('fill', '#6B6356');
+
+    // Labels & Titling for axes
+    svg.append('text')
+      .attr('x', 12)
+      .attr('y', 14)
+      .attr('text-anchor', 'start')
+      .style('font-family', 'JetBrains Mono, monospace')
+      .style('font-weight', 'bold')
+      .style('font-size', '7px')
+      .style('fill', '#8B8273')
+      .text('▲ Gewässergüte (Klasse 1-5; höherer Balken = sauberes Wasser!)');
+
+    // Draw Bars
+    const bars = g.selectAll('.rur-bar')
+      .data(riverData)
+      .enter()
+      .append('rect')
+      .attr('class', 'rur-bar')
+      .attr('x', d => xScale(d.label) || 0)
+      .attr('width', xScale.bandwidth())
+      .attr('y', d => yScale(d.wrrl))
+      .attr('height', d => Math.max(2, chartHeight - yScale(d.wrrl)))
+      .attr('rx', 2.5)
+      .attr('fill', d => {
+        // Color scale: Blue -> Green -> Orange -> Red
+        if (d.wrrl <= 2.0) return '#457B9D'; // Class I-II (Excellent - Blue)
+        if (d.wrrl <= 2.8) return '#5A7247'; // Class II (Good - Sage Green)
+        if (d.wrrl <= 3.8) return '#BC6C25'; // Class III (Moderate - Ochre/Orange)
+        return '#C94A4A'; // Class IV-V (Highly impacted - Crimson)
+      })
+      .attr('opacity', 0.85)
+      .style('cursor', 'pointer')
+      .style('transition', 'all 0.15s ease-out');
+
+    // Micro Interaction
+    bars.on('mouseover', function(event, d) {
+      d3.select(this)
+        .attr('opacity', 1.0)
+        .attr('stroke', '#2C3311')
+        .attr('stroke-width', 1.5)
+        .attr('y', yScale(d.wrrl) - 2)
+        .attr('height', Math.max(2, chartHeight - yScale(d.wrrl)) + 2);
+      
+      setHoveredSector(d);
+    })
+    .on('mouseout', function(event, d) {
+      d3.select(this)
+        .attr('opacity', 0.85)
+        .attr('stroke', 'none')
+        .attr('y', yScale(d.wrrl))
+        .attr('height', Math.max(2, chartHeight - yScale(d.wrrl)));
+    });
+
+  }, [grid, reportType, stats.round]);
 
   // Calculate achievements completion status
   const achievements = [
@@ -95,38 +273,83 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
       {/* Content Container */}
       <div className="flex-grow overflow-y-auto pr-1 text-xs">
         {reportType === 'real_data' && (
-          <div className="space-y-4">
-            <div className="bg-white p-3 rounded-lg border border-[#D4CCBA]">
-              <h3 className="text-xs font-bold text-[#5A7247] flex items-center gap-1.5 mb-2">
-                <Database className="w-4 h-4 text-[#5A7247]" />
-                <span>Integriertes GIS-Datenmodell</span>
+          <div className="space-y-4 font-sans text-xs">
+            {/* Interactive D3 Chart Section */}
+            <div className="bg-white p-3.5 rounded-lg border border-[#D4CCBA] flex flex-col gap-2">
+              <h3 className="text-xs font-bold text-[#5A7247] flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-[#5A7247]" />
+                  <span>D3.js Gewässergüteschnitt (Obermaubach ➔ Jülich)</span>
+                </span>
+                <span className="text-[9px] font-mono bg-[#E8E2D6] px-1.5 py-0.5 rounded text-[#2C3311]">
+                  Interaktiver GIS-Graph
+                </span>
               </h3>
-              <p className="text-[#6B6356] leading-relaxed font-sans text-[11px] mb-3">
-                Die Rur-Simulation nutzt reale Referenzen der NRW-Umweltportale zur Festlegung der Startparameter für das Rurtal. Jede Maßnahme simuliert den realen Einordnungsprozess:
+              
+              <p className="text-[#6B6356] leading-relaxed font-sans text-[10px]">
+                Echtzeit-Längsschnitt der 16 Haupt-Sektoren des Rurtals. Höhere Balken markieren reichere Fischhabitate und optimalere WRRL-Werte (Klasse II oder besser).
               </p>
 
-              <div className="space-y-3 font-sans text-[11px]">
-                <div className="border border-[#D4CCBA]/50 p-2.5 rounded bg-[#F7F3ED]">
-                  <span className="font-bold text-[#2C3322] block">🌧️ DWD (Deutscher Wetterdienst) Klimadaten</span>
-                  Saisonale Niederschlagskurven und steigendes Risiko für Starkregen und anhaltende Trockenepisoden beeinflussen deinen Klimakoeffizienten.
-                </div>
-                <div className="border border-[#D4CCBA]/50 p-2.5 rounded bg-[#F7F3ED]">
-                  <span className="font-bold text-[#2C3322] block">💧 ELWAS-WEB NRW</span>
-                  Wasseranalysestartwerte des Landes NRW für die Rur-Wasserkörper legen die Ausgangsqualität (Kategorie II bis V) in Düren und Jülich fest.
-                </div>
-                <div className="border border-[#D4CCBA]/50 p-2.5 rounded bg-[#F7F3ED]">
-                  <span className="font-bold text-[#2C3322] block">🌿 LINFOS Landschaftsinformationssystem</span>
-                  FFH-Schutzgebiete und die Natura 2000 Hotspots legen schützenswerte Sektoren fest, in denen Renaturierungen den doppelten Hebel auf die Artendichte entfalten.
-                </div>
+              {/* D3 SVG TARGET NODE */}
+              <div className="w-full bg-[#F7F3ED]/40 rounded-lg p-1 border border-[#D4CCBA]/30">
+                <svg ref={svgRef} className="w-full h-auto" />
+              </div>
+
+              {/* DYNAMIC DETAILS PANEL / HOVER HUD */}
+              <div className="bg-[#F7F3ED] border border-[#D4CCBA]/60 rounded-xl p-3 min-h-[75px] flex flex-col justify-center transition-all duration-150">
+                {hoveredSector ? (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">💧</span>
+                        <span className="font-extrabold text-[#2C3311] text-[11px] uppercase tracking-wide">
+                          {hoveredSector.label}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[9px] bg-[#D4E0C1] px-1.5 py-0.5 rounded text-[#2C3311] font-bold">
+                        Y-Koordinate: {hoveredSector.y}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-[10.5px] font-sans pt-1 border-t border-[#D4CCBA]/30">
+                      <div>
+                        <span className="text-[#6B6356] block text-[8px] uppercase tracking-wider">Flussqualität WRRL</span>
+                        <span className="font-black text-sm flex items-center gap-1">
+                          Klasse {hoveredSector.wrrl.toFixed(2)}
+                          <span className="text-[9px] font-bold">
+                            {hoveredSector.wrrl <= 2.0 ? ' (Exzellent)' :
+                             hoveredSector.wrrl <= 2.8 ? ' (Gut)' :
+                             hoveredSector.wrrl <= 3.8 ? ' (Mäßig)' : ' (Kanalisiert/Kritisch)'}
+                          </span>
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[#6B6356] block text-[8px] uppercase tracking-wider">Bebautes Fluss-Element</span>
+                        <span className="font-bold text-[#2C3311]">
+                          {hoveredSector.buildingId ? (
+                            <span className="text-[#5A7247] flex items-center gap-1 font-extrabold">
+                              <Sparkles className="w-3.5 h-3.5 text-[#5A7247]" /> {hoveredSector.buildingId}
+                            </span>
+                          ) : 'Naturbett (Unbebaut)'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-[#6B6356]/80 text-[10.5px] italic font-sans flex items-center justify-center gap-2">
+                    <Info className="w-3.5 h-3.5 text-[#8B8273]" />
+                    <span>Fahre mit der Maus über die Sektor-Balken, um detaillierte GIS-Qualitätsdaten zu laden.</span>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="p-3 bg-white border border-[#D4CCBA] rounded-lg">
               <span className="font-bold text-[#2C3322] block mb-1">Dürener Rur-Sektoren Einteilung:</span>
               <ul className="space-y-1.5 text-[#6B6356]">
-                <li>• <strong className="text-[#2C3322]">Heimbach / Maubach (Oberlauf):</strong> Hohes Gefälle, reines Wasser (WRRL II), Heimat erster Biberschutzgebiete.</li>
-                <li>• <strong className="text-[#2C3322]">Kreuzau / Düren-City:</strong> Hohe Versiegelung, Stopps der Rurtalbahn, historische Kanalisierung durch Wehre und Industrie.</li>
-                <li>• <strong className="text-[#2C3322]">Jülich (Flachland):</strong> Ackerebenen, hoher Nährstoffeintrag aus Landwirtschaft, Hochwassergefahrengebiet.</li>
+                <li>• <strong className="text-[#2C3322]">Heimbach / Maubach (Sektoren 0-4):</strong> Hohes Gefälle, reines Wasser (WRRL II), Heimat erster Biberschutzgebiete.</li>
+                <li>• <strong className="text-[#2C3322]">Kreuzau / Düren-City (Sektoren 5-10):</strong> Hohe Versiegelung, Stopps der Rurtalbahn, historische Kanalisierung durch Wehre und Industrie.</li>
+                <li>• <strong className="text-[#2C3322]">Jülich (Sektoren 11-15):</strong> Ackerebenen, hoher Nährstoffeintrag aus Landwirtschaft, Hochwassergefahrengebiet.</li>
               </ul>
             </div>
           </div>

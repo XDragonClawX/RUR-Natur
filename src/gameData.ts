@@ -1,4 +1,4 @@
-import { BuildingType, ActionCard, ResearchNode, Species, TerrainType, ClimateEvent } from './types';
+import { BuildingType, ActionCard, ResearchNode, Species, TerrainType, ClimateEvent, StakeholderQuest } from './types';
 
 export const BUILDIONS_CATALOG: BuildingType[] = [
   // CATEGORY: Ökologie & Renaturierung (ecology)
@@ -522,3 +522,71 @@ export const CLIMATE_EVENTS_DATA: ClimateEvent[] = [
     duration: 1
   }
 ];
+
+export const STAKEHOLDER_QUESTS_DATA: StakeholderQuest[] = [
+  {
+    id: 'quest_schoellershammer',
+    title: 'Projekt GreenPulse Schoellershammer',
+    stakeholder: 'Lara Kufferath',
+    stakeholderTitle: 'Vorsitzende des Dürener Industrie-Verbandes',
+    avatar: '👩‍💼',
+    message: 'Wir bei den Dürener Papierwerken wollen unsere Industrie zum weltweiten Nachhaltigkeits-Vorbild machen! Wenn Sie die Papierproduktion in den filteroptimierten Modernisierungspfad (Retrofitting) überführen und zusätzliche Forschungsressourcen (4 🧪) zur Auswertung bereitstellen, investieren wir gemeinsam mit Ihnen massiv in ein neues Klärwerk-Upgrade.',
+    requirementsText: 'Schoellershammer-Modus auf RETROFITTING einstellen & besitze mindestens 4 🧪 Forschungspunkte.',
+    requirements: {
+      paperFactoryMode: 'RETROFITTING',
+      researchPoints: 4
+    },
+    rewardText: 'Fischhabitat-Feldstudien (+15 🌿 Artenschutz), gesteigertes Vertrauen (+12% Akzeptanz) und einmalig +10 € Industrie-Entwicklungszuschuss.',
+    reward: {
+      budget: 10,
+      researchPoints: 0,
+      naturePoints: 15,
+      citizenAcceptance: 12
+    },
+    status: 'available'
+  },
+  {
+    id: 'quest_mikroschadstoffe',
+    title: 'Allianz für Mikroschadstoff-Monitoring',
+    stakeholder: 'Dr. Daniel Holstein',
+    stakeholderTitle: 'Forschungsdirektor am Wasserinstitut Jülich',
+    avatar: '👨‍🔬',
+    message: 'Um die fragile Bio-Diversität der Gewässer zu schützen, schlage ich eine wissenschaftlich-industrielle Allianz vor. Schalten Sie die bahnbrechende Schlüssel-Forschung "Mikroschadstoff-Eliminierung" frei und errichten Sie mindestens ein Klärwerk-Upgrade. Unser Institut liefert im Austausch hochentwickelte, kontinuierliche Sensordaten zur präventiven Artenschonung.',
+    requirementsText: 'Erforsche "Mikroschadstoffe & Analytik" und besitze mindestens 1 Klärwerk-Upgrade an der Rur.',
+    requirements: {
+      researchId: 'mikroschadstoffe',
+      buildingId: 'klaerwerk_upgrade'
+    },
+    rewardText: 'Riesige Feldstudien-Datenbank (+25 🌿 Artenschutz-Erkenntnisse), verbesserte Risikoprävention (+20% Biosicherheit) und +5% Akzeptanz.',
+    reward: {
+      budget: 0,
+      researchPoints: 2,
+      naturePoints: 25,
+      citizenAcceptance: 5
+    },
+    status: 'available'
+  },
+  {
+    id: 'quest_rurtalbahn',
+    title: 'Bürger-Nahverkehr Allianz Rurtalbahn',
+    stakeholder: 'Bürgermeister Peter Larue',
+    stakeholderTitle: 'Kommunaler Kreisbeauftragter / Düren-Land',
+    avatar: '👨‍💼',
+    message: 'Die Mobilitätswende im Rurtal gelingt nur im engen Dialog mit den Bürgern! Wenn Sie das Rurtalbahn-Gleisnetz aktiv halten, mindestens einen Rurtalbahn-Halt errichtet haben und einen städtischen Kofinanzierungs-Zuschuss von 5 € freigeben, heben wir die Akzeptanz Ihrer Uferrenaturierungen auf ein historisches Allzeithoch.',
+    requirementsText: 'Mindestens 1 Rurtalbahn-Halt gebaut, Gleisnetz-Leasing aktiv und besitze 5 € Budget.',
+    requirements: {
+      buildingId: 'rurtalbahn_halt',
+      budget: 5
+    },
+    rewardText: 'Massiver Sprung der Bürgerakzeptanz (+25%), +15 🌿 Artenschutz-Fokus durch Verkehrsberuhigung und deutliche Senkung des CO₂-Ausstoßes (-10t CO₂/Runde)!',
+    reward: {
+      budget: -5, // subtracts 5 representing fee
+      researchPoints: 1,
+      naturePoints: 15,
+      citizenAcceptance: 25,
+      co2Reduction: 10
+    },
+    status: 'available'
+  }
+];
+

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { GameStats, TileData, BuildingType } from '../types';
+import { GameStats, TileData, BuildingType, StakeholderQuest } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
-import { Award, Droplets, ShieldAlert, Sparkles, Check, Zap, Cpu, Activity, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Award, Droplets, ShieldAlert, Sparkles, Check, Zap, Cpu, Activity, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 
 interface OekoZentraleHUDProps {
   stats: GameStats;
@@ -14,6 +14,9 @@ interface OekoZentraleHUDProps {
   energyChallengeEnabled: boolean;
   onUpdateStats?: (updater: (prev: GameStats) => GameStats) => void;
   addLog?: (msg: string, type?: 'info' | 'success' | 'warning' | 'error' | 'event') => void;
+  quests: StakeholderQuest[];
+  checkQuestRequirements?: (q: StakeholderQuest) => boolean;
+  completeStakeholderQuest?: (id: string) => void;
 }
 
 export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
@@ -27,6 +30,9 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
   energyChallengeEnabled,
   onUpdateStats,
   addLog,
+  quests,
+  checkQuestRequirements,
+  completeStakeholderQuest,
 }) => {
   // 1. WASSERQUALITÄT PERCENT
   const [wasserPercent, wasserLabel, wasserColor] = useMemo(() => {
@@ -342,6 +348,279 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
         </div>
         <div className="text-[10px] font-mono text-white/50">
           SYSTEM-COORDINATES: RUR-DECK-PROJ
+        </div>
+      </div>
+
+      {/* CO2 FOOTPRINT DYNAMIC DASHBOARD BLOCK */}
+      <div className="bg-[#2D3136] rounded-xl p-4 mb-5 border border-[#3E454E] flex flex-col lg:flex-row items-stretch justify-between gap-4">
+        {/* Left column: Footprint gauge and status */}
+        <div className="flex items-center gap-4 min-w-[280px]">
+          <div className="relative w-14 h-14 shrink-0 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-inner">
+            <span className="text-2xl filter drop-shadow-sm">🌱</span>
+            {/* Pulsing indicator ring */}
+            <span className={`absolute inset-0 rounded-full border-2 animate-ping opacity-25 ${
+              (stats.co2Footprint ?? 190.0) <= 60.0 ? 'border-emerald-500' :
+              (stats.co2Footprint ?? 190.0) <= 120.0 ? 'border-green-500' :
+              (stats.co2Footprint ?? 190.0) <= 180.0 ? 'border-amber-500' : 'border-rose-500'
+            }`} style={{ animationDuration: '3s' }} />
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono font-bold tracking-wider text-white/50 block uppercase leading-none">
+                CO₂-BILANZ RURTAL
+              </span>
+              <span className={`text-[8px] font-mono leading-none px-1.5 py-0.5 rounded font-black uppercase ${
+                (stats.co2Footprint ?? 190.0) <= 60.0 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                (stats.co2Footprint ?? 190.0) <= 120.0 ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                (stats.co2Footprint ?? 190.0) <= 180.0 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+              }`}>
+                {(stats.co2Footprint ?? 190.0) <= 60.0 ? 'Klimaneutral-Ziel' :
+                 (stats.co2Footprint ?? 190.0) <= 120.0 ? 'Nachhaltig' :
+                 (stats.co2Footprint ?? 190.0) <= 180.0 ? 'Erhöht' : 'Kritisch'}
+              </span>
+            </div>
+            
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-xl font-black font-mono tracking-tight text-white leading-none">
+                {(stats.co2Footprint ?? 190.0).toFixed(1)}
+              </span>
+              <span className="text-xs font-bold text-white/60 font-mono">t CO₂-Äq / Runde</span>
+            </div>
+            
+            <p className="text-[10px] text-white/70 leading-relaxed font-sans mt-1 max-w-sm">
+              Geringere Werte schützen das Rurtal vor Extremwetter. Erneuerbare Anlagen, Auwald & Klärwerk-Upgrades senken den Ausstoß!
+            </p>
+          </div>
+        </div>
+
+        {/* Right column: Dynamic factor indicators breakdown */}
+        <div className="flex-grow grid grid-cols-1 sm:grid-cols-4 gap-2.5 bg-black/15 p-3 rounded-xl border border-white/5 text-[10px] items-center">
+          
+          {/* Factor 1: Schoellershammer Paper Factory mode */}
+          <div className="space-y-1">
+            <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">🏭 Industrie (Schoellershammer)</span>
+            <div className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${
+                stats.paperFactoryMode === 'PRODUCTION' ? 'bg-rose-500' :
+                stats.paperFactoryMode === 'RETROFITTING' ? 'bg-amber-500' :
+                stats.paperFactoryMode === 'SHUTDOWN' ? 'bg-stone-500' : 'bg-emerald-500'
+              }`} />
+              <div className="font-bold text-white/95 truncate">
+                {stats.paperFactoryMode === 'PRODUCTION' ? 'Vollbetrieb (+40t)' :
+                 stats.paperFactoryMode === 'RETROFITTING' ? 'Filter-Technik (+12t)' :
+                 stats.paperFactoryMode === 'SHUTDOWN' ? 'Stillgelegt (0t)' : 'Rückbau (-10t)'}
+              </div>
+            </div>
+          </div>
+
+          {/* Factor 2: Renewables Decking */}
+          <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
+            <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider font-semibold">⚡ Erneuerbare Energie</span>
+            <div className="font-bold text-emerald-400">
+              {(() => {
+                let wind = 0, solar = 0, hydro = 0;
+                grid.forEach(r => r.forEach(t => {
+                  if (t.buildingId === 'windkraft') wind++;
+                  if (t.buildingId === 'solarpark') solar++;
+                  if (t.buildingId === 'wasserkraft') hydro++;
+                }));
+                const totalRe = (wind * 18) + (solar * 12) + (hydro * 6);
+                return totalRe > 0 ? `-${totalRe}t (${wind}W / ${solar}S / ${hydro}H)` : '0t (Inaktiv)';
+              })()}
+            </div>
+          </div>
+
+          {/* Factor 3: Infrastructure (Klärwerk & Rurtalbahn) */}
+          <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
+            <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">💧 Infrastruktur & Bahn</span>
+            <div className="font-bold text-emerald-400">
+              {(() => {
+                let klaer = 0, bahn = 0;
+                grid.forEach(r => r.forEach(t => {
+                  if (t.buildingId === 'klaerwerk_upgrade') klaer++;
+                  if (t.buildingId === 'rurtalbahn_halt') bahn++;
+                }));
+                const totalInfra = (klaer * 22) + (bahn * 8);
+                return totalInfra > 0 ? `-${totalInfra}t (${klaer} K-Upgr, ${bahn} Gleis)` : '0t (Keine Upgrades)';
+              })()}
+            </div>
+          </div>
+
+          {/* Factor 4: Carbon Sinks (Auwald forests) & Agriculture */}
+          <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
+            <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">🌳 Senken (Auwald) & Farm</span>
+            <div className="font-bold text-[#D4E0C1] truncate">
+              {(() => {
+                let auwald = 0, farm = 0;
+                grid.forEach(r => r.forEach(t => {
+                  if (t.terrain === 'Auwald') auwald++;
+                  if (t.buildingId === 'intensiv_farm') farm++;
+                }));
+                const forests = auwald * 4;
+                const farms = farm * 15;
+                const netSinks = forests - farms;
+                return `Auwald: -${forests}t${farms > 0 ? ` | Farmen: +${farms}t` : ''}`;
+              })()}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* STAKEHOLDER-ALLIANZEN & COOPERATION QUESTS BLOCK */}
+      <div className="bg-[#2D3136] rounded-xl p-4 mb-6 border border-[#3E454E]">
+        <div className="flex items-center gap-2 border-b border-white/10 pb-2 mb-4">
+          <Users className="w-5 h-5 text-emerald-400 shrink-0" />
+          <div>
+            <span className="text-[10px] font-mono font-black tracking-widest text-[#7FA8B5] uppercase block leading-none">
+              TRANSFORMATION IM DIALOG &bull; KOOPERATIONEN
+            </span>
+            <h3 className="text-sm font-black text-white mt-1">
+              Industrie-Allianzen &amp; Public-Private-Partnerships (PPP)
+            </h3>
+          </div>
+        </div>
+
+        <p className="text-xs text-white/75 mb-4 max-w-4xl leading-relaxed">
+          Große ökologische Sprünge lassen sich nicht im Alleingang realisieren. Gewinne das Vertrauen von Industrie, Wissenschaft und Kommunen, indem du ihre Kriterien erfüllst, und besiegele strategische Partnerschaften für nachhaltigen Sektor-Vorteil!
+        </p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {quests.map((q) => {
+            const isCompleted = q.status === 'completed';
+            
+            // Evaluate requirements dynamically
+            const reqs = q.requirements;
+            const hasResearchPoints = reqs.researchPoints === undefined || stats.researchPoints >= reqs.researchPoints;
+            const hasBudget = reqs.budget === undefined || stats.budget >= reqs.budget;
+            
+            let hasBuilding = true;
+            if (reqs.buildingId) {
+              hasBuilding = grid.flat().some(t => t.buildingId === reqs.buildingId);
+            }
+            
+            const hasPaperMode = reqs.paperFactoryMode === undefined || stats.paperFactoryMode === reqs.paperFactoryMode;
+            
+            let hasResearchNode = true;
+            // Let's find if research node is unlocked if required
+            // We can just query grid / or assume if state is passed, wait - we don't have researchTree here directly!
+            // Wait, does stats store anything, or can we pass the requirement check, or just check checkQuestRequirements callback?
+            // Yes! We have the custom `checkQuestRequirements` callback from App.tsx which has perfect access to researchTree!
+            const areAllRequirementsMet = checkQuestRequirements ? checkQuestRequirements(q) : (hasResearchPoints && hasBudget && hasBuilding && hasPaperMode);
+
+            return (
+              <div 
+                key={q.id} 
+                className={`rounded-xl p-4 flex flex-col justify-between border transition-all duration-300 ${
+                  isCompleted 
+                    ? 'bg-emerald-950/25 border-emerald-500/30 ring-1 ring-emerald-500/10' 
+                    : areAllRequirementsMet 
+                      ? 'bg-white/5 border-emerald-400/40 shadow-md shadow-emerald-500/5' 
+                      : 'bg-white/[0.02] border-white/5'
+                }`}
+              >
+                {/* Header: Stakeholder */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl shrink-0">
+                    {q.avatar}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-mono text-[8.5px] text-emerald-400 font-extrabold uppercase tracking-wide leading-none select-none">
+                      {q.stakeholderTitle}
+                    </h4>
+                    <span className="text-xs font-black text-white block truncate leading-tight mt-0.5">
+                      {q.stakeholder}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Speech Bubble */}
+                <div className="bg-black/25 rounded-lg p-2.5 text-[10.5px] text-white/80 leading-relaxed font-sans mb-3 border border-white/5 relative">
+                  <span className="absolute -top-1.5 left-4 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-black/20" />
+                  &bdquo;{q.message}&ldquo;
+                </div>
+
+                {/* Requirements Checklist */}
+                <div className="space-y-1.5 mb-3 bg-black/15 p-2 rounded-lg border border-white/5">
+                  <span className="text-[8px] font-mono text-white/40 uppercase tracking-widest font-extrabold block">AUFLAGEN FÜR BÜNDNIS:</span>
+                  
+                  {/* Research Points */}
+                  {reqs.researchPoints !== undefined && (
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-white/70 font-mono">🧪 Forschungspunkte:</span>
+                      <span className={`font-bold font-mono ${hasResearchPoints ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {stats.researchPoints} / {reqs.researchPoints}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Budget */}
+                  {reqs.budget !== undefined && reqs.budget > 0 && (
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-white/70 font-mono">🪙 Budget-Zuschuss:</span>
+                      <span className={`font-bold font-mono ${hasBudget ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {stats.budget} € / {reqs.budget} €
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Building */}
+                  {reqs.buildingId && (
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-white/70 font-mono">🏗️ Errichtetes Bauwerk:</span>
+                      <span className={`font-bold ${hasBuilding ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {reqs.buildingId === 'klaerwerk_upgrade' ? '1x Klärwerk-Upgrade' : '1x Rurtalbahn-Halt'} {hasBuilding ? '✓' : '✗'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Paper Production Mode */}
+                  {reqs.paperFactoryMode && (
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-white/70 font-mono">🏭 Fabrik-Betrieb:</span>
+                      <span className={`font-bold ${hasPaperMode ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {reqs.paperFactoryMode} {hasPaperMode ? '✓' : '✗'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* General requirements description */}
+                  <p className="text-[9px] text-[#A69E8F] mt-1 font-sans italic">
+                    Vorgabe: {q.requirementsText}
+                  </p>
+                </div>
+
+                {/* Rewards Panel */}
+                <div className="bg-[#1F2327] p-2.5 rounded-lg mb-3.5 border border-white/5 text-[10px]">
+                  <span className="text-[8px] font-mono text-amber-400 uppercase tracking-widest font-extrabold block mb-1">PROJEKT-ERFOLG &amp; EFFEKTE:</span>
+                  <p className="text-white/90 leading-tight">{q.rewardText}</p>
+                </div>
+
+                {/* Bottom Trigger */}
+                <div>
+                  {isCompleted ? (
+                    <div className="w-full py-2 rounded-lg bg-emerald-600/25 border border-emerald-500/50 text-emerald-300 text-center font-bold text-[10.5px] uppercase tracking-wide flex items-center justify-center gap-1.5 select-none font-mono">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      Allianz geschlossen ✓
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => completeStakeholderQuest && completeStakeholderQuest(q.id)}
+                      disabled={!areAllRequirementsMet}
+                      className={`w-full py-2.5 rounded-lg text-center font-extrabold text-[10.5px] uppercase tracking-wide font-mono transition-all duration-200 cursor-pointer ${
+                        areAllRequirementsMet 
+                          ? 'bg-brand-green hover:bg-brand-green/90 text-white shadow-md shadow-emerald-500/20 active:scale-95' 
+                          : 'bg-white/5 border border-white/10 text-white/40 cursor-not-allowed'
+                      }`}
+                    >
+                      {areAllRequirementsMet ? '🤝 BÜNDNIS BEGIEGELN' : '🔒 AUFLAGEN ERFÜLLEN'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

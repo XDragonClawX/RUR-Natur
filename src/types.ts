@@ -14,6 +14,7 @@ export interface TileData {
   buildingId: string | null; // ID of placed building
   hasRiverConnection: boolean;
   upgradeLevel?: number;     // 1 = Basic, 2 = Upgraded, 3 = Expert!
+  cityName?: string;         // Name of the town/village on this tile (e.g. Heimbach, Düren)
 }
 
 export interface BuildingType {
@@ -99,4 +100,31 @@ export interface GameStats {
   oekoZentraleLevel?: number; // 1 (Basis), 2 (Erweitert), 3 (Klimawarte)
   oekoZentraleMode?: 'STANDARD' | 'WATER' | 'FAUNA' | 'RESILIENCE';
   earlyWarningSystemActive?: boolean;
+  co2Footprint?: number; // CO2 footprint metric in tons CO₂-equivalent per year / round
+}
+
+export interface StakeholderQuest {
+  id: string;
+  title: string;
+  stakeholder: string;
+  stakeholderTitle: string;
+  avatar: string; // Emoji
+  message: string;
+  requirementsText: string;
+  requirements: {
+    researchPoints?: number;
+    budget?: number;
+    buildingId?: string;
+    paperFactoryMode?: PaperFactoryMode;
+    researchId?: string;
+  };
+  rewardText: string;
+  reward: {
+    budget?: number;
+    researchPoints?: number;
+    naturePoints?: number;
+    citizenAcceptance?: number;
+    co2Reduction?: number; // CO2 reduction bonus
+  };
+  status: 'available' | 'active' | 'completed' | 'declined';
 }

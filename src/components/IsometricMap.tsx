@@ -10,6 +10,8 @@ interface IsometricMapProps {
   selectedLayer: 'normal' | 'wrrl' | 'ffh' | 'flood';
   onLayerChange: (layer: 'normal' | 'wrrl' | 'ffh' | 'flood') => void;
   isDemolishMode: boolean;
+  season?: string;
+  selectedTile?: { x: number; y: number } | null;
 }
 
 export const IsometricMap: React.FC<IsometricMapProps> = ({
@@ -19,6 +21,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   selectedLayer,
   onLayerChange,
   isDemolishMode,
+  season = 'Frühling',
+  selectedTile = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -42,9 +46,88 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   // Animation ticks
   const [tick, setTick] = useState<number>(0);
 
-  // Isometric dimensions
-  const baseTileWidth = 110;
-  const baseTileHeight = 55;
+  // Hexagonal dimensions
+  const r = 52;
+  const w = r * Math.sqrt(3) / 2; // ~45
+  const h = r * 0.58;             // ~30
+  const spacingX = r * Math.sqrt(3); // ~90
+  const spacingY = 1.5 * h;        // ~45
+
+  // Helper to map index (x, y) to hexagonal canvas coordinates
+  const getHexCenter = (x: number, y: number) => {
+    // Offset layout (odd-r): odd rows shifted by half of the horizontal spacing
+    const cx = (y % 2 === 1) ? (x + 0.5) * spacingX : x * spacingX;
+    const cy = y * spacingY;
+    return { cx, cy };
+  };
+
+  // Reusable path builder for regular pointy-topped hexagon
+  const pathHexagon = (ctx: CanvasRenderingContext2D, cx: number, cy: number) => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - h);
+    ctx.lineTo(cx + w, cy - h/2);
+    ctx.lineTo(cx + w, cy + h/2);
+    ctx.lineTo(cx, cy + h);
+    ctx.lineTo(cx - w, cy + h/2);
+    ctx.lineTo(cx - w, cy - h/2);
+    ctx.closePath();
+  };
+
+  // Reverse mapping to find closest hex tile from scaled coordinates
+  const getTileFromCoords = (rx: number, ry: number): { x: number; y: number } | null => {
+    let bestX = -1;
+    let bestY = -1;
+    let minDist = Infinity;
+
+    const sizeY = grid.length;
+    const sizeX = grid[0]?.length || 0;
+
+    for (let y = 0; y < sizeY; y++) {
+      for (let x = 0; x < sizeX; x++) {
+        const { cx, cy } = getHexCenter(x, y);
+        const dx = rx - cx;
+        const dy = ry - cy;
+        const dist = dx * dx + dy * dy;
+        if (dist < minDist) {
+          minDist = dist;
+          bestX = x;
+          bestY = y;
+        }
+      }
+    }
+
+    if (minDist < 3000) {
+      return { x: bestX, y: bestY };
+    }
+    return null;
+  };
+
+  // Hexagonal distance mapping using spatial screen distance
+  const getHexDistance = (x1: number, y1: number, x2: number, y2: number): number => {
+    const p1 = getHexCenter(x1, y1);
+    const p2 = getHexCenter(x2, y2);
+    const dx = p1.cx - p2.cx;
+    const dy = p1.cy - p2.cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist < 10) return 0;
+    if (dist < 92) return 1;
+    if (dist < 182) return 2;
+    if (dist < 272) return 3;
+    return Math.ceil(dist / 90);
+  };
+
+  const getBuildingRange = (buildingId: string): number => {
+    switch (buildingId) {
+      case 'rurtalbahn_halt':
+      case 'natura_zentrum':
+      case 'klaerwerk_upgrade':
+      case 'besucherzentrum':
+        return 2;
+      default:
+        return 1;
+    }
+  };
 
   // Track animation trigger for water effects
   useEffect(() => {
@@ -62,9 +145,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const isMobile = rect.width < 768;
-      setZoom(isMobile ? 0.75 : 0.9);
-      setPanX(rect.width / 2);
-      setPanY(rect.height / 5);
+      const initialZoom = isMobile ? 0.6 : 0.75;
+      setZoom(initialZoom);
+      setPanX(rect.width / 2 - 675 * initialZoom);
+      setPanY(rect.height / 2 - 337 * initialZoom);
     }
   }, [grid]);
 
@@ -73,9 +157,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const isMobile = rect.width < 768;
-      setZoom(isMobile ? 0.75 : 0.9);
-      setPanX(rect.width / 2);
-      setPanY(rect.height / 5);
+      const initialZoom = isMobile ? 0.6 : 0.75;
+      setZoom(initialZoom);
+      setPanX(rect.width / 2 - 675 * initialZoom);
+      setPanY(rect.height / 2 - 337 * initialZoom);
     }
   };
 
@@ -139,96 +224,203 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     ctx.translate(panX, panY);
     ctx.scale(zoom, zoom);
 
-    // Active dimensions
-    const tw = baseTileWidth;
-    const th = baseTileHeight;
-    const htw = tw / 2;
-    const hth = th / 2;
-
     const sizeY = grid.length;
     const sizeX = grid[0]?.length || 0;
 
-    // Draw tiles under isometric projection
-    // Loop by x & y to draw rows from back to front
-    for (let x = 0; x < sizeX; x++) {
-      for (let y = 0; y < sizeY; y++) {
+    // Draw tiles under hexagonal projection
+    // Loop by row-first (y) then col (x) for perfect back-to-front depth sorting in isometric hex
+    for (let y = 0; y < sizeY; y++) {
+      for (let x = 0; x < sizeX; x++) {
         const tile = grid[y][x];
-        const screenX = (x - y) * htw;
-        const screenY = (x + y) * hth;
+        const { cx: screenX, cy: screenY } = getHexCenter(x, y);
 
         // Is hovering target
         const isHovered = hoveredTile && hoveredTile.x === x && hoveredTile.y === y;
+        const isSelected = selectedTile && selectedTile.x === x && selectedTile.y === y;
 
-        // Draw 3D side blocks for pseudo height depth
+        // Draw 3D side blocks for pseudo height depth on bottom hexagons
         const blockDepth = 12;
+
+        // Bottom-left slanted block side
         ctx.fillStyle = getSidesColor(tile.terrain, selectedLayer, tile);
-        
         ctx.beginPath();
-        ctx.moveTo(screenX, screenY + hth);
-        ctx.lineTo(screenX + htw, screenY + th);
-        ctx.lineTo(screenX + htw, screenY + th + blockDepth);
-        ctx.lineTo(screenX, screenY + hth + blockDepth);
+        ctx.moveTo(screenX - w, screenY + h/2);
+        ctx.lineTo(screenX, screenY + h);
+        ctx.lineTo(screenX, screenY + h + blockDepth);
+        ctx.lineTo(screenX - w, screenY + h/2 + blockDepth);
         ctx.closePath();
         ctx.fill();
 
+        // Bottom-right slanted block side
         ctx.fillStyle = getDarkSidesColor(tile.terrain, selectedLayer, tile);
         ctx.beginPath();
-        ctx.moveTo(screenX, screenY + hth);
-        ctx.lineTo(screenX - htw, screenY + th);
-        ctx.lineTo(screenX - htw, screenY + th + blockDepth);
-        ctx.lineTo(screenX, screenY + hth + blockDepth);
+        ctx.moveTo(screenX, screenY + h);
+        ctx.lineTo(screenX + w, screenY + h/2);
+        ctx.lineTo(screenX + w, screenY + h/2 + blockDepth);
+        ctx.lineTo(screenX, screenY + h + blockDepth);
         ctx.closePath();
         ctx.fill();
 
         // Top face drawing
         ctx.fillStyle = getTileColor(tile.terrain, selectedLayer, tile, isHovered, tick);
-        ctx.beginPath();
-        ctx.moveTo(screenX, screenY);
-        ctx.lineTo(screenX + htw, screenY + hth);
-        ctx.lineTo(screenX, screenY + th);
-        ctx.lineTo(screenX - htw, screenY + hth);
-        ctx.closePath();
+        pathHexagon(ctx, screenX, screenY);
         ctx.fill();
 
         // High fidelity procedural detailing overlay
         if (selectedLayer === 'normal') {
-          drawProceduralTerrainDetails(ctx, tile, screenX, screenY, htw, hth, th, tick);
+          drawProceduralTerrainDetails(ctx, tile, screenX, screenY, w, h, tick);
         }
 
-        ctx.strokeStyle = isHovered ? '#5A7247' : 'rgba(212, 204, 186, 0.5)'; // forest green active highlight, soft sand border
-        ctx.lineWidth = isHovered ? 2.5 : 0.6;
-        ctx.beginPath();
-        ctx.moveTo(screenX, screenY);
-        ctx.lineTo(screenX + htw, screenY + hth);
-        ctx.lineTo(screenX, screenY + th);
-        ctx.lineTo(screenX - htw, screenY + hth);
-        ctx.closePath();
-        ctx.stroke();
+        // Check if within building impact range when in build mode
+        const isImpacted = !!(selectedBuilding && hoveredTile && !isHovered && !isSelected && (() => {
+          const dist = getHexDistance(x, y, hoveredTile.x, hoveredTile.y);
+          return dist > 0 && dist <= getBuildingRange(selectedBuilding.id);
+        })());
 
-        // Sector borders indicator
-        if (y === 4 && x < sizeX - 1) {
-          ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)'; // Red partition sector line (Heimbach / Düren border)
+        // Render impact range soft color tint overlay
+        if (isImpacted) {
+          ctx.save();
+          let rangeColorFill = 'rgba(90, 114, 71, 0.15)'; // default ecology / soft green
+          const cat = selectedBuilding!.category;
+          if (cat === 'water') rangeColorFill = 'rgba(69, 123, 157, 0.18)';
+          else if (cat === 'fauna') rangeColorFill = 'rgba(217, 119, 6, 0.15)';
+          else if (cat === 'tourism') rangeColorFill = 'rgba(20, 184, 166, 0.15)';
+          else if (cat === 'economy' || cat === 'infrastructure') rangeColorFill = 'rgba(100, 116, 139, 0.12)';
+
+          ctx.fillStyle = rangeColorFill;
+          pathHexagon(ctx, screenX, screenY);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // --- SUBTLE BORDER GLOW ---
+        if (isSelected) {
+          ctx.save();
+          const pulse = 1 + Math.sin(tick / 15) * 0.15;
+          ctx.shadowColor = 'rgba(245, 158, 11, 0.7)'; // Warm Amber glow
+          ctx.shadowBlur = 14 * pulse;
+          ctx.strokeStyle = '#F59E0B'; // Amber orange
+          ctx.lineWidth = 3.2;
+          pathHexagon(ctx, screenX, screenY);
+          ctx.stroke();
+
+          // Second pass: soft bright cyan-gold halo
+          ctx.shadowBlur = 6;
+          ctx.strokeStyle = 'rgba(251, 191, 36, 0.9)';
           ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(screenX + htw, screenY + hth);
-          ctx.lineTo(screenX, screenY + th);
+          pathHexagon(ctx, screenX, screenY);
+          ctx.stroke();
+          ctx.restore();
+        } else if (isHovered) {
+          ctx.save();
+          ctx.shadowColor = 'rgba(90, 114, 71, 0.6)'; // Soft forest green glow
+          ctx.shadowBlur = 10;
+          ctx.strokeStyle = '#5A7247'; // Forest green highlight border
+          ctx.lineWidth = 2.5;
+          pathHexagon(ctx, screenX, screenY);
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(142, 172, 120, 0.8)';
+          ctx.lineWidth = 1.0;
+          pathHexagon(ctx, screenX, screenY);
+          ctx.stroke();
+          ctx.restore();
+        } else if (isImpacted) {
+          ctx.save();
+          let strokeColor = '#5A7247'; // default ecology
+          const cat = selectedBuilding!.category;
+          if (cat === 'water') strokeColor = '#457B9D';
+          else if (cat === 'fauna') strokeColor = '#D97706';
+          else if (cat === 'tourism') strokeColor = '#14B8A6';
+          else if (cat === 'economy' || cat === 'infrastructure') strokeColor = '#64748B';
+
+          // A gorgeous dotted/dashed ring that slowly crawls/animates
+          ctx.shadowColor = strokeColor;
+          ctx.shadowBlur = 4;
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 1.8;
+          ctx.setLineDash([5, 3]);
+          ctx.lineDashOffset = -tick * 0.25;
+          pathHexagon(ctx, screenX, screenY);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          ctx.strokeStyle = 'rgba(212, 204, 186, 0.5)'; // soft sand border
+          ctx.lineWidth = 0.6;
+          pathHexagon(ctx, screenX, screenY);
           ctx.stroke();
         }
-        if (y === 10 && x < sizeX - 1) {
-          ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)'; // Blue partition sector line (Düren / Jülich)
-          ctx.lineWidth = 1.5;
+
+        // Sector borders indicator (drawn along bottom contour of row 4 and 10 to form custom boundary fence)
+        if (y === 4) {
+          ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)'; // Red partition sector line (Heimbach / Düren border)
+          ctx.lineWidth = 1.8;
           ctx.beginPath();
-          ctx.moveTo(screenX + htw, screenY + hth);
-          ctx.lineTo(screenX, screenY + th);
+          ctx.moveTo(screenX - w, screenY + h/2);
+          ctx.lineTo(screenX, screenY + h);
+          ctx.lineTo(screenX + w, screenY + h/2);
+          ctx.stroke();
+        }
+        if (y === 10) {
+          ctx.strokeStyle = 'rgba(59, 130, 246, 0.75)'; // Blue partition sector line (Düren / Jülich)
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(screenX - w, screenY + h/2);
+          ctx.lineTo(screenX, screenY + h);
+          ctx.lineTo(screenX + w, screenY + h/2);
           ctx.stroke();
         }
 
         // Draw Layer Specific overlays
-        drawOverlayLayer(ctx, tile, screenX, screenY, htw, hth, th, selectedLayer, tick);
+        drawOverlayLayer(ctx, tile, screenX, screenY, w, h, selectedLayer, tick);
 
         // Draw Buildings
         if (tile.buildingId) {
-          drawIsometricBuilding(ctx, tile.buildingId, screenX, screenY, htw, hth, tick);
+          drawIsometricBuilding(ctx, tile.buildingId, screenX, screenY, w, h, tick);
+        }
+
+        // Draw Town/City Labels if defined
+        if (tile.cityName) {
+          ctx.save();
+          // Position the label floating slightly above the top edge of the pointy hexagon
+          const labelY = screenY - 14;
+          
+          ctx.font = 'bold 9.5px "Inter", sans-serif';
+          const textWidth = ctx.measureText(tile.cityName).width;
+          const padX = 6;
+          const padY = 3.5;
+          const rectW = textWidth + padX * 2;
+          const rectH = 15;
+          const rectX = screenX - rectW / 2;
+          const rectY = labelY - rectH / 2;
+
+          // Draw a small rounded capsule
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = 'rgba(44, 51, 17, 0.25)';
+          ctx.shadowOffsetY = 1.5;
+
+          // Soft cream-colored board in game CD
+          ctx.fillStyle = '#FAF6EE';
+          ctx.strokeStyle = '#BC6C25';
+          ctx.lineWidth = 1.5;
+          
+          ctx.beginPath();
+          if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(rectX, rectY, rectW, rectH, 5);
+          } else {
+            ctx.rect(rectX, rectY, rectW, rectH);
+          }
+          ctx.fill();
+          ctx.stroke();
+
+          // Dark contrasting text
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetY = 0;
+          ctx.fillStyle = '#3E2A12';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(tile.cityName, screenX, labelY + 0.5);
+          ctx.restore();
         }
 
         // Animated particles (river bubbles, bird loops)
@@ -236,15 +428,20 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           ctx.fillStyle = 'rgba(255,255,255,0.4)';
           ctx.beginPath();
           const bubbleX = screenX + Math.sin(tick / 15 + x) * 10;
-          const bubbleY = screenY + hth + Math.cos(tick / 20 + y) * 5;
+          const bubbleY = screenY + Math.cos(tick / 20 + y) * 5;
           ctx.arc(bubbleX, bubbleY, 1.5, 0, Math.PI * 2);
           ctx.fill();
         }
       }
     }
 
+    // ------------------ WEATHER OVERLAY LAYER ------------------
+    if (selectedLayer === 'normal') {
+      drawWeatherOverlay(ctx, season, tick);
+    }
+
     ctx.restore();
-  }, [grid, zoom, panX, panY, hoveredTile, selectedLayer, tick]);
+  }, [grid, zoom, panX, panY, hoveredTile, selectedLayer, tick, season, selectedTile, selectedBuilding]);
 
   // Colors based on terrain
   const getTileColor = (t: TerrainType, layer: 'normal' | 'wrrl' | 'ffh' | 'flood', tile: TileData, isHovered: boolean | null, tickNum: number): string => {
@@ -314,12 +511,15 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     tile: TileData,
     sx: number,
     sy: number,
-    htw: number,
-    hth: number,
-    th: number,
+    wVal: number,
+    hVal: number,
     layer: 'normal' | 'wrrl' | 'ffh' | 'flood',
     tickNum: number
   ) => {
+    const htw = wVal;
+    const hth = hVal;
+    const th = 2 * hVal;
+
     if (layer === 'wrrl' && tile.terrain === 'Water') {
       // Shading based on 1 to 5 values
       let wrrlColor = 'rgba(188, 108, 37, 0.7)'; // Bad (5) - warm orange-brown warning
@@ -329,12 +529,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       else if (tile.wrrl_quality <= 4.5) wrrlColor = 'rgba(188, 108, 37, 0.5)'; // Poor (4)
 
       ctx.fillStyle = wrrlColor;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(sx + htw, sy + hth);
-      ctx.lineTo(sx, sy + th);
-      ctx.lineTo(sx - htw, sy + hth);
-      ctx.closePath();
+      pathHexagon(ctx, sx, sy);
       ctx.fill();
 
       // Show small numeric text rating
@@ -347,12 +542,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       // Highlight protected boundaries or potential values
       if (tile.protected || tile.ffh_value > 20) {
         ctx.fillStyle = `rgba(90, 114, 71, ${0.1 + (tile.ffh_value / 250)})`;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + htw, sy + hth);
-        ctx.lineTo(sx, sy + th);
-        ctx.lineTo(sx - htw, sy + hth);
-        ctx.closePath();
+        pathHexagon(ctx, sx, sy);
         ctx.fill();
 
         // Shimmering green/brown active reserve borders
@@ -374,13 +564,8 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       if (tile.flood_risk > 10) {
         ctx.save();
         
-        // 1. Create diamond clipping area
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + htw, sy + hth);
-        ctx.lineTo(sx, sy + th);
-        ctx.lineTo(sx - htw, sy + hth);
-        ctx.closePath();
+        // 1. Create hexagon clipping area
+        pathHexagon(ctx, sx, sy);
         ctx.clip();
 
         // 2. Rising water level animation (subtle sinus wave height pulsation)
@@ -393,10 +578,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         ctx.fillStyle = `rgba(50, 130, 180, ${opacity})`;
         
         ctx.beginPath();
-        ctx.moveTo(sx, sy + riseOffset);
-        ctx.lineTo(sx + htw, sy + hth + riseOffset);
-        ctx.lineTo(sx, sy + th + riseOffset);
-        ctx.lineTo(sx - htw, sy + hth + riseOffset);
+        ctx.moveTo(sx, sy + riseOffset - hth);
+        ctx.lineTo(sx + htw, sy + riseOffset - hth/2);
+        ctx.lineTo(sx + htw, sy + riseOffset + hth/2);
+        ctx.lineTo(sx, sy + riseOffset + hth);
+        ctx.lineTo(sx - htw, sy + riseOffset + hth/2);
+        ctx.lineTo(sx - htw, sy + riseOffset - hth/2);
         ctx.closePath();
         ctx.fill();
 
@@ -410,7 +597,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           const tOffset = ((tickNum * waveSpeed + tile.x * 30 + tile.y * 50 + w * 50) % 100) / 100;
           const percent = -0.5 + tOffset * 2.0; // Map range across top-to-bottom
 
-          const cy = sy + hth + percent * hth + riseOffset;
+          const cy = sy + percent * hth + riseOffset;
           const cx = sx;
 
           ctx.beginPath();
@@ -430,18 +617,145 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         // Draw standard borders for tile outline
         ctx.strokeStyle = 'rgba(45, 110, 155, 0.8)';
         ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + htw, sy + hth);
-        ctx.lineTo(sx, sy + th);
-        ctx.lineTo(sx - htw, sy + hth);
-        ctx.closePath();
+        pathHexagon(ctx, sx, sy);
         ctx.stroke();
 
         // High contrast risk text tag label
         ctx.fillStyle = '#1A365D';
         ctx.font = 'bold 8.5px monospace';
         ctx.fillText(`RISK:${tile.flood_risk}%`, sx - 16, sy + hth + 3);
+      }
+    }
+  };
+
+  // Weather overlay rendering based on season
+  const drawWeatherOverlay = (
+    ctx: CanvasRenderingContext2D,
+    seasonVal: string,
+    tickNum: number
+  ) => {
+    const activeSeason = seasonVal.toLowerCase();
+
+    if (activeSeason === 'winter') {
+      // 1. Light Snowfall: floating white flakes drifting down and slightly to the side
+      const flakeCount = 80;
+      for (let i = 0; i < flakeCount; i++) {
+        const baseX = (i * 37) % 1800 - 200;
+        const baseY = (i * 59) % 1100 - 100;
+        
+        const speed = 0.75 + (i % 3) * 0.4;
+        const finalY = (baseY + tickNum * speed) % 1100 - 100;
+        const drift = Math.sin(tickNum / 35 + i) * 15;
+        const finalX = baseX + drift;
+
+        const radius = 1.2 + (i % 3) * 0.8;
+        const alpha = 0.35 + (i % 5) * 0.12;
+
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(finalX, finalY, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (activeSeason === 'herbst') {
+      // 2. Falling Leaves: rust/orange/golden leaf vectors drifting and swaying
+      const colors = ['#D97706', '#B45309', '#C2410C', '#854D0E', '#AA5B13'];
+      const leafCount = 50;
+      for (let i = 0; i < leafCount; i++) {
+        const baseX = (i * 41) % 1800 - 200;
+        const baseY = (i * 67) % 1100 - 100;
+
+        const speedY = 0.5 + (i % 4) * 0.15;
+        const speedX = -0.5 - (i % 3) * 0.2;
+
+        const finalY = (baseY + tickNum * speedY) % 1100 - 100;
+        const rawX = baseX + tickNum * speedX + Math.sin(tickNum / 20 + i) * 35;
+        const finalX = ((rawX + 2000) % 2000) - 200;
+
+        ctx.save();
+        ctx.translate(finalX, finalY);
+        ctx.rotate(tickNum / 28 + i);
+        ctx.fillStyle = colors[i % colors.length];
+
+        ctx.beginPath();
+        if (typeof ctx.ellipse === 'function') {
+          ctx.ellipse(0, 0, 4.2, 2.0, 0, 0, Math.PI * 2);
+        } else {
+          ctx.arc(0, 0, 3, 0, Math.PI * 2);
+        }
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(-4.2, 0);
+        ctx.lineTo(-6.0, -0.8);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    } else if (activeSeason === 'sommer') {
+      // 3. Summer Heat Shimmer
+      const threadCount = 35;
+      for (let i = 0; i < threadCount; i++) {
+        const baseX = (i * 47) % 1700 - 100;
+        const baseY = (i * 73) % 900 - 100;
+
+        const speedY = 1.1;
+        const finalY = ((baseY - tickNum * speedY + 1000) % 1000) - 100;
+        const finalX = baseX + Math.sin(tickNum / 18 + i) * 6;
+
+        ctx.save();
+        ctx.strokeStyle = `rgba(253, 224, 71, ${0.08 + (i % 4) * 0.04})`;
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.moveTo(finalX, finalY);
+        for (let j = 0; j < 3; j++) {
+          const segY = finalY + j * 15;
+          const segX = finalX + Math.sin(tickNum / 12 + i + j) * 3;
+          ctx.lineTo(segX, segY);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.save();
+      const shimmerAlpha = 0.015 + Math.sin(tickNum / 45) * 0.012;
+      ctx.fillStyle = `rgba(251, 191, 36, ${shimmerAlpha})`;
+      ctx.fillRect(-200, -200, 1900, 1200);
+      ctx.restore();
+    } else if (activeSeason === 'frühling') {
+      // 4. Spring Pollen & Blossoms
+      const pinkAndGreens = ['#FFC0CB', '#FFF5F7', '#FFB7C5', '#A3B18A', '#D8F3DC'];
+      const pollenCount = 45;
+      for (let i = 0; i < pollenCount; i++) {
+        const baseX = (i * 43) % 1800 - 200;
+        const baseY = (i * 53) % 1100 - 100;
+
+        const speedY = 0.18 + (i % 3) * 0.12;
+        const speedX = 0.35 + (i % 4) * 0.22;
+
+        const finalY = (baseY + tickNum * speedY) % 1100 - 100;
+        const finalX = (baseX + tickNum * speedX + Math.sin(tickNum / 30 + i) * 12) % 1800 - 200;
+
+        ctx.save();
+        ctx.translate(finalX, finalY);
+        ctx.rotate(tickNum / 40 + i);
+        ctx.fillStyle = pinkAndGreens[i % pinkAndGreens.length];
+
+        if (i % 2 === 0) {
+          ctx.beginPath();
+          if (typeof ctx.ellipse === 'function') {
+            ctx.ellipse(0, 0, 3.2, 1.8, 0.3, 0, Math.PI * 2);
+          } else {
+            ctx.arc(0, 0, 2, 0, Math.PI * 2);
+          }
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
       }
     }
   };
@@ -458,7 +772,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   ) => {
     // Determine drawing colors with heavy contrasts
     ctx.save();
-    ctx.translate(sx, sy + hth - 12); // Lift slightly above floor surface
+    ctx.translate(sx, sy); // Place at the exact center of the hexagon face
 
     if (bid === 'altarm') {
       // Draw oxbow channel loop
@@ -660,16 +974,21 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     tile: TileData,
     sx: number,
     sy: number,
-    htw: number,
-    hth: number,
-    th: number,
+    wVal: number,
+    hVal: number,
     tickNum: number
   ) => {
     const terrain = tile.terrain;
+    const htw = wVal;
+    const hth = hVal;
+    const th = 2 * hVal;
 
     if (terrain === 'Water') {
       // Flowing Blue-Teal Water Ripples & Shimmering Lines
       ctx.save();
+      pathHexagon(ctx, sx, sy);
+      ctx.clip();
+
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
       ctx.lineWidth = 1.2;
 
@@ -681,9 +1000,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
         // Map coordinate interpolation along the diamond left-to-right axis
         const startX = sx + (startRatio - 0.5) * htw;
-        const startY = sy + hth + (startRatio - 0.5) * hth;
+        const startY = sy + (startRatio - 0.5) * hth;
         const endX = sx + (endRatio - 0.5) * htw;
-        const endY = sy + hth + (endRatio - 0.5) * hth;
+        const endY = sy + (endRatio - 0.5) * hth;
 
         ctx.beginPath();
         ctx.moveTo(startX, startY);
@@ -695,10 +1014,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       // Shore-line subtle gradient foam
       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.beginPath();
-      ctx.moveTo(sx, sy + 3);
-      ctx.lineTo(sx + htw - 3, sy + hth);
-      ctx.lineTo(sx, sy + th - 3);
-      ctx.lineTo(sx - htw + 3, sy + hth);
+      ctx.moveTo(sx, sy - hth + 3);
+      ctx.lineTo(sx + htw - 3, sy);
+      ctx.lineTo(sx, sy + hth - 3);
+      ctx.lineTo(sx - htw + 3, sy);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
@@ -706,19 +1025,19 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     else if (terrain === 'Wiese') {
       // Lush vegetation fields: Tiny vertical grass blade pairs and colored wild blossom points
       ctx.save();
-      // Draw 4 organic grass blade pairs scattered around the center area of the tile
+      // Draw 5 organic grass blade pairs scattered around the center area of the tile
       const seedPoints = [
-        { rx: -15, ry: 10 },
-        { rx: 12, ry: 14 },
-        { rx: -8, ry: 20 },
-        { rx: 14, ry: 4 },
-        { rx: -5, ry: 6 },
+        { rx: -15, ry: 2 },
+        { rx: 12, ry: 5 },
+        { rx: -8, ry: 12 },
+        { rx: 14, ry: -5 },
+        { rx: -5, ry: -8 },
       ];
       ctx.strokeStyle = '#4F6F52'; // deep green grass
       ctx.lineWidth = 1.2;
       seedPoints.forEach((p, idx) => {
         const px = sx + p.rx;
-        const py = sy + hth + p.ry - 12;
+        const py = sy + p.ry;
 
         // Draw blade left
         ctx.beginPath();
@@ -754,7 +1073,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       ];
       trees.forEach((tree, idx) => {
         const tx = sx + tree.rx;
-        const ty = sy + hth + tree.ry - 4;
+        const ty = sy + tree.ry;
         
         // Draw wood trunk
         ctx.strokeStyle = '#5c4033';
@@ -787,6 +1106,9 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     else if (terrain === 'Acker') {
       // Planted agricultural crop rows going corner to corner (parallel furrow vectors)
       ctx.save();
+      pathHexagon(ctx, sx, sy);
+      ctx.clip();
+
       ctx.strokeStyle = '#A0522D'; // light warm clay furrows
       ctx.lineWidth = 1.0;
       
@@ -799,17 +1121,17 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         if (angleEast) {
           // Lines stretching along North-West to South-East
           const startX = sx + distance * htw * 0.8 - htw * 0.4;
-          const startY = sy + hth + distance * hth * 0.8 + hth * 0.4;
+          const startY = sy + distance * hth * 0.8 + hth * 0.4;
           const endX = sx + distance * htw * 0.8 + htw * 0.4;
-          const endY = sy + hth + distance * hth * 0.8 - hth * 0.4;
+          const endY = sy + distance * hth * 0.8 - hth * 0.4;
           ctx.moveTo(startX, startY);
           ctx.lineTo(endX, endY);
         } else {
           // Lines stretching along South-West to North-East
           const startX = sx + distance * htw * 0.8 - htw * 0.4;
-          const startY = sy + hth - distance * hth * 0.8 - hth * 0.4;
+          const startY = sy - distance * hth * 0.8 - hth * 0.4;
           const endX = sx + distance * htw * 0.8 + htw * 0.4;
-          const endY = sy + hth - distance * hth * 0.8 + hth * 0.4;
+          const endY = sy - distance * hth * 0.8 + hth * 0.4;
           ctx.moveTo(startX, startY);
           ctx.lineTo(endX, endY);
         }
@@ -821,7 +1143,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       for (let i = 1; i < totalRows - 1; i++) {
         const distance = ((i / (totalRows - 1)) - 0.5) * 2;
         const cx = sx + distance * htw * 0.6;
-        const cy = sy + hth + distance * hth * 0.6 - 1;
+        const cy = sy + distance * hth * 0.6 - 1;
         ctx.beginPath();
         ctx.arc(cx, cy, 1.2, 0, Math.PI * 2);
         ctx.fill();
@@ -839,7 +1161,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
       houseCoords.forEach((hc) => {
         const hx = sx + hc.rx;
-        const hy = sy + hth + hc.ry - 5;
+        const hy = sy + hc.ry;
 
         // House shadow
         ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -901,17 +1223,17 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       ctx.strokeStyle = '#565E63';
       ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.moveTo(sx - htw * 0.8, sy + hth + hth * 0.4);
-      ctx.lineTo(sx + htw * 0.8, sy + hth - hth * 0.4);
+      ctx.moveTo(sx - htw * 0.8, sy + hth * 0.4);
+      ctx.lineTo(sx + htw * 0.8, sy - hth * 0.4);
       ctx.stroke();
 
       // Industrial container/warehouse building block
       ctx.fillStyle = '#4B5563'; // metal teal-grey blocks
       ctx.beginPath();
-      ctx.moveTo(sx - 12, sy + hth - 10);
-      ctx.lineTo(sx + 10, sy + hth - 21);
-      ctx.lineTo(sx + 24, sy + hth - 14);
-      ctx.lineTo(sx + 2, sy + hth - 3);
+      ctx.moveTo(sx - 12, sy - 10);
+      ctx.lineTo(sx + 10, sy - 21);
+      ctx.lineTo(sx + 24, sy - 14);
+      ctx.lineTo(sx + 2, sy - 3);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = '#9CA3AF';
@@ -922,10 +1244,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       ctx.strokeStyle = '#F39C12';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(sx - 10, sy + hth + 10);
-      ctx.lineTo(sx - 2, sy + hth + 14);
-      ctx.moveTo(sx - 7, sy + hth + 8);
-      ctx.lineTo(sx + 1, sy + hth + 12);
+      ctx.moveTo(sx - 10, sy + 10);
+      ctx.lineTo(sx - 2, sy + 14);
+      ctx.moveTo(sx - 7, sy + 8);
+      ctx.lineTo(sx + 1, sy + 12);
       ctx.stroke();
       ctx.restore();
     }
@@ -951,7 +1273,7 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     ctx.stroke();
   };
 
-  // Reverse isometric math mapping on Mouse Click
+  // Reverse hex math mapping on Mouse Click
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     // If we dragged, break click trigger
     if (mouseHasMoved) return;
@@ -963,25 +1285,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Map screen coords back into isometric matrix
-    const tw = baseTileWidth;
-    const th = baseTileHeight;
-    const htw = tw / 2;
-    const hth = th / 2;
-
     const rx = (mouseX - panX) / zoom;
     const ry = (mouseY - panY) / zoom;
 
-    const dx = rx / htw;
-    const dy = ry / hth;
-    const tileX = Math.round((dy + dx) / 2);
-    const tileY = Math.round((dy - dx) / 2);
-
-    const sizeY = grid.length;
-    const sizeX = grid[0]?.length || 0;
-
-    if (tileX >= 0 && tileX < sizeX && tileY >= 0 && tileY < sizeY) {
-      onTileClick(tileX, tileY);
+    const hovered = getTileFromCoords(rx, ry);
+    if (hovered) {
+      onTileClick(hovered.x, hovered.y);
     }
   };
 
@@ -1000,25 +1309,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Track Hover index to highlight
-    const tw = baseTileWidth;
-    const th = baseTileHeight;
-    const htw = tw / 2;
-    const hth = th / 2;
-
     const rx = (mouseX - panX) / zoom;
     const ry = (mouseY - panY) / zoom;
 
-    const dx = rx / htw;
-    const dy = ry / hth;
-    const tileX = Math.round((dy + dx) / 2);
-    const tileY = Math.round((dy - dx) / 2);
-
-    const sizeY = grid.length;
-    const sizeX = grid[0]?.length || 0;
-
-    if (tileX >= 0 && tileX < sizeX && tileY >= 0 && tileY < sizeY) {
-      setHoveredTile({ x: tileX, y: tileY });
+    const hovered = getTileFromCoords(rx, ry);
+    if (hovered) {
+      setHoveredTile(hovered);
     } else {
       setHoveredTile(null);
     }
@@ -1091,24 +1387,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
         const mouseX = touch.clientX - rect.left;
         const mouseY = touch.clientY - rect.top;
 
-        const tw = baseTileWidth;
-        const th = baseTileHeight;
-        const htw = tw / 2;
-        const hth = th / 2;
-
         const rx = (mouseX - panX) / zoom;
         const ry = (mouseY - panY) / zoom;
 
-        const dxTile = rx / htw;
-        const dyTile = ry / hth;
-        const tileX = Math.round((dyTile + dxTile) / 2);
-        const tileY = Math.round((dyTile - dxTile) / 2);
-
-        const sizeY = grid.length;
-        const sizeX = grid[0]?.length || 0;
-
-        if (tileX >= 0 && tileX < sizeX && tileY >= 0 && tileY < sizeY) {
-          setHoveredTile({ x: tileX, y: tileY });
+        const hovered = getTileFromCoords(rx, ry);
+        if (hovered) {
+          setHoveredTile(hovered);
         } else {
           setHoveredTile(null);
         }
@@ -1138,24 +1422,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       const mouseX = touch.clientX - rect.left;
       const mouseY = touch.clientY - rect.top;
 
-      const tw = baseTileWidth;
-      const th = baseTileHeight;
-      const htw = tw / 2;
-      const hth = th / 2;
-
       const rx = (mouseX - panX) / zoom;
       const ry = (mouseY - panY) / zoom;
 
-      const dx = rx / htw;
-      const dy = ry / hth;
-      const tileX = Math.round((dy + dx) / 2);
-      const tileY = Math.round((dy - dx) / 2);
-
-      const sizeY = grid.length;
-      const sizeX = grid[0]?.length || 0;
-
-      if (tileX >= 0 && tileX < sizeX && tileY >= 0 && tileY < sizeY) {
-        onTileClick(tileX, tileY);
+      const hovered = getTileFromCoords(rx, ry);
+      if (hovered) {
+        onTileClick(hovered.x, hovered.y);
       }
     }
   };
