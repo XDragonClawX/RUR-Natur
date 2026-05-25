@@ -428,6 +428,15 @@ export const RESEARCH_TECH_TREE: ResearchNode[] = [
     description: 'Moderne Netzinfrastrukturen, intelligente Laststeuerung und industrielle Wärmepumpen für Dürens Großbetriebe.',
     effect: 'Ausgleich der energieintensiven Industrie: Liefert permanent +15% Erneuerbare Energien und verringert den Rundenverfall im schweren Modus um 50%.',
     dependencies: []
+  },
+  {
+    id: 'zerkall_faserzentrum',
+    name: 'Faserinnovationszentrum Zerkall',
+    cost: 10,
+    unlocked: false,
+    description: 'Orientiert an der historischen Papierfabrik Zerkall: Aufbau eines Info- und Entwicklungszentrums für nachhaltige Faserinnovationen (Stroh, Hanf, Flachs) als innovative Alternative zur Holz-Cellulose.',
+    effect: 'Minderungs-Effekt im Rurtal: Reduziert den CO₂-Ausstoß permanent um -15t CO₂/Runde und steigert die Bürgerakzeptanz sofort um +10%.',
+    dependencies: ['green_energy_tech']
   }
 ];
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { GameStats, TileData, BuildingType, StakeholderQuest } from '../types';
+import { GameStats, TileData, BuildingType, StakeholderQuest, ResearchNode } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
 import { Award, Droplets, ShieldAlert, Sparkles, Check, Zap, Cpu, Activity, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 
@@ -17,6 +17,7 @@ interface OekoZentraleHUDProps {
   quests: StakeholderQuest[];
   checkQuestRequirements?: (q: StakeholderQuest) => boolean;
   completeStakeholderQuest?: (id: string) => void;
+  researchTree: ResearchNode[];
 }
 
 export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
@@ -33,6 +34,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
   quests,
   checkQuestRequirements,
   completeStakeholderQuest,
+  researchTree,
 }) => {
   // 1. WASSERQUALITÄT PERCENT
   const [wasserPercent, wasserLabel, wasserColor] = useMemo(() => {
@@ -395,76 +397,101 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
         </div>
 
         {/* Right column: Dynamic factor indicators breakdown */}
-        <div className="flex-grow grid grid-cols-1 sm:grid-cols-4 gap-2.5 bg-black/15 p-3 rounded-xl border border-white/5 text-[10px] items-center">
-          
-          {/* Factor 1: Schoellershammer Paper Factory mode */}
-          <div className="space-y-1">
-            <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">🏭 Industrie (Schoellershammer)</span>
-            <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${
-                stats.paperFactoryMode === 'PRODUCTION' ? 'bg-rose-500' :
-                stats.paperFactoryMode === 'RETROFITTING' ? 'bg-amber-500' :
-                stats.paperFactoryMode === 'SHUTDOWN' ? 'bg-stone-500' : 'bg-emerald-500'
-              }`} />
-              <div className="font-bold text-white/95 truncate">
-                {stats.paperFactoryMode === 'PRODUCTION' ? 'Vollbetrieb (+40t)' :
-                 stats.paperFactoryMode === 'RETROFITTING' ? 'Filter-Technik (+12t)' :
-                 stats.paperFactoryMode === 'SHUTDOWN' ? 'Stillgelegt (0t)' : 'Rückbau (-10t)'}
+        <div className="flex-grow bg-black/15 p-3 rounded-xl border border-white/5 flex flex-col gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-[10px] items-center">
+            
+            {/* Factor 1: Schoellershammer Paper Factory mode */}
+            <div className="space-y-1">
+              <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">🏭 Industrie (Schoellershammer)</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${
+                  stats.paperFactoryMode === 'PRODUCTION' ? 'bg-rose-500' :
+                  stats.paperFactoryMode === 'RETROFITTING' ? 'bg-amber-500' :
+                  stats.paperFactoryMode === 'SHUTDOWN' ? 'bg-stone-500' : 'bg-emerald-500'
+                }`} />
+                <div className="font-bold text-white/95 truncate">
+                  {stats.paperFactoryMode === 'PRODUCTION' ? 'Vollbetrieb (+40t)' :
+                   stats.paperFactoryMode === 'RETROFITTING' ? 'Filter-Technik (+12t)' :
+                   stats.paperFactoryMode === 'SHUTDOWN' ? 'Stillgelegt (0t)' : 'Rückbau (-10t)'}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Factor 2: Renewables Decking */}
-          <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
-            <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider font-semibold">⚡ Erneuerbare Energie</span>
-            <div className="font-bold text-emerald-400">
-              {(() => {
-                let wind = 0, solar = 0, hydro = 0;
-                grid.forEach(r => r.forEach(t => {
-                  if (t.buildingId === 'windkraft') wind++;
-                  if (t.buildingId === 'solarpark') solar++;
-                  if (t.buildingId === 'wasserkraft') hydro++;
-                }));
-                const totalRe = (wind * 18) + (solar * 12) + (hydro * 6);
-                return totalRe > 0 ? `-${totalRe}t (${wind}W / ${solar}S / ${hydro}H)` : '0t (Inaktiv)';
-              })()}
+            {/* Factor 2: Renewables Decking */}
+            <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
+              <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider font-semibold">⚡ Erneuerbare Energie</span>
+              <div className="font-bold text-emerald-400">
+                {(() => {
+                  let wind = 0, solar = 0, hydro = 0;
+                  grid.forEach(r => r.forEach(t => {
+                    if (t.buildingId === 'windkraft') wind++;
+                    if (t.buildingId === 'solarpark') solar++;
+                    if (t.buildingId === 'wasserkraft') hydro++;
+                  }));
+                  const totalRe = (wind * 18) + (solar * 12) + (hydro * 6);
+                  return totalRe > 0 ? `-${totalRe}t (${wind}W / ${solar}S / ${hydro}H)` : '0t (Inaktiv)';
+                })()}
+              </div>
             </div>
-          </div>
 
-          {/* Factor 3: Infrastructure (Klärwerk & Rurtalbahn) */}
-          <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
-            <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">💧 Infrastruktur & Bahn</span>
-            <div className="font-bold text-emerald-400">
-              {(() => {
-                let klaer = 0, bahn = 0;
-                grid.forEach(r => r.forEach(t => {
-                  if (t.buildingId === 'klaerwerk_upgrade') klaer++;
-                  if (t.buildingId === 'rurtalbahn_halt') bahn++;
-                }));
-                const totalInfra = (klaer * 22) + (bahn * 8);
-                return totalInfra > 0 ? `-${totalInfra}t (${klaer} K-Upgr, ${bahn} Gleis)` : '0t (Keine Upgrades)';
-              })()}
+            {/* Factor 3: Infrastructure (Klärwerk & Rurtalbahn) */}
+            <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
+              <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">💧 Infrastruktur & Bahn</span>
+              <div className="font-bold text-emerald-400">
+                {(() => {
+                  let klaer = 0, bahn = 0;
+                  grid.forEach(r => r.forEach(t => {
+                    if (t.buildingId === 'klaerwerk_upgrade') klaer++;
+                    if (t.buildingId === 'rurtalbahn_halt') bahn++;
+                  }));
+                  const totalInfra = (klaer * 22) + (bahn * 8);
+                  return totalInfra > 0 ? `-${totalInfra}t (${klaer} K-Upgr, ${bahn} Gleis)` : '0t (Keine Upgrades)';
+                })()}
+              </div>
             </div>
-          </div>
 
-          {/* Factor 4: Carbon Sinks (Auwald forests) & Agriculture */}
-          <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
-            <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">🌳 Senken (Auwald) & Farm</span>
-            <div className="font-bold text-[#D4E0C1] truncate">
-              {(() => {
-                let auwald = 0, farm = 0;
-                grid.forEach(r => r.forEach(t => {
-                  if (t.terrain === 'Auwald') auwald++;
-                  if (t.buildingId === 'intensiv_farm') farm++;
-                }));
-                const forests = auwald * 4;
-                const farms = farm * 15;
-                const netSinks = forests - farms;
-                return `Auwald: -${forests}t${farms > 0 ? ` | Farmen: +${farms}t` : ''}`;
-              })()}
+            {/* Factor 4: Carbon Sinks (Auwald forests) & Agriculture */}
+            <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
+              <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">🌳 Senken (Auwald) & Farm</span>
+              <div className="font-bold text-[#D4E0C1] truncate">
+                {(() => {
+                  let auwald = 0, farm = 0;
+                  grid.forEach(r => r.forEach(t => {
+                    if (t.terrain === 'Auwald') auwald++;
+                    if (t.buildingId === 'intensiv_farm') farm++;
+                  }));
+                  const forests = auwald * 4;
+                  const farms = farm * 15;
+                  return `Auwald: -${forests}t${farms > 0 ? ` | Farmen: +${farms}t` : ''}`;
+                })()}
+              </div>
             </div>
+
           </div>
 
+          {/* Active Cooperation & Research CO2 Buffers Line */}
+          {(() => {
+            const zerkallDone = researchTree.some(r => r.id === 'zerkall_faserzentrum' && r.unlocked);
+            const rurQuestDone = quests.some(q => q.id === 'quest_rurtalbahn' && q.status === 'completed');
+            const schoellerQuestDone = quests.some(q => q.id === 'quest_schoellershammer' && q.status === 'completed');
+            
+            if (!zerkallDone && !rurQuestDone && !schoellerQuestDone) return null;
+            
+            return (
+              <div className="border-t border-white/5 pt-2 flex flex-wrap gap-x-4 gap-y-1 text-[9px] text-[#A6E22E] font-mono">
+                <span className="text-white/40 uppercase tracking-wider font-bold">Aktivierte CO₂-Minderungen:</span>
+                {zerkallDone && (
+                  <span className="flex items-center gap-1">🌱 Faserzentrum Zerkall (-15t CO₂)</span>
+                )}
+                {schoellerQuestDone && (
+                  <span className="flex items-center gap-1">🤝 GreenPulse Schoellershammer (-15t CO₂)</span>
+                )}
+                {rurQuestDone && (
+                  <span className="flex items-center gap-1">🚇 Rurtalbahn-Allianz (-10t CO₂)</span>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

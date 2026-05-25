@@ -95,9 +95,21 @@ const TUTORIAL_STEPS = [
   }
 ];
 
+interface GameStateSnapshot {
+  grid: TileData[][];
+  stats: GameStats;
+  researchTree: ResearchNode[];
+  cards: ActionCard[];
+  quests: StakeholderQuest[];
+  logs: GameLog[];
+  roundInvested: boolean;
+  actionName: string;
+}
+
 export default function App() {
   // --- Game State Systems ---
   const [grid, setGrid] = useState<TileData[][]>([]);
+  const [history, setHistory] = useState<GameStateSnapshot[]>([]);
   const [stats, setStats] = useState<GameStats>({
     round: 1,
     year: 2026,
@@ -473,6 +485,37 @@ export default function App() {
     setLogs(prev => [newLog, ...prev.slice(0, 50)]);
   };
 
+  const pushHistoryState = (actionName: string) => {
+    const snapshot: GameStateSnapshot = {
+      grid: JSON.parse(JSON.stringify(grid)),
+      stats: JSON.parse(JSON.stringify(stats)),
+      researchTree: JSON.parse(JSON.stringify(researchTree)),
+      cards: JSON.parse(JSON.stringify(cards)),
+      quests: JSON.parse(JSON.stringify(quests)),
+      logs: JSON.parse(JSON.stringify(logs)),
+      roundInvested,
+      actionName
+    };
+    setHistory(prev => [snapshot, ...prev].slice(0, 10)); // Keep last 10 actions
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) {
+      addLog('Keine Aktionen im aktuellen Quartal zum Rückgängig machen.', 'warning');
+      return;
+    }
+    const [prev, ...rest] = history;
+    setGrid(prev.grid);
+    setStats(prev.stats);
+    setResearchTree(prev.researchTree);
+    setCards(prev.cards);
+    setQuests(prev.quests);
+    setLogs(prev.logs);
+    setRoundInvested(prev.roundInvested);
+    setHistory(rest);
+    addLog(`🔄 RÜCKGÄNGIG: '${prev.actionName}' wurde erfolgreich rückgängig gemacht!`, 'success');
+  };
+
   const saveGame = () => {
     try {
       const stateToSave = {
@@ -529,6 +572,7 @@ export default function App() {
       if (loadedState.hasOwnProperty('energyChallengeEnabled')) setEnergyChallengeEnabled(loadedState.energyChallengeEnabled);
       if (loadedState.hasOwnProperty('activeYearChallengeModal')) setActiveYearChallengeModal(loadedState.activeYearChallengeModal);
       
+      setHistory([]);
       addLog('📂 Spielstand erfolgreich geladen!', 'success');
     } catch (e) {
       addLog('❌ Fehler beim Laden des Spielstands. Daten korrupt?', 'error');
@@ -636,6 +680,12 @@ export default function App() {
     if (isBahnQuestDone) co2 -= 10.0;
     const isSchoellerQuestDone = quests.some(q => q.id === 'quest_schoellershammer' && q.status === 'completed');
     if (isSchoellerQuestDone) co2 -= 15.0;
+
+    // Apply Zerkall Fiber Innovation Center research effect
+    const isZerkallUnlocked = activeResearch.some(r => r.id === 'zerkall_faserzentrum' && r.unlocked);
+    if (isZerkallUnlocked) {
+      co2 -= 15.0;
+    }
 
     const finalCo2 = Math.max(5.0, co2);
 
@@ -1058,17 +1108,29 @@ export default function App() {
       return;
     }
 
+    pushHistoryState(`Forschung freigeschaltet: ${node.name}`);
+
     setResearchTree(prev => 
       prev.map(r => r.id === nodeId ? { ...r, unlocked: true } : r)
     );
-    setStats(prev => ({
-      ...prev,
-      researchPoints: prev.researchPoints - node.cost,
-      naturePoints: prev.naturePoints + 5
-    }));
+    setStats(prev => {
+      const isZerkall = nodeId === 'zerkall_faserzentrum';
+      const extraAcceptance = isZerkall ? 10 : 0;
+      return {
+        ...prev,
+        researchPoints: prev.researchPoints - node.cost,
+        naturePoints: prev.naturePoints + 5,
+        citizenAcceptance: Math.min(100, (prev.citizenAcceptance ?? 80) + extraAcceptance),
+        investedThisYear: true
+      };
+    });
     setRoundInvested(true);
     addLog(`🔬 FORSCHUNG ERFOLG: '${node.name}' erforscht! Bonuseffekte jetzt permanent aktiv. (+5 Naturpunkte)`, 'success');
     
+    if (nodeId === 'zerkall_faserzentrum') {
+      addLog(`🌾 ZERKALL-EFFEKT: Das neue Faserinnovationszentrum Zerkall reaktiviert das historische Erbe und erforscht zukunftssichere alternative Pflanzenfasern! Die Bürgerakzeptanz steigt sofort um +10%!`, 'success');
+    }
+
     // Recalculate metrics on new research benefits
     setTimeout(() => {
       updateGlobalMetrics(grid, stats.paperFactoryMode, researchTree.map(r => r.id === nodeId ? { ...r, unlocked: true } : r));
@@ -1142,6 +1204,9 @@ export default function App() {
         addLog('Die historische Papierfabrik Schoellershammer kann nicht abgerissen, sondern nur umgerüstet werden!', 'error');
         return;
       }
+
+      const prevBuilding = BUILDIONS_CATALOG.find(b => b.id === targetTile.buildingId);
+      pushHistoryState(`Rückbau: ${prevBuilding ? prevBuilding.name : 'Unbekanntes Gebäude'} (${x}, ${y})`);
 
       setGrid(prev => {
         const nextGrid = prev.map((row, ry) => 
@@ -1273,6 +1338,8 @@ export default function App() {
     const { x, y, building, finalCost, finalRebate, acceptanceSurcharge } = placementConfirmation;
     const targetTile = grid[y]?.[x];
     if (!targetTile) return;
+
+    pushHistoryState(`Bau von ${building.name}`);
 
     const activeBuildCardIdx = cards.findIndex(c => c.type === 'BUILD');
 
@@ -1414,6 +1481,8 @@ export default function App() {
 
     const nextLevel = currentLevel + 1;
 
+    pushHistoryState(`Upgrade von ${building.name} (Stufe ${nextLevel})`);
+
     setGrid(prev => {
       const nextGrid = prev.map((row, ry) =>
         row.map((tile, rx) => {
@@ -1440,7 +1509,8 @@ export default function App() {
     setStats(prev => ({
       ...prev,
       researchPoints: prev.researchPoints - researchCost,
-      naturePoints: prev.naturePoints + 15
+      naturePoints: prev.naturePoints + 15,
+      investedThisYear: true
     }));
 
     setRoundInvested(true);
@@ -1466,6 +1536,9 @@ export default function App() {
 
   // --- ADVANCE NEXT ROUND/YEAR TURNS ---
   const handleNextRound = () => {
+    // Clear history on new round to avoid cross-round rollbacks
+    setHistory([]);
+
     // 1. Calculate and advance seasons
     const nextRound = stats.round + 1;
     const yearShift = Math.floor((nextRound - 1) / 4);
@@ -1505,8 +1578,9 @@ export default function App() {
 
     // Paper factory budgets
     let factoryTaxRevenue = 0;
+    const obsolescencePenalty = stats.factoryObsolescencePenalty ?? 0;
     if (stats.paperFactoryMode === 'PRODUCTION') {
-      factoryTaxRevenue = 15;
+      factoryTaxRevenue = Math.max(5, 15 - obsolescencePenalty);
     } else if (stats.paperFactoryMode === 'RETROFITTING') {
       factoryTaxRevenue = 5;
       totalExpense += 3;
@@ -1786,6 +1860,23 @@ export default function App() {
       addLog("👨‍💼 KOOPERATIONS-ANGEBOT: Bürgermeister Peter Larue schlägt vor: 'Bürger-Nahverkehr Allianz Rurtalbahn'. Werfe einen Blick auf die Anforderungen!", "event");
     }
 
+    // Evaluate Technological Obsolescence Pressure (Technologischer Veraltungsdruck)
+    const enteringNewYear = (nextRound - 1) % 4 === 0 && nextRound > 1;
+    let nextPenalty = stats.factoryObsolescencePenalty ?? 0;
+    let nextInvestedThisYear = stats.investedThisYear ?? false;
+
+    if (enteringNewYear) {
+      if (stats.paperFactoryMode === 'PRODUCTION') {
+        if (!nextInvestedThisYear) {
+          nextPenalty += 1;
+          addLog(`📉 TECH-VERALTUNG: Weil im vergangenen Jahr nicht in Forschung oder Upgrades investiert wurde, sinkt die wirtschaftliche Effizienz der Fabrik im Produktionsmodus dauerhaft (Einbuße von -1 €)!`, 'error');
+        } else {
+          addLog(`✨ INNOVATIVES KLIMA: Dank deiner Investitionen in Forschung oder Upgrades hält die Fabrik dem technologischen Veraltungsdruck vorerst stand!`, 'success');
+        }
+      }
+      nextInvestedThisYear = false; // Reset for the new year
+    }
+
     // Update state stats
     setStats(prev => {
       const currentAcc = prev.citizenAcceptance !== undefined ? prev.citizenAcceptance : 80;
@@ -1800,7 +1891,9 @@ export default function App() {
         climateRisk: Math.min(100, Math.max(0, prev.climateRisk + Math.round(climateDamper) + extraClimateRisk)),
         biosecurity: nextBiosecurity,
         renewableEnergy: nextRenewableEnergy,
-        citizenAcceptance: nextYear > 2026 ? nextAcc : currentAcc
+        citizenAcceptance: nextYear > 2026 ? nextAcc : currentAcc,
+        factoryObsolescencePenalty: nextPenalty,
+        investedThisYear: nextInvestedThisYear
       };
     });
 
@@ -2273,6 +2366,21 @@ export default function App() {
           >
             <FolderOpen className="w-4 h-4 text-[#2A6F7E]" />
             Laden
+          </button>
+
+          {/* Undo Action Button */}
+          <button
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            className={`px-3.5 py-2.5 rounded-lg border font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5 ${
+              history.length > 0
+                ? 'bg-amber-50 hover:bg-amber-100 text-[#7A3F1F] border-amber-350'
+                : 'bg-white/40 text-gray-400 border-gray-200 cursor-not-allowed opacity-55'
+            }`}
+            title={history.length > 0 ? `Letzte Aktion rückgängig machen: "${history[0].actionName}"` : 'Keine Aktionen vorhanden, die rückgängig gemacht werden können'}
+          >
+            <RotateCcw className={`w-4 h-4 ${history.length > 0 ? 'text-[#BC6C25] animate-spin-reverse' : 'text-gray-400'}`} />
+            Rückgängig {history.length > 0 ? `(${history.length})` : ''}
           </button>
 
           {/* Help & Tutorial button */}
@@ -2890,6 +2998,7 @@ export default function App() {
           quests={quests}
           checkQuestRequirements={checkQuestRequirements}
           completeStakeholderQuest={completeStakeholderQuest}
+          researchTree={researchTree}
         />
       </div>
 

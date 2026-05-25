@@ -21,7 +21,9 @@ export const SchoellershammerConsole: React.FC<SchoellershammerConsoleProps> = (
     {
       id: 'PRODUCTION' as PaperFactoryMode,
       name: 'Vollbetrieb (Industrielle Produktion)',
-      budgetEffect: '+15 €/Runde',
+      budgetEffect: stats.factoryObsolescencePenalty && stats.factoryObsolescencePenalty > 0 
+        ? `+${Math.max(5, 15 - stats.factoryObsolescencePenalty)} €/Runde (Veraltungsdruck: -${stats.factoryObsolescencePenalty} €)` 
+        : '+15 €/Runde',
       ecologyEffect: '-1,0 Flussqualität pro Jahr regional. Erwärmt das Wasser.',
       rurtalbahnEffect: 'Blockiert Güterbahnen (Personenverkehr priorisiert) -> Gleis-Rabatte deaktiviert.',
       socialEffect: 'Sehr hohe Akzeptanz bei Arbeitgebern & Arbeitnehmern (Steuereinnahmen hoch, Arbeitsplätze gesichert).',
@@ -82,6 +84,23 @@ export const SchoellershammerConsole: React.FC<SchoellershammerConsoleProps> = (
       {/* Historical Facts & Lore Alert */}
       <div className="mb-4 bg-[#E8E2D6] p-3 rounded-lg border border-[#D4CCBA] text-xs font-sans leading-relaxed text-[#2C3322]">
         <span className="font-bold text-[#2C3322]">Hintergrund:</span> Das Papiergewerbe prägt Düren seit dem 16. Jahrhundert. Die Rur lieferte weiches Wasser zur Energie- und Papiererzeugung, wurde dadurch aber massiv kanalisiert und historisch verschmutzt. Deine Entscheidung bestimmt den Spagat zwischen Industrie-Identität und FFH-Artenschutz!
+      </div>
+
+      {/* Veraltungsdruck Warning Alert */}
+      <div className="mb-4 bg-amber-50 rounded-lg border border-amber-200 p-2.5 text-[10px] leading-relaxed text-amber-900 font-sans">
+        <div className="flex items-center gap-1.5 font-bold text-amber-850 mb-1">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-650 shrink-0" />
+          <span>⚡ TECHNOLOGISCHER VERALTUNGSDRUCK</span>
+        </div>
+        <p>
+          Ohne kontinuierliche Investitionen in Forschung oder Gebäude-Upgrades veraltet der klassische Vollkraftbetrieb durch globalen Konkurrenzdruck. Alle 4 Quartale (1 Jahr) verliert der Produktionsmodus dauerhaft <span className="font-extrabold">-1 € Rundenertrag</span>, wenn in diesem Jahr kein neues Forschungsprojekt oder Modernisierungs-Upgrade finanziert wurde.
+        </p>
+        <div className="mt-1.5 flex justify-between items-center font-mono text-[9px] border-t border-amber-200/50 pt-1 text-amber-850">
+          <span>In diesem Jahr bereits investiert:</span>
+          <span className={`font-black uppercase px-1 rounded ${stats.investedThisYear ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-850'}`}>
+            {stats.investedThisYear ? 'JA ✓' : 'NEIN ✗'}
+          </span>
+        </div>
       </div>
 
       {/* Mode selectors */}
