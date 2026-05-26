@@ -19,7 +19,8 @@ import { OekoZentraleHUD } from './components/OekoZentraleHUD';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
-  X, Save, FolderOpen, MessageSquare
+  X, Save, FolderOpen, MessageSquare,
+  Hammer, Factory, Microscope, Leaf, FileText, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -146,6 +147,7 @@ export default function App() {
   const [energyChallengeEnabled, setEnergyChallengeEnabled] = useState<boolean>(false);
   const [showEnergyRules, setShowEnergyRules] = useState<boolean>(false);
   const [isHoveringEnergyToggle, setIsHoveringEnergyToggle] = useState<boolean>(false);
+  const [challengesCollapsed, setChallengesCollapsed] = useState<boolean>(true);
   
   // UI Panels / Tabs
   const [activeTab, setActiveTab] = useState<'map' | 'schoeller' | 'research' | 'species' | 'reports'>('map');
@@ -165,6 +167,7 @@ export default function App() {
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
   const [tutorialStep, setTutorialStep] = useState<number>(0);
   const [showSpielregeln, setShowSpielregeln] = useState<boolean>(false);
+  const [logsCollapsed, setLogsCollapsed] = useState<boolean>(false);
 
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
@@ -1857,7 +1860,7 @@ export default function App() {
     if (nextRound === 2) {
       addLog("👩‍💼 KOOPERATIONS-ANGEBOT: Lara Kufferath bietet Kooperation an: 'Projekt GreenPulse Schoellershammer'. Prüfe die Kriterien in deiner Öko-Zentrale!", "event");
     } else if (nextRound === 6) {
-      addLog("👨‍💼 KOOPERATIONS-ANGEBOT: Bürgermeister Peter Larue schlägt vor: 'Bürger-Nahverkehr Allianz Rurtalbahn'. Werfe einen Blick auf die Anforderungen!", "event");
+      addLog("👨‍💼 KOOPERATIONS-ANGEBOT: Bürgermeister Frank Peter Ulrich schlägt vor: 'Bürger-Nahverkehr Allianz Rurtalbahn'. Werfe einen Blick auf die Anforderungen!", "event");
     }
 
     // Evaluate Technological Obsolescence Pressure (Technologischer Veraltungsdruck)
@@ -2348,23 +2351,28 @@ export default function App() {
               </div>
             </div>
           </div>
+        </div>
+      </header>
 
+      {/* Control Action Sub-bar to organize user flow and declutter layout */}
+      <div className="bg-[#FAF8F5] border-b border-brand-lightsky/15 px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-inner">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Save & Load Game Session Buttons */}
           <button
             onClick={saveGame}
-            className="px-3.5 py-2.5 rounded-lg bg-[#E2EBD5] hover:bg-[#D3E0C1] text-[#2C3311] border border-[#B8C8A3] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-[#E2EBD5] hover:bg-[#D3E0C1] text-[#2C3311] border border-[#B8C8A3] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
             title="Aktuellen Fortschritt speichern"
           >
-            <Save className="w-4 h-4 text-[#5A7247]" />
+            <Save className="w-3.5 h-3.5 text-[#5A7247]" />
             Speichern
           </button>
 
           <button
             onClick={loadGame}
-            className="px-3.5 py-2.5 rounded-lg bg-[#E5F2F5] hover:bg-[#D1E6EB] text-[#1D4E5B] border border-[#B0D3DC] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-[#E5F2F5] hover:bg-[#D1E6EB] text-[#1D4E5B] border border-[#B0D3DC] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
             title="Zuletzt gespeicherten Spielstand laden"
           >
-            <FolderOpen className="w-4 h-4 text-[#2A6F7E]" />
+            <FolderOpen className="w-3.5 h-3.5 text-[#2A6F7E]" />
             Laden
           </button>
 
@@ -2372,27 +2380,29 @@ export default function App() {
           <button
             onClick={handleUndo}
             disabled={history.length === 0}
-            className={`px-3.5 py-2.5 rounded-lg border font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg border font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5 ${
               history.length > 0
-                ? 'bg-amber-50 hover:bg-amber-100 text-[#7A3F1F] border-amber-350'
+                ? 'bg-amber-50 hover:bg-amber-100 text-[#7A3F1F] border-amber-300'
                 : 'bg-white/40 text-gray-400 border-gray-200 cursor-not-allowed opacity-55'
             }`}
             title={history.length > 0 ? `Letzte Aktion rückgängig machen: "${history[0].actionName}"` : 'Keine Aktionen vorhanden, die rückgängig gemacht werden können'}
           >
-            <RotateCcw className={`w-4 h-4 ${history.length > 0 ? 'text-[#BC6C25] animate-spin-reverse' : 'text-gray-400'}`} />
+            <RotateCcw className={`w-3.5 h-3.5 ${history.length > 0 ? 'text-[#BC6C25] animate-spin-reverse' : 'text-gray-400'}`} />
             Rückgängig {history.length > 0 ? `(${history.length})` : ''}
           </button>
+        </div>
 
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Help & Tutorial button */}
           <button
             onClick={() => {
               setTutorialStep(0);
               setShowTutorial(true);
             }}
-            className="px-3.5 py-2.5 rounded-lg bg-[#E8E2D6] hover:bg-[#DCD4C4] text-[#2C3311] border border-[#D4CCBA] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-[#E8E2D6] hover:bg-[#DCD4C4] text-[#2C3311] border border-[#D4CCBA] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
             title="Schritt-für-Schritt Einführung anzeigen"
           >
-            <HelpCircle className="w-4 h-4 text-[#5A7247]" />
+            <HelpCircle className="w-3.5 h-3.5 text-[#5A7247]" />
             Einführung
           </button>
 
@@ -2401,32 +2411,32 @@ export default function App() {
             onClick={() => {
               setShowSpielregeln(true);
             }}
-            className="px-3.5 py-2.5 rounded-lg bg-[#F5EAD4] hover:bg-[#ECDEBF] text-[#7A3F1F] border border-[#DCC5A3] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-[#F5EAD4] hover:bg-[#ECDEBF] text-[#7A3F1F] border border-[#DCC5A3] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
             title="Detaillierte Spielregeln und mechanische Zusammenhänge anzeigen"
           >
-            <BookOpen className="w-4 h-4 text-[#BC6C25]" />
+            <BookOpen className="w-3.5 h-3.5 text-[#BC6C25]" />
             Spielanleitung
           </button>
 
           {/* Feedback button */}
           <button
             onClick={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
-            className="px-3.5 py-2.5 rounded-lg bg-[#EDE8F5] hover:bg-[#E0D8F0] text-[#3D2C6E] border border-[#C8BAE8] font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95 flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-[#EDE8F5] hover:bg-[#E0D8F0] text-[#3D2C6E] border border-[#C8BAE8] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
             title="Feedback zur Simulation geben"
           >
-            <MessageSquare className="w-4 h-4 text-[#6B52AE]" />
+            <MessageSquare className="w-3.5 h-3.5 text-[#6B52AE]" />
             Feedback
           </button>
 
           {/* Advance Turn trigger button */}
           <button
             onClick={handleNextRound}
-            className="px-4.5 py-2.5 rounded-lg bg-brand-green hover:bg-brand-green/90 text-white font-extrabold tracking-tight text-xs uppercase cursor-pointer duration-200 shadow-sm shrink-0 font-display transition-all transform active:scale-95"
+            className="px-4 py-1.5 rounded-lg bg-brand-green hover:bg-brand-green/90 text-white font-black tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-md shrink-0 font-sans transition-all transform active:scale-95 animate-pulse"
           >
             Runde beenden ↩
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Main Container Layout */}
       <main className="flex-grow flex flex-col md:flex-row gap-6 p-6 h-full overflow-hidden">
@@ -2481,7 +2491,64 @@ export default function App() {
         <div className="w-full md:w-2/5 shrink-0 flex flex-col gap-6 h-full max-h-[920px]">
           
           {/* Simulation-Szenarien & Extra-Herausforderungen (Invasive & Energiewende) */}
-          <div className="bg-[#EADECE]/85 border-2 border-[#BC6C25]/45 rounded-xl p-4 shadow-sm flex flex-col gap-4 relative">
+          <div className="bg-[#EADECE]/85 border-2 border-[#BC6C25]/45 rounded-xl shadow-sm flex flex-col gap-1 relative overflow-hidden transition-all duration-300">
+            {/* Collapse/Expand Toggle Bar */}
+            <div 
+              onClick={() => setChallengesCollapsed(prev => !prev)}
+              className="p-3.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#EADBCE] duration-150 border-b border-[#D4CCBA]/30 bg-white/[0.12]"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">🏆</span>
+                <div className="text-left">
+                  <h3 className="text-xs font-black text-[#2C3311] uppercase tracking-wider leading-none">
+                    Zusatz-Herausforderungen
+                  </h3>
+                  <span className="text-[9px] text-[#8B8273] font-bold">
+                    {challengesCollapsed ? 'Klicken zum Einblenden & Verwalten' : 'Klicken zum Einklappen & Verbergen'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Mini status indicators */}
+                <div className="flex items-center gap-1.5 text-[9.5px] font-mono font-bold select-none">
+                  {invasiveThreatEnabled ? (
+                    <span className={`px-1.5 py-0.5 rounded ${
+                      (stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]/20 text-[#2C3311]' :
+                      (stats.biosecurity ?? 100) >= 30 ? 'bg-[#BC6C25]/20 text-[#7A3F1F]' : 'bg-red-100 text-red-900 animate-pulse'
+                    }`}>
+                      🦠 Bio: {stats.biosecurity}%
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-400">
+                      🦠 Aus
+                    </span>
+                  )}
+
+                  {energyChallengeEnabled ? (
+                    <span className={`px-1.5 py-0.5 rounded ${
+                      (stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-100 text-emerald-850' :
+                      (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-100 text-[#7A3F1F]' : 'bg-red-100 text-red-900 animate-pulse'
+                    }`}>
+                      ⚡ Öko: {stats.renewableEnergy}%
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-400">
+                      ⚡ Aus
+                    </span>
+                  )}
+                </div>
+
+                {challengesCollapsed ? (
+                  <ChevronDown className="w-4 h-4 text-[#BC6C25] shrink-0" />
+                ) : (
+                  <ChevronUp className="w-4 h-4 text-[#BC6C25] shrink-0" />
+                )}
+              </div>
+            </div>
+
+            {/* Collapsible content wrapper */}
+            <div className={`p-4 pt-1 flex flex-col gap-4 relative ${challengesCollapsed ? 'hidden' : 'block'}`}>
             
             {/* INVASIVE SPECIES CHALLENGE */}
             <div className="border-b border-[#D4CCBA] pb-3.5">
@@ -2761,30 +2828,151 @@ export default function App() {
               })()}
             </div>
 
+            </div>
           </div>
 
-          {/* Tabs header panel */}
-          <div className="flex bg-[#E8E2D6] border border-[#D4CCBA] p-1.5 rounded-xl justify-between shadow-sm">
-            {(['map', 'schoeller', 'research', 'species', 'reports'] as const).map(tab => (
-              <button
-                key={tab}
-                onClick={() => {
-                  setActiveTab(tab);
-                  // Turn off states of catalog selection to avoid confusion
-                  if (tab !== 'map') setSelectedBuilding(null);
-                }}
-                className={`flex-grow py-2 text-xs font-bold font-sans rounded-lg transition-all cursor-pointer ${
-                  activeTab === tab
-                    ? 'bg-[#5A7247] text-white border-transparent font-extrabold shadow-sm'
-                    : 'text-[#6B6356] hover:text-[#2C3322]'
-                }`}
-              >
-                {tab === 'map' ? '🏗️ Bauen' :
-                 tab === 'schoeller' ? '🏭 Fabrik' :
-                 tab === 'research' ? '🔬 Forschung' :
-                 tab === 'species' ? '🦫 Artenschutz' : '📊 Berichte'}
-              </button>
-            ))}
+          {/* COCKPIT NAVIGATION DECK */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between border-b border-[#D4CCBA] pb-1.5 px-0.5">
+              <span className="text-[10px] font-mono font-black uppercase tracking-wider text-[#8B8273] flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                🎛️ AKTIVES SIMULATIONS-PANEL
+              </span>
+              <span className="text-[9px] font-mono font-bold text-[#8B8273] hidden sm:inline">
+                Klicke auf einen Bereich zur Steuerung
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 bg-[#E8E2D6]/85 border border-[#D4CCBA] p-2 rounded-xl shadow-sm">
+              {[
+                {
+                  id: 'map' as const,
+                  title: 'Baukatalog',
+                  subtitle: 'Flussrenaturierung',
+                  icon: Hammer,
+                  iconColor: 'text-[#5A7247]',
+                  bgColor: 'bg-[#5A7247]/10',
+                  getBadge: () => {
+                    const bcount = grid.flat().filter(t => t.buildingId && t.buildingId !== 'schoellershammer').length;
+                    return `${bcount} Bauten`;
+                  },
+                  badgeColor: 'bg-[#5A7247]/20 text-[#2C3311]'
+                },
+                {
+                  id: 'schoeller' as const,
+                  title: 'Papierfabrik',
+                  subtitle: 'Schoellershammer',
+                  icon: Factory,
+                  iconColor: 'text-[#BC6C25]',
+                  bgColor: 'bg-[#BC6C25]/10',
+                  getBadge: () => {
+                    if (stats.paperFactoryMode === 'PRODUCTION') return 'Vollbetrieb';
+                    if (stats.paperFactoryMode === 'RETROFITTING') return 'Filter-Tech';
+                    if (stats.paperFactoryMode === 'SHUTDOWN') return 'Stillgelegt';
+                    return 'Rückbau';
+                  },
+                  badgeColor: stats.paperFactoryMode === 'PRODUCTION' ? 'bg-rose-100 text-rose-800' :
+                              stats.paperFactoryMode === 'RETROFITTING' ? 'bg-amber-100 text-amber-800' :
+                              stats.paperFactoryMode === 'SHUTDOWN' ? 'bg-stone-200 text-stone-800' : 'bg-emerald-100 text-emerald-800'
+                },
+                {
+                  id: 'research' as const,
+                  title: 'Forschung',
+                  subtitle: 'Innovationsbaum',
+                  icon: Microscope,
+                  iconColor: 'text-sky-600',
+                  bgColor: 'bg-sky-500/10',
+                  getBadge: () => {
+                    const unlocked = researchTree.filter(r => r.unlocked).length;
+                    return `${unlocked} / ${researchTree.length}`;
+                  },
+                  badgeColor: 'bg-sky-100 text-sky-850'
+                },
+                {
+                  id: 'species' as const,
+                  title: 'Artenschutz',
+                  subtitle: 'Fauna & Biotop',
+                  icon: Leaf,
+                  iconColor: 'text-emerald-600',
+                  bgColor: 'bg-emerald-500/10',
+                  getBadge: () => {
+                    const restored = speciesList.filter(s => s.restored).length;
+                    return `${restored} / ${speciesList.length}`;
+                  },
+                  badgeColor: 'bg-emerald-100 text-emerald-850'
+                },
+                {
+                  id: 'reports' as const,
+                  title: 'Berichte',
+                  subtitle: 'Nachhaltigkeit',
+                  icon: FileText,
+                  iconColor: 'text-[#457b9d]',
+                  bgColor: 'bg-[#457b9d]/10',
+                  getBadge: () => {
+                    return `Gütesiegel: ${stats.globalWrrl <= 2.8 ? 'A' : stats.globalWrrl <= 3.5 ? 'B' : 'C'}`;
+                  },
+                  badgeColor: 'bg-[#457b9d]/25 text-[#1D4E5B]'
+                }
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      if (tab.id !== 'map') setSelectedBuilding(null);
+                    }}
+                    className={`flex flex-col text-left p-2 rounded-lg border transition-all cursor-pointer relative overflow-hidden group hover:shadow-sm select-none ${
+                      isActive
+                        ? 'bg-[#5A7247] border-[#415531] text-white shadow font-extrabold transform -translate-y-[1px]'
+                        : 'bg-white/85 hover:bg-white border-[#D4CCBA] text-[#2C3322] hover:border-[#5A7247]/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1 justify-between w-full">
+                      <div className={`p-1 rounded-md ${
+                        isActive ? 'bg-white/20 text-white' : `${tab.bgColor} ${tab.iconColor}`
+                      } transition-colors`}>
+                        <Icon className="w-3.5 h-3.5 shrink-0" />
+                      </div>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        isActive ? 'bg-white' : 'bg-transparent'
+                      }`} />
+                    </div>
+
+                    <div className="flex-grow min-w-0">
+                      <div className={`text-[10px] font-black tracking-tight leading-none truncate ${
+                        isActive ? 'text-white' : 'text-stone-850'
+                      }`}>
+                        {tab.title}
+                      </div>
+                      <div className={`text-[8.5px] truncate leading-tight mt-0.5 ${
+                        isActive ? 'text-white/80 font-normal' : 'text-[#8B8273]'
+                      }`}>
+                        {tab.subtitle}
+                      </div>
+                    </div>
+
+                    <div className="mt-1 w-full shrink-0">
+                      <span className={`inline-block text-[8px] font-mono font-bold px-1 py-0.2 rounded leading-none w-full text-center truncate ${
+                        isActive ? 'bg-white/15 text-white border border-white/10' : tab.badgeColor
+                      }`}>
+                        {tab.getBadge()}
+                      </span>
+                    </div>
+
+                    {!isActive && (
+                      <div className={`absolute left-0 top-0 bottom-0 w-[2.5px] opacity-65 transition-all group-hover:opacity-100 ${
+                        tab.id === 'map' ? 'bg-[#5A7247]' :
+                        tab.id === 'schoeller' ? 'bg-[#BC6C25]' :
+                        tab.id === 'research' ? 'bg-sky-500' :
+                        tab.id === 'species' ? 'bg-emerald-500' : 'bg-[#457b9d]'
+                      }`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Tabs containers */}
@@ -2842,31 +3030,54 @@ export default function App() {
           </div>
 
           {/* Bottom logs HUD */}
-          <div className="bg-[#E8E2D6]/80 border border-[#D4CCBA] rounded-xl p-4 flex flex-col h-[200px] overflow-hidden shadow-inner shrink-0">
-            <span className="text-[10px] font-mono uppercase tracking-widest text-[#8B8273] mb-2 border-b border-[#D4CCBA] pb-1.5 flex justify-between">
-              <span>📜 Amts- & Simulationsprotokoll</span>
-              <button
-                onClick={handleRestartGame}
-                className="text-red-700 hover:text-red-600 transition-colors uppercase cursor-pointer"
-              >
-                Simulation Neustarten
-              </button>
-            </span>
-            <div className="flex-grow overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
-              {logs.map(log => (
-                <div key={log.id} className="text-[10.5px] font-mono leading-relaxed flex items-start gap-1.5">
-                  <span className="text-[#8B8273] font-bold shrink-0">W:{(log.round)}</span>
-                  <span className={
-                    log.type === 'success' ? 'text-[#5A7247] font-medium' :
-                    log.type === 'warning' ? 'text-amber-800' :
-                    log.type === 'error' ? 'text-red-800' :
-                    'text-[#2C3322]'
-                  }>
-                    {log.message}
-                  </span>
-                </div>
-              ))}
+          <div className={`bg-[#E8E2D6]/80 border border-[#D4CCBA] rounded-xl p-3 flex flex-col transition-all duration-300 shadow-inner shrink-0 ${
+            logsCollapsed ? 'h-[44px]' : 'h-[200px]'
+          }`}>
+            <div 
+              className="text-[10px] font-mono uppercase tracking-widest text-[#8B8273] flex items-center justify-between border-b border-[#D4CCBA] pb-1.5 cursor-pointer select-none"
+              onClick={() => setLogsCollapsed(prev => !prev)}
+            >
+              <span className="flex items-center gap-1.5">
+                <span>📜 Amts- & Simulationsprotokoll</span>
+                <span className="text-[8.5px] font-normal tracking-tight normal-case text-[#8B8273]/70">
+                  ({logsCollapsed ? 'klicken zum Aufklappen' : 'klicken zum Minimieren'})
+                </span>
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRestartGame();
+                  }}
+                  className="text-red-700 hover:text-red-600 transition-colors uppercase cursor-pointer text-[9px] font-bold"
+                >
+                  Simulation Neustarten
+                </button>
+                {logsCollapsed ? (
+                  <ChevronDown className="w-3.5 h-3.5 text-[#8B8273]" />
+                ) : (
+                  <ChevronUp className="w-3.5 h-3.5 text-[#8B8273]" />
+                )}
+              </div>
             </div>
+
+            {!logsCollapsed && (
+              <div className="flex-grow overflow-y-auto space-y-1.5 custom-scrollbar pr-1 mt-2">
+                {logs.map(log => (
+                  <div key={log.id} className="text-[10.5px] font-mono leading-relaxed flex items-start gap-1.5">
+                    <span className="text-[#8B8273] font-bold shrink-0">W:{(log.round)}</span>
+                    <span className={
+                      log.type === 'success' ? 'text-[#5A7247] font-medium' :
+                      log.type === 'warning' ? 'text-amber-800' :
+                      log.type === 'error' ? 'text-red-800' :
+                      'text-[#2C3322]'
+                    }>
+                      {log.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>

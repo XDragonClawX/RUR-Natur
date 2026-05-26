@@ -578,7 +578,7 @@ export const STAKEHOLDER_QUESTS_DATA: StakeholderQuest[] = [
   {
     id: 'quest_rurtalbahn',
     title: 'Bürger-Nahverkehr Allianz Rurtalbahn',
-    stakeholder: 'Bürgermeister Peter Larue',
+    stakeholder: 'Bürgermeister Frank Peter Ulrich',
     stakeholderTitle: 'Kommunaler Kreisbeauftragter / Düren-Land',
     avatar: '👨‍💼',
     message: 'Die Mobilitätswende im Rurtal gelingt nur im engen Dialog mit den Bürgern! Wenn Sie das Rurtalbahn-Gleisnetz aktiv halten, mindestens einen Rurtalbahn-Halt errichtet haben und einen städtischen Kofinanzierungs-Zuschuss von 5 € freigeben, heben wir die Akzeptanz Ihrer Uferrenaturierungen auf ein historisches Allzeithoch.',

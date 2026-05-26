@@ -529,11 +529,36 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
             
             const hasPaperMode = reqs.paperFactoryMode === undefined || stats.paperFactoryMode === reqs.paperFactoryMode;
             
+            // Calculate progress percentages per requirement (0 to 100)
+            const rpPercent = reqs.researchPoints !== undefined && reqs.researchPoints > 0
+              ? Math.min(100, Math.round((stats.researchPoints / reqs.researchPoints) * 100))
+              : 100;
+
+            const budgetPercent = reqs.budget !== undefined && reqs.budget > 0
+              ? Math.min(100, Math.round((stats.budget / reqs.budget) * 100))
+              : 100;
+
+            const buildingPercent = hasBuilding ? 100 : 0;
+            const paperModePercent = hasPaperMode ? 100 : 0;
+
+            // Total requirement tracker to count completion rate
+            const reqListCount = [
+              reqs.researchPoints !== undefined,
+              reqs.budget !== undefined && reqs.budget > 0,
+              reqs.buildingId !== undefined,
+              reqs.paperFactoryMode !== undefined
+            ].filter(Boolean).length;
+
+            const reqListMet = [
+              reqs.researchPoints !== undefined && hasResearchPoints,
+              reqs.budget !== undefined && reqs.budget > 0 && hasBudget,
+              reqs.buildingId !== undefined && hasBuilding,
+              reqs.paperFactoryMode !== undefined && hasPaperMode
+            ].filter(Boolean).length;
+
+            const overallPercent = reqListCount > 0 ? Math.round((reqListMet / reqListCount) * 100) : 100;
+            
             let hasResearchNode = true;
-            // Let's find if research node is unlocked if required
-            // We can just query grid / or assume if state is passed, wait - we don't have researchTree here directly!
-            // Wait, does stats store anything, or can we pass the requirement check, or just check checkQuestRequirements callback?
-            // Yes! We have the custom `checkQuestRequirements` callback from App.tsx which has perfect access to researchTree!
             const areAllRequirementsMet = checkQuestRequirements ? checkQuestRequirements(q) : (hasResearchPoints && hasBudget && hasBuilding && hasPaperMode);
 
             return (
@@ -548,16 +573,30 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                 }`}
               >
                 {/* Header: Stakeholder */}
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl shrink-0">
-                    {q.avatar}
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl shrink-0">
+                      {q.avatar}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-mono text-[8.5px] text-emerald-400 font-extrabold uppercase tracking-wide leading-none select-none">
+                        {q.stakeholderTitle}
+                      </h4>
+                      <span className="text-xs font-black text-white block truncate leading-tight mt-0.5">
+                        {q.stakeholder}
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h4 className="font-mono text-[8.5px] text-emerald-400 font-extrabold uppercase tracking-wide leading-none select-none">
-                      {q.stakeholderTitle}
-                    </h4>
-                    <span className="text-xs font-black text-white block truncate leading-tight mt-0.5">
-                      {q.stakeholder}
+
+                  <div className="text-right shrink-0">
+                    <span className={`text-[9px] font-mono font-black px-1.5 py-0.5 rounded-md border ${
+                      isCompleted 
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+                        : overallPercent === 100 
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' 
+                          : 'bg-white/5 text-white/60 border-white/10'
+                    }`}>
+                      {isCompleted ? '100% Bereit' : `${overallPercent}% Gelöst`}
                     </span>
                   </div>
                 </div>
@@ -568,52 +607,100 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                   &bdquo;{q.message}&ldquo;
                 </div>
 
-                {/* Requirements Checklist */}
-                <div className="space-y-1.5 mb-3 bg-black/15 p-2 rounded-lg border border-white/5">
+                {/* Overall Alliance Progress Visual Indicator */}
+                {!isCompleted && (
+                  <div className="mb-3 px-1">
+                    <div className="flex justify-between items-center text-[8.5px] font-mono text-white/40 mb-1">
+                      <span>BÜNDNIS-STATUS:</span>
+                      <span className="font-black text-white/70">{reqListMet} von {reqListCount} erfüllt</span>
+                    </div>
+                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" 
+                        style={{ width: `${overallPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Requirements Checklist with individual visual progress bars */}
+                <div className="space-y-2.5 mb-3 bg-black/15 p-2.5 rounded-lg border border-white/5">
                   <span className="text-[8px] font-mono text-white/40 uppercase tracking-widest font-extrabold block">AUFLAGEN FÜR BÜNDNIS:</span>
                   
                   {/* Research Points */}
                   {reqs.researchPoints !== undefined && (
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-white/70 font-mono">🧪 Forschungspunkte:</span>
-                      <span className={`font-bold font-mono ${hasResearchPoints ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {stats.researchPoints} / {reqs.researchPoints}
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-white/70 font-mono flex items-center gap-1">🧪 Forschungspunkte:</span>
+                        <span className={`font-bold font-mono text-[9px] ${hasResearchPoints ? 'text-emerald-400 font-extrabold' : 'text-rose-400'}`}>
+                          {stats.researchPoints} / {reqs.researchPoints} ({rpPercent}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/[0.04] h-1.5 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className={`h-full duration-500 transition-all ${hasResearchPoints ? 'bg-emerald-400' : 'bg-sky-500'}`} 
+                          style={{ width: `${rpPercent}%` }} 
+                        />
+                      </div>
                     </div>
                   )}
 
                   {/* Budget */}
                   {reqs.budget !== undefined && reqs.budget > 0 && (
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-white/70 font-mono">🪙 Budget-Zuschuss:</span>
-                      <span className={`font-bold font-mono ${hasBudget ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {stats.budget} € / {reqs.budget} €
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-white/70 font-mono flex items-center gap-1">🪙 Budget-Zuschuss:</span>
+                        <span className={`font-bold font-mono text-[9px] ${hasBudget ? 'text-emerald-400 font-extrabold' : 'text-rose-400'}`}>
+                          {stats.budget} € / {reqs.budget} € ({budgetPercent}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/[0.04] h-1.5 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className={`h-full duration-500 transition-all ${hasBudget ? 'bg-emerald-400' : 'bg-[#BC6C25]'}`} 
+                          style={{ width: `${budgetPercent}%` }} 
+                        />
+                      </div>
                     </div>
                   )}
 
                   {/* Building */}
                   {reqs.buildingId && (
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-white/70 font-mono">🏗️ Errichtetes Bauwerk:</span>
-                      <span className={`font-bold ${hasBuilding ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {reqs.buildingId === 'klaerwerk_upgrade' ? '1x Klärwerk-Upgrade' : '1x Rurtalbahn-Halt'} {hasBuilding ? '✓' : '✗'}
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-white/70 font-mono flex items-center gap-1">🏗️ Errichtetes Bauwerk:</span>
+                        <span className={`font-bold text-[9px] ${hasBuilding ? 'text-emerald-400 font-extrabold' : 'text-rose-450'}`}>
+                          {reqs.buildingId === 'klaerwerk_upgrade' ? 'Klärwerk-Upgrade' : 'Rurtalbahn-Halt'} {hasBuilding ? '✓ (100%)' : '✗ (0%)'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/[0.04] h-1.5 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className={`h-full duration-500 transition-all ${hasBuilding ? 'bg-emerald-400' : 'bg-rose-500/20'}`} 
+                          style={{ width: `${buildingPercent}%` }} 
+                        />
+                      </div>
                     </div>
                   )}
 
                   {/* Paper Production Mode */}
                   {reqs.paperFactoryMode && (
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-white/70 font-mono">🏭 Fabrik-Betrieb:</span>
-                      <span className={`font-bold ${hasPaperMode ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {reqs.paperFactoryMode} {hasPaperMode ? '✓' : '✗'}
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-white/70 font-mono flex items-center gap-1">🏭 Fabrik-Betrieb:</span>
+                        <span className={`font-bold text-[9px] ${hasPaperMode ? 'text-emerald-400 font-extrabold' : 'text-rose-450'}`}>
+                          {reqs.paperFactoryMode} {hasPaperMode ? '✓ (100%)' : '✗ (0%)'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/[0.04] h-1.5 rounded-full overflow-hidden border border-white/5">
+                        <div 
+                          className={`h-full duration-500 transition-all ${hasPaperMode ? 'bg-emerald-400' : 'bg-rose-500/20'}`} 
+                          style={{ width: `${paperModePercent}%` }} 
+                        />
+                      </div>
                     </div>
                   )}
 
                   {/* General requirements description */}
-                  <p className="text-[9px] text-[#A69E8F] mt-1 font-sans italic">
+                  <p className="text-[9px] text-[#A69E8F] mt-1.5 font-sans italic leading-tight">
                     Vorgabe: {q.requirementsText}
                   </p>
                 </div>

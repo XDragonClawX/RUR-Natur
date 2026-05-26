@@ -31,13 +31,13 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const categories = [
-    { id: 'all', name: 'Alle' },
-    { id: 'ecology', name: '🌿 Ökologie', color: 'bg-emerald-550/10 text-emerald-400 border-emerald-500/20' },
-    { id: 'water', name: '🌊 Wasser', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-    { id: 'fauna', name: '🦫 Fauna', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
-    { id: 'tourism', name: '🏕️ Tourismus', color: 'bg-teal-500/10 text-teal-400 border-teal-500/20' },
-    { id: 'economy', name: '💶 Wirtschaft', color: 'bg-slate-500/10 text-slate-300 border-slate-500/20' },
-    { id: 'infrastructure', name: '🚇 Bahn & Industrie', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+    { id: 'all', name: 'Alle', activeClass: 'bg-slate-800 text-white border-transparent shadow-sm scale-102 font-black', inactiveClass: 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900' },
+    { id: 'ecology', name: '🌿 Ökologie', activeClass: 'bg-[#5A7247] text-white border-transparent shadow-sm scale-102 font-black', inactiveClass: 'bg-emerald-50/40 text-[#2C3311] border-emerald-200/70 hover:bg-[#D4E0C1]/40' },
+    { id: 'water', name: '🌊 Wasser', activeClass: 'bg-[#457B9D] text-white border-transparent shadow-sm scale-102 font-black', inactiveClass: 'bg-blue-50/40 text-[#1D4E5B] border-blue-200/70 hover:bg-blue-100/30' },
+    { id: 'fauna', name: '🦫 Fauna', activeClass: 'bg-[#BC6C25] text-white border-transparent shadow-sm scale-102 font-black', inactiveClass: 'bg-amber-50/40 text-[#7A3F1F] border-amber-200/70 hover:bg-amber-100/30' },
+    { id: 'tourism', name: '🏕️ Tourismus', activeClass: 'bg-teal-600 text-white border-transparent shadow-sm scale-102 font-black', inactiveClass: 'bg-teal-50/40 text-teal-800 border-teal-200/70 hover:bg-teal-100/30' },
+    { id: 'economy', name: '💶 Wirtschaft', activeClass: 'bg-neutral-600 text-white border-transparent shadow-sm scale-102 font-black', inactiveClass: 'bg-[#F5EAD4]/40 text-[#7A3F1F] border-[#DCC5A3]/60 hover:bg-[#F5EAD4]/70' },
+    { id: 'infrastructure', name: '🚇 Bahn & Industrie', activeClass: 'bg-purple-600 text-white border-transparent shadow-sm scale-102 font-black', inactiveClass: 'bg-purple-50/40 text-purple-800 border-purple-200/70 hover:bg-purple-100/30' },
   ];
 
   const terrainFilters: { id: TerrainType; name: string; icon: string; activeBg: string }[] = [
@@ -231,10 +231,10 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
               setActiveTab(cat.id as any);
               onSelectBuilding(null); // Clear selected
             }}
-            className={`px-2.5 py-1 text-xs rounded-lg border font-sans font-medium transition-all duration-200 cursor-pointer ${
+            className={`px-3 py-1.5 text-xs rounded-xl border font-sans font-medium transition-all duration-150 cursor-pointer transform active:scale-95 duration-100 ${
               activeTab === cat.id
-                ? 'bg-brand-green hover:bg-brand-green/90 text-white border-transparent font-semibold shadow-sm'
-                : 'bg-white hover:bg-slate-50 text-[#6B6356] border-slate-205'
+                ? cat.activeClass
+                : cat.inactiveClass
             }`}
           >
             {cat.name}
