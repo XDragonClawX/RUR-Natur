@@ -2248,193 +2248,187 @@ export default function App() {
   return (
     <div className="min-h-screen bg-brand-bg text-[#2C3322] flex flex-col font-sans select-none overflow-x-hidden antialiased">
       
-      {/* Page Header Bar */}
-      <header className="bg-white border-b border-brand-lightsky/25 px-6 py-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0 shadow-sm">
-        
-        {/* RUR NATUR Logo & Brand Title */}
-        <div className="flex items-center gap-3.5 select-none">
-          <svg className="w-11 h-11 shrink-0 drop-shadow-sm" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10 50 C10 15, 50 10, 85 20 C90 55, 65 85, 50 90 C35 90, 10 75, 10 50 Z" fill="#4A7A3A" />
-            <path d="M85 20 C60 25, 50 45, 30 50 C15 52, 22 65, 35 70 C55 65, 60 40, 85 20 Z" fill="#2A6F7E" />
-            <path d="M85 20 C68 23, 58 41, 38 48 C28 49, 31 56, 42 63 C58 56, 62 38, 85 20 Z" fill="#7FA8B5" />
-            <path d="M85 20 C73 22, 65 37, 45 44 C38 45, 40 50, 48 56 C62 50, 67 33, 85 20 Z" fill="#ECEDEF" />
-          </svg>
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-1.5 -mb-1">
-              <span className="text-2xl font-black tracking-tight text-[#3A3F45] font-display">RUR</span>
-              <span className="text-2xl font-semibold tracking-tight text-brand-green font-display">NATUR</span>
-            </div>
-            <span className="text-[10px] font-bold tracking-[0.2em] text-[#2A6F7E] uppercase font-display leading-none">
-              RENATURIERUNGS-SIMULATOR
-            </span>
-          </div>
-        </div>
+      {/* ── Floating Navigation Bar ────────────────────────────────────── */}
+      <div className="sticky top-0 z-50">
+        <div className="px-3 pt-2 pb-1 relative">
 
-        {/* Global Statistics Indicators */}
-        <div className="flex flex-wrap items-center gap-3 md:gap-4 bg-[#F2EDE4]/65 border border-brand-lightsky/20 p-2.5 rounded-xl text-xs">
-          
-          <div className="flex items-center gap-2 px-2 border-r border-[#D4CCBA]/50">
-            <Coins className="w-4 h-4 text-brand-green" />
-            <div className="text-left font-mono">
-              <div className="text-[10px] text-[#8B8273] leading-none">GUTHABEN</div>
-              <div className="text-brand-dark font-black text-sm tracking-tight">{stats.budget} €</div>
-            </div>
-          </div>
+          {/* Drop-shadow layer for depth effect */}
+          <div
+            className="absolute inset-x-4 top-4 bottom-0 rounded-2xl pointer-events-none -z-10"
+            style={{ background: 'rgba(0,0,0,0.14)', filter: 'blur(12px)' }}
+          />
 
-          <div className="flex items-center gap-2 px-2 border-r border-[#D4CCBA]/50">
-            <Zap className="w-4 h-4 text-brand-teal animate-pulse" />
-            <div className="text-left font-mono">
-              <div className="text-[10px] text-[#8B8273] leading-none">FORSCHUNG</div>
-              <div className="text-brand-dark font-black text-sm tracking-tight">{stats.researchPoints} 🧪</div>
-            </div>
-          </div>
+          <header className="bg-white/96 backdrop-blur-md border border-brand-green/20 rounded-2xl shadow-[0_2px_18px_rgba(0,0,0,0.10),0_1px_4px_rgba(74,122,58,0.07)] flex items-stretch gap-0 overflow-hidden">
 
-          <div className="flex items-center gap-2 px-2 border-r border-[#D4CCBA]/50">
-            <Award className="w-4 h-4 text-[#BC6C25]" />
-            <div className="text-left font-mono">
-              <div className="text-[10px] text-[#8B8273] leading-none">NATURPUNKTE</div>
-              <div className="text-brand-dark font-black text-sm tracking-tight">{stats.naturePoints} 🌿</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 px-2 border-r border-[#D4CCBA]/50">
-            <Calendar className="w-4 h-4 text-[#3A3F45]" />
-            <div className="text-left font-mono">
-              <div className="text-[10px] text-[#8B8273] leading-none">ZEITSCHRITT</div>
-              <div className="text-brand-dark font-bold text-xs tracking-tight">
-                {currentSeasonString} {stats.year}
-              </div>
-            </div>
-          </div>
-
-          {/* Core WRRL Quality Indicator */}
-          <div className="flex items-center gap-2 px-2">
-            <div className="p-1 rounded-full text-xs font-bold leading-none select-none bg-brand-lightsky/15">
-              💧
-            </div>
-            <div className="text-left font-mono whitespace-nowrap">
-              <div className="text-[10px] text-[#8B8273] leading-none">RUR WRRL QUALITÄT</div>
-              <div className="text-brand-dark font-bold text-xs tracking-tight">
-                {stats.globalWrrl.toFixed(2)} (
-                {stats.globalWrrl <= 2.2 ? 'Spitzenklasse' :
-                 stats.globalWrrl <= 2.8 ? 'Gut' :
-                 stats.globalWrrl <= 3.5 ? 'Mäßig' : 'Kanalisiert'}
-                )
-              </div>
-            </div>
-          </div>
-
-          {/* Core CO2 Footprint Indicator */}
-          <div className="flex items-center gap-2 px-2 border-l border-[#D4CCBA]/50">
-            <div className="p-1 rounded-full text-xs font-bold leading-none select-none bg-emerald-100">
-              🌱
-            </div>
-            <div className="text-left font-mono whitespace-nowrap">
-              <div className="text-[10px] text-[#8B8273] leading-none">CO₂-FUẞABDRUCK</div>
-              <div className="text-brand-dark font-bold text-xs tracking-tight flex items-center gap-1.5">
-                <span className={
-                  (stats.co2Footprint ?? 190.0) <= 60.0 ? 'text-emerald-600 font-extrabold' :
-                  (stats.co2Footprint ?? 190.0) <= 120.0 ? 'text-[#5A7247] font-extrabold' :
-                  (stats.co2Footprint ?? 190.0) <= 180.0 ? 'text-[#BC6C25]' : 'text-rose-600 font-black animate-pulse'
-                }>
-                  {(stats.co2Footprint ?? 190.0).toFixed(1)} t/Rnd
-                </span>
-                <span className={`text-[8.5px] px-1 py-0.2 rounded font-sans uppercase font-extrabold border ${
-                  (stats.co2Footprint ?? 190.0) <= 60.0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                  (stats.co2Footprint ?? 190.0) <= 120.0 ? 'bg-green-50 text-green-700 border-green-200' :
-                  (stats.co2Footprint ?? 190.0) <= 180.0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-300'
-                }`}>
-                  {(stats.co2Footprint ?? 190.0) <= 60.0 ? 'Klimapfad' :
-                   (stats.co2Footprint ?? 190.0) <= 120.0 ? 'Nachhaltig' :
-                   (stats.co2Footprint ?? 190.0) <= 180.0 ? 'Erhöht' : 'Kritisch'}
+            {/* ── Logo ──────────────────────────────────────────────────── */}
+            <div className="flex items-center gap-3 px-5 py-2.5 shrink-0 select-none">
+              <svg className="w-9 h-9 shrink-0 drop-shadow-sm" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 50 C10 15, 50 10, 85 20 C90 55, 65 85, 50 90 C35 90, 10 75, 10 50 Z" fill="#4A7A3A" />
+                <path d="M85 20 C60 25, 50 45, 30 50 C15 52, 22 65, 35 70 C55 65, 60 40, 85 20 Z" fill="#2A6F7E" />
+                <path d="M85 20 C68 23, 58 41, 38 48 C28 49, 31 56, 42 63 C58 56, 62 38, 85 20 Z" fill="#7FA8B5" />
+                <path d="M85 20 C73 22, 65 37, 45 44 C38 45, 40 50, 48 56 C62 50, 67 33, 85 20 Z" fill="#ECEDEF" />
+              </svg>
+              <div className="flex flex-col">
+                <div className="flex items-baseline gap-1 -mb-0.5">
+                  <span className="text-xl font-black tracking-tight text-brand-dark font-display leading-none">RUR</span>
+                  <span className="text-xl font-semibold tracking-tight text-brand-green font-display leading-none">NATUR</span>
+                </div>
+                <span className="text-[9px] font-bold tracking-[0.14em] text-brand-teal uppercase font-display">
+                  Düren · Renaturierung
                 </span>
               </div>
             </div>
-          </div>
-        </div>
-      </header>
 
-      {/* Control Action Sub-bar to organize user flow and declutter layout */}
-      <div className="bg-[#FAF8F5] border-b border-brand-lightsky/15 px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-inner">
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Save & Load Game Session Buttons */}
-          <button
-            onClick={saveGame}
-            className="px-3 py-1.5 rounded-lg bg-[#E2EBD5] hover:bg-[#D3E0C1] text-[#2C3311] border border-[#B8C8A3] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
-            title="Aktuellen Fortschritt speichern"
-          >
-            <Save className="w-3.5 h-3.5 text-[#5A7247]" />
-            Speichern
-          </button>
+            {/* Divider Logo | Mitte */}
+            <div className="w-px self-stretch bg-brand-green/15 my-2 shrink-0" />
 
-          <button
-            onClick={loadGame}
-            className="px-3 py-1.5 rounded-lg bg-[#E5F2F5] hover:bg-[#D1E6EB] text-[#1D4E5B] border border-[#B0D3DC] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
-            title="Zuletzt gespeicherten Spielstand laden"
-          >
-            <FolderOpen className="w-3.5 h-3.5 text-[#2A6F7E]" />
-            Laden
-          </button>
+            {/* ── Stat-Chips ────────────────────────────────────────────── */}
+            <div className="flex-1 flex flex-wrap items-center gap-2 px-4 py-2">
 
-          {/* Undo Action Button */}
-          <button
-            onClick={handleUndo}
-            disabled={history.length === 0}
-            className={`px-3 py-1.5 rounded-lg border font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5 ${
-              history.length > 0
-                ? 'bg-amber-50 hover:bg-amber-100 text-[#7A3F1F] border-amber-300'
-                : 'bg-white/40 text-gray-400 border-gray-200 cursor-not-allowed opacity-55'
-            }`}
-            title={history.length > 0 ? `Letzte Aktion rückgängig machen: "${history[0].actionName}"` : 'Keine Aktionen vorhanden, die rückgängig gemacht werden können'}
-          >
-            <RotateCcw className={`w-3.5 h-3.5 ${history.length > 0 ? 'text-[#BC6C25] animate-spin-reverse' : 'text-gray-400'}`} />
-            Rückgängig {history.length > 0 ? `(${history.length})` : ''}
-          </button>
-        </div>
+              {/* Zeitschritt */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-brand-teal/6 border border-brand-teal/16 shrink-0">
+                <Calendar className="w-3.5 h-3.5 text-brand-teal shrink-0" />
+                <div>
+                  <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">Zeitschritt</div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{currentSeasonString} {stats.year}</div>
+                </div>
+              </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Help & Tutorial button */}
-          <button
-            onClick={() => {
-              setTutorialStep(0);
-              setShowTutorial(true);
-            }}
-            className="px-3 py-1.5 rounded-lg bg-[#E8E2D6] hover:bg-[#DCD4C4] text-[#2C3311] border border-[#D4CCBA] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
-            title="Schritt-für-Schritt Einführung anzeigen"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-[#5A7247]" />
-            Einführung
-          </button>
+              <div className="w-px h-5 bg-brand-green/12 shrink-0" />
 
-          {/* Detailed game rules manual button */}
-          <button
-            onClick={() => {
-              setShowSpielregeln(true);
-            }}
-            className="px-3 py-1.5 rounded-lg bg-[#F5EAD4] hover:bg-[#ECDEBF] text-[#7A3F1F] border border-[#DCC5A3] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
-            title="Detaillierte Spielregeln und mechanische Zusammenhänge anzeigen"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-[#BC6C25]" />
-            Spielanleitung
-          </button>
+              {/* Guthaben */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50/70 border border-amber-200/55 shrink-0">
+                <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <div>
+                  <div className="text-[8px] text-amber-700/60 font-bold uppercase tracking-wide leading-none">Guthaben</div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.budget} €</div>
+                </div>
+              </div>
 
-          {/* Feedback button */}
-          <button
-            onClick={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
-            className="px-3 py-1.5 rounded-lg bg-[#EDE8F5] hover:bg-[#E0D8F0] text-[#3D2C6E] border border-[#C8BAE8] font-bold tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-sm shrink-0 font-sans transition-all transform active:scale-95 flex items-center gap-1.5"
-            title="Feedback zur Simulation geben"
-          >
-            <MessageSquare className="w-3.5 h-3.5 text-[#6B52AE]" />
-            Feedback
-          </button>
+              {/* Forschung */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-50/70 border border-sky-200/55 shrink-0">
+                <Zap className="w-3.5 h-3.5 text-brand-teal shrink-0" />
+                <div>
+                  <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">Forschung</div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.researchPoints} 🧪</div>
+                </div>
+              </div>
 
-          {/* Advance Turn trigger button */}
-          <button
-            onClick={handleNextRound}
-            className="px-4 py-1.5 rounded-lg bg-brand-green hover:bg-brand-green/90 text-white font-black tracking-tight text-[11px] uppercase cursor-pointer duration-150 shadow-md shrink-0 font-sans transition-all transform active:scale-95 animate-pulse"
-          >
-            Runde beenden ↩
-          </button>
+              {/* Naturpunkte */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-brand-green/6 border border-brand-green/18 shrink-0">
+                <Award className="w-3.5 h-3.5 text-brand-green shrink-0" />
+                <div>
+                  <div className="text-[8px] text-brand-green/65 font-bold uppercase tracking-wide leading-none">Naturpunkte</div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.naturePoints} 🌿</div>
+                </div>
+              </div>
+
+              {/* WRRL */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-50/60 border border-sky-200/50 shrink-0">
+                <span className="text-sm leading-none shrink-0">💧</span>
+                <div>
+                  <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">WRRL</div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">
+                    {stats.globalWrrl.toFixed(2)}{' '}
+                    <span className="font-normal text-[9px] text-[#8B8273]">
+                      {stats.globalWrrl <= 2.2 ? 'Spitze' : stats.globalWrrl <= 2.8 ? 'Gut' : stats.globalWrrl <= 3.5 ? 'Mäßig' : 'Kritisch'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CO₂ */}
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border shrink-0 ${
+                (stats.co2Footprint ?? 190) <= 60 ? 'bg-emerald-50/60 border-emerald-200/50' :
+                (stats.co2Footprint ?? 190) <= 120 ? 'bg-green-50/60 border-green-200/50' :
+                (stats.co2Footprint ?? 190) <= 180 ? 'bg-amber-50/60 border-amber-200/50' : 'bg-red-50/60 border-red-200/50'
+              }`}>
+                <span className="text-sm leading-none shrink-0">🌱</span>
+                <div>
+                  <div className="text-[8px] text-[#8B8273] font-bold uppercase tracking-wide leading-none">CO₂</div>
+                  <div className={`text-[11px] font-black font-mono leading-tight ${
+                    (stats.co2Footprint ?? 190) <= 60 ? 'text-emerald-700' :
+                    (stats.co2Footprint ?? 190) <= 120 ? 'text-brand-green' :
+                    (stats.co2Footprint ?? 190) <= 180 ? 'text-amber-700' : 'text-red-600 animate-pulse'
+                  }`}>
+                    {(stats.co2Footprint ?? 190).toFixed(1)} t
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Divider Mitte | Rechts */}
+            <div className="w-px self-stretch bg-brand-green/15 my-2 shrink-0" />
+
+            {/* ── Toolbar ───────────────────────────────────────────────── */}
+            <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
+
+              {/* Utility: Speichern / Laden / Rückgängig */}
+              <button
+                onClick={saveGame}
+                className="p-2 rounded-lg bg-brand-green/6 hover:bg-brand-green/14 border border-brand-green/16 hover:border-brand-green/32 text-brand-green transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Spielstand speichern"
+              >
+                <Save className="w-4 h-4" />
+              </button>
+              <button
+                onClick={loadGame}
+                className="p-2 rounded-lg bg-brand-teal/6 hover:bg-brand-teal/14 border border-brand-teal/16 hover:border-brand-teal/32 text-brand-teal transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Spielstand laden"
+              >
+                <FolderOpen className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleUndo}
+                disabled={history.length === 0}
+                className={`p-2 rounded-lg border transition-all duration-150 active:scale-95 ${
+                  history.length > 0
+                    ? 'bg-amber-50/70 hover:bg-amber-100 border-amber-200/60 hover:border-amber-300 text-amber-700 cursor-pointer'
+                    : 'bg-white/30 border-gray-200/40 text-gray-300 cursor-not-allowed opacity-45'
+                }`}
+                title={history.length > 0 ? `Rückgängig: "${history[0].actionName}"` : 'Kein Undo verfügbar'}
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+
+              <div className="w-px h-5 bg-brand-green/15 mx-0.5 shrink-0" />
+
+              {/* Info-Buttons */}
+              <button
+                onClick={() => { setTutorialStep(0); setShowTutorial(true); }}
+                className="p-2 rounded-lg bg-[#F2EDE4]/60 hover:bg-[#EDE4D6]/80 border border-[#D4CCBA]/45 hover:border-[#B8C8A3]/60 text-[#5A7247] transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Einführung anzeigen"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowSpielregeln(true)}
+                className="p-2 rounded-lg bg-[#F5EAD4]/60 hover:bg-[#ECDEBF]/80 border border-[#DCC5A3]/45 hover:border-[#DCC5A3]/70 text-[#BC6C25] transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Spielanleitung"
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
+                className="p-2 rounded-lg bg-[#EDE8F5]/60 hover:bg-[#E0D8F0]/80 border border-[#C8BAE8]/45 hover:border-[#C8BAE8]/70 text-[#6B52AE] transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Feedback geben"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+
+              <div className="w-px h-5 bg-brand-green/15 mx-0.5 shrink-0" />
+
+              {/* Primäre Aktion: Runde beenden */}
+              <button
+                onClick={handleNextRound}
+                className="px-4 py-2 rounded-xl bg-brand-green hover:bg-[#3d6830] text-white font-bold text-[11px] uppercase tracking-wide border border-brand-green/40 hover:border-[#5a9248] shadow-sm hover:shadow-md transition-all duration-150 active:scale-[0.97] cursor-pointer flex items-center gap-2 whitespace-nowrap"
+              >
+                <span>Runde beenden</span>
+                <span className="opacity-75 text-xs">↩</span>
+              </button>
+            </div>
+
+          </header>
         </div>
       </div>
 
@@ -2451,6 +2445,12 @@ export default function App() {
             rurtalbahnLeased={rurtalbahnLeased}
             leaseRurtalbahn={handleLeaseRurtalbahn}
             rurtalbahnTimeRemaining={rurtalbahnTimeRemaining}
+            stats={stats}
+            buildingsCatalog={BUILDIONS_CATALOG}
+            researchTree={researchTree}
+            grid={grid}
+            onSelectBuilding={setSelectedBuilding}
+            onUnlockResearch={handleUnlockResearch}
           />
 
           {/* Interactive map display */}

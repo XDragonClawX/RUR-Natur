@@ -103,6 +103,27 @@ export interface GameStats {
   co2Footprint?: number; // CO2 footprint metric in tons CO₂-equivalent per year / round
 }
 
+export interface DraftCard {
+  id: string;
+  name: string;
+  icon: string;
+  category: 'ecology' | 'water' | 'fauna' | 'research' | 'danger';
+  description: string;
+  is_danger: boolean;
+  cost: number;
+  effects: {
+    nature_points?: number;
+    research_points?: number;
+    budget?: number;
+    wrrl?: number;
+    ffh?: number;
+    continuity?: number;
+    climate_risk?: number;
+    citizen_acceptance?: number;
+    biosecurity?: number;
+  };
+}
+
 export interface StakeholderQuest {
   id: string;
   title: string;
