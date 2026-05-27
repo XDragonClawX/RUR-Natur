@@ -9,11 +9,13 @@ import {
   BIOTOP_SPECIES, CLIMATE_EVENTS_DATA, STAKEHOLDER_QUESTS_DATA
 } from './gameData';
 import { ActionSlotSystem } from './components/ActionSlotSystem';
-import { ActiveSimulationPanel } from './components/ActiveSimulationPanel';
+import { BuildingCatalog } from './components/BuildingCatalog';
+import { SchoellershammerConsole } from './components/SchoellershammerConsole';
+import { ResearchTree } from './components/ResearchTree';
+import { SpeciesTracker } from './components/SpeciesTracker';
+import { DashboardReports } from './components/DashboardReports';
 import { IsometricMap } from './components/IsometricMap';
 import { OekoZentraleHUD } from './components/OekoZentraleHUD';
-import { SystemControlDock } from './components/SystemControlDock';
-import { RegulatoryModals } from './components/RegulatoryModals';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
@@ -165,8 +167,6 @@ export default function App() {
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
   const [tutorialStep, setTutorialStep] = useState<number>(0);
   const [showSpielregeln, setShowSpielregeln] = useState<boolean>(false);
-  const [showNatura2000Modal, setShowNatura2000Modal] = useState<boolean>(false);
-  const [showWrrlModal, setShowWrrlModal] = useState<boolean>(false);
   const [logsCollapsed, setLogsCollapsed] = useState<boolean>(false);
 
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
@@ -2248,59 +2248,39 @@ export default function App() {
   return (
     <div className="min-h-screen bg-brand-bg text-[#2C3322] flex flex-col font-sans select-none overflow-x-hidden antialiased">
       
-      {/* ── Top Logo & Project Branding (Decoupled, Static) ────────────────── */}
-      <div className="max-w-[1600px] w-full mx-auto px-4 pt-3 pb-1 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-3 select-none">
-          <svg className="w-9 h-9 shrink-0 drop-shadow-md" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10 50 C10 15, 50 10, 85 20 C90 55, 65 85, 50 90 C35 90, 10 75, 10 50 Z" fill="#4A7A3A" />
-            <path d="M85 20 C60 25, 50 45, 30 50 C15 52, 22 65, 35 70 C55 65, 60 40, 85 20 Z" fill="#2A6F7E" />
-            <path d="M85 20 C68 23, 58 41, 38 48 C28 49, 31 56, 42 63 C58 56, 62 38, 85 20 Z" fill="#7FA8B5" />
-            <path d="M85 20 C73 22, 65 37, 45 44 C38 45, 40 50, 48 56 C62 50, 67 33, 85 20 Z" fill="#ECEDEF" />
-          </svg>
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-1 -mb-0.5">
-              <span className="text-xl font-black tracking-tight text-brand-dark font-display leading-none">RUR</span>
-              <span className="text-xl font-semibold tracking-tight text-brand-green font-display leading-none">NATUR</span>
-            </div>
-            <span className="text-[9.5px] font-bold tracking-[0.16em] text-brand-teal uppercase font-display">
-              Düren · Naturnahe Gewässerentwicklung
-            </span>
-          </div>
-        </div>
-
-        {/* Elegant metadata stats/indicators on the right of the logo bar */}
-        <div className="flex items-center gap-3 text-[10px] font-mono">
-          <button 
-            onClick={() => setShowNatura2000Modal(true)}
-            className="flex items-center gap-1.5 bg-brand-green/8 text-brand-dark px-2.5 py-1.5 rounded-md border border-brand-green/15 hover:bg-brand-green/15 hover:border-brand-green/30 transition-all active:scale-95 cursor-pointer shadow-2xs"
-            title="Natura 2000 Info &amp; Audit-Katalog öffnen"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse"></span>
-            <span className="font-extrabold tracking-wide text-brand-green">NATURA 2000 SCHUTZBEREICH</span>
-          </button>
-          
-          <button 
-            onClick={() => setShowWrrlModal(true)}
-            className="hidden sm:flex items-center gap-1.5 bg-sky-50 text-sky-850 px-2.5 py-1.5 rounded-md border border-sky-150 hover:bg-sky-100 hover:border-sky-250 transition-all active:scale-95 cursor-pointer shadow-2xs"
-            title="EU-Wasserrahmenrichtlinie &amp; Gütespiegel öffnen"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
-            <span className="font-extrabold tracking-wide text-sky-800">EU-WASSERRAHMENRICHTLINIE (WRRL)</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ── Floating Navigation Bar (Extra Compact) ────────────────────── */}
+      {/* ── Floating Navigation Bar ────────────────────────────────────── */}
       <div className="sticky top-0 z-50">
-        <div className="px-3 pt-1.5 pb-1 relative">
+        <div className="px-3 pt-2 pb-1 relative">
 
           {/* Drop-shadow layer for depth effect */}
           <div
-            className="absolute inset-x-4 top-3.5 bottom-0 rounded-2xl pointer-events-none -z-10"
-            style={{ background: 'rgba(0,0,0,0.11)', filter: 'blur(10px)' }}
+            className="absolute inset-x-4 top-4 bottom-0 rounded-2xl pointer-events-none -z-10"
+            style={{ background: 'rgba(0,0,0,0.14)', filter: 'blur(12px)' }}
           />
 
-          <header className="bg-white/96 backdrop-blur-md border border-[#D4E0C1]/60 rounded-2xl shadow-[0_2px_18px_rgba(0,0,0,0.08),0_1px_4px_rgba(74,122,58,0.05)] flex items-stretch gap-0 overflow-hidden">
+          <header className="bg-white/96 backdrop-blur-md border border-brand-green/20 rounded-2xl shadow-[0_2px_18px_rgba(0,0,0,0.10),0_1px_4px_rgba(74,122,58,0.07)] flex items-stretch gap-0 overflow-hidden">
+
+            {/* ── Logo ──────────────────────────────────────────────────── */}
+            <div className="flex items-center gap-3 px-5 py-2.5 shrink-0 select-none">
+              <svg className="w-9 h-9 shrink-0 drop-shadow-sm" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 50 C10 15, 50 10, 85 20 C90 55, 65 85, 50 90 C35 90, 10 75, 10 50 Z" fill="#4A7A3A" />
+                <path d="M85 20 C60 25, 50 45, 30 50 C15 52, 22 65, 35 70 C55 65, 60 40, 85 20 Z" fill="#2A6F7E" />
+                <path d="M85 20 C68 23, 58 41, 38 48 C28 49, 31 56, 42 63 C58 56, 62 38, 85 20 Z" fill="#7FA8B5" />
+                <path d="M85 20 C73 22, 65 37, 45 44 C38 45, 40 50, 48 56 C62 50, 67 33, 85 20 Z" fill="#ECEDEF" />
+              </svg>
+              <div className="flex flex-col">
+                <div className="flex items-baseline gap-1 -mb-0.5">
+                  <span className="text-xl font-black tracking-tight text-brand-dark font-display leading-none">RUR</span>
+                  <span className="text-xl font-semibold tracking-tight text-brand-green font-display leading-none">NATUR</span>
+                </div>
+                <span className="text-[9px] font-bold tracking-[0.14em] text-brand-teal uppercase font-display">
+                  Düren · Renaturierung
+                </span>
+              </div>
+            </div>
+
+            {/* Divider Logo | Mitte */}
+            <div className="w-px self-stretch bg-brand-green/15 my-2 shrink-0" />
 
             {/* ── Stat-Chips ────────────────────────────────────────────── */}
             <div className="flex-1 flex flex-wrap items-center gap-2 px-4 py-2">
@@ -2383,6 +2363,61 @@ export default function App() {
             {/* ── Toolbar ───────────────────────────────────────────────── */}
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
 
+              {/* Utility: Speichern / Laden / Rückgängig */}
+              <button
+                onClick={saveGame}
+                className="p-2 rounded-lg bg-brand-green/6 hover:bg-brand-green/14 border border-brand-green/16 hover:border-brand-green/32 text-brand-green transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Spielstand speichern"
+              >
+                <Save className="w-4 h-4" />
+              </button>
+              <button
+                onClick={loadGame}
+                className="p-2 rounded-lg bg-brand-teal/6 hover:bg-brand-teal/14 border border-brand-teal/16 hover:border-brand-teal/32 text-brand-teal transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Spielstand laden"
+              >
+                <FolderOpen className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleUndo}
+                disabled={history.length === 0}
+                className={`p-2 rounded-lg border transition-all duration-150 active:scale-95 ${
+                  history.length > 0
+                    ? 'bg-amber-50/70 hover:bg-amber-100 border-amber-200/60 hover:border-amber-300 text-amber-700 cursor-pointer'
+                    : 'bg-white/30 border-gray-200/40 text-gray-300 cursor-not-allowed opacity-45'
+                }`}
+                title={history.length > 0 ? `Rückgängig: "${history[0].actionName}"` : 'Kein Undo verfügbar'}
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+
+              <div className="w-px h-5 bg-brand-green/15 mx-0.5 shrink-0" />
+
+              {/* Info-Buttons */}
+              <button
+                onClick={() => { setTutorialStep(0); setShowTutorial(true); }}
+                className="p-2 rounded-lg bg-[#F2EDE4]/60 hover:bg-[#EDE4D6]/80 border border-[#D4CCBA]/45 hover:border-[#B8C8A3]/60 text-[#5A7247] transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Einführung anzeigen"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowSpielregeln(true)}
+                className="p-2 rounded-lg bg-[#F5EAD4]/60 hover:bg-[#ECDEBF]/80 border border-[#DCC5A3]/45 hover:border-[#DCC5A3]/70 text-[#BC6C25] transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Spielanleitung"
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
+                className="p-2 rounded-lg bg-[#EDE8F5]/60 hover:bg-[#E0D8F0]/80 border border-[#C8BAE8]/45 hover:border-[#C8BAE8]/70 text-[#6B52AE] transition-all duration-150 active:scale-95 cursor-pointer"
+                title="Feedback geben"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+
+              <div className="w-px h-5 bg-brand-green/15 mx-0.5 shrink-0" />
+
               {/* Primäre Aktion: Runde beenden */}
               <button
                 onClick={handleNextRound}
@@ -2398,7 +2433,7 @@ export default function App() {
       </div>
 
       {/* Main Container Layout */}
-      <main className="flex-grow flex flex-col md:flex-row gap-6 p-6 relative">
+      <main className="flex-grow flex flex-col md:flex-row gap-6 p-6 h-full overflow-hidden">
         
         {/* LEFT COLUMN: Isometric map Canvas & action card system */}
         <div className="flex-grow flex flex-col gap-6 w-full md:w-3/5">
@@ -2453,7 +2488,7 @@ export default function App() {
         </div>
 
         {/* RIGHT COLUMN: Tab selection & specific control modules */}
-        <div className="w-full md:w-2/5 shrink-0 flex flex-col gap-6">
+        <div className="w-full md:w-2/5 shrink-0 flex flex-col gap-6 h-full max-h-[920px]">
           
           {/* Simulation-Szenarien & Extra-Herausforderungen (Invasive & Energiewende) */}
           <div className="bg-[#EADECE]/85 border-2 border-[#BC6C25]/45 rounded-xl shadow-sm flex flex-col gap-1 relative overflow-hidden transition-all duration-300">
@@ -2797,29 +2832,202 @@ export default function App() {
           </div>
 
           {/* COCKPIT NAVIGATION DECK */}
-          <ActiveSimulationPanel
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            stats={stats}
-            grid={grid}
-            researchTree={researchTree}
-            speciesList={speciesList}
-            selectedBuilding={selectedBuilding}
-            onSelectBuilding={setSelectedBuilding}
-            checkRurtalbahnDiscountActiveOnMap={checkRurtalbahnDiscountActiveOnMap}
-            onDemolishModeToggle={() => {
-              setSelectedBuilding(null);
-              setIsDemolishMode(!isDemolishMode);
-            }}
-            isDemolishMode={isDemolishMode}
-            selectedTileInfo={selectedTileInfo}
-            handleUpgradeBuilding={handleUpgradeBuilding}
-            handleChangePaperFactoryMode={handleChangePaperFactoryMode}
-            handleUnlockResearch={handleUnlockResearch}
-            handleTriggerPdfSim={handleTriggerPdfSim}
-            pdfSimulated={pdfSimulated}
-            logs={logs}
-          />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between border-b border-[#D4CCBA] pb-1.5 px-0.5">
+              <span className="text-[10px] font-mono font-black uppercase tracking-wider text-[#8B8273] flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                🎛️ AKTIVES SIMULATIONS-PANEL
+              </span>
+              <span className="text-[9px] font-mono font-bold text-[#8B8273] hidden sm:inline">
+                Klicke auf einen Bereich zur Steuerung
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 bg-[#E8E2D6]/85 border border-[#D4CCBA] p-2 rounded-xl shadow-sm">
+              {[
+                {
+                  id: 'map' as const,
+                  title: 'Baukatalog',
+                  subtitle: 'Flussrenaturierung',
+                  icon: Hammer,
+                  iconColor: 'text-[#5A7247]',
+                  bgColor: 'bg-[#5A7247]/10',
+                  getBadge: () => {
+                    const bcount = grid.flat().filter(t => t.buildingId && t.buildingId !== 'schoellershammer').length;
+                    return `${bcount} Bauten`;
+                  },
+                  badgeColor: 'bg-[#5A7247]/20 text-[#2C3311]'
+                },
+                {
+                  id: 'schoeller' as const,
+                  title: 'Papierfabrik',
+                  subtitle: 'Schoellershammer',
+                  icon: Factory,
+                  iconColor: 'text-[#BC6C25]',
+                  bgColor: 'bg-[#BC6C25]/10',
+                  getBadge: () => {
+                    if (stats.paperFactoryMode === 'PRODUCTION') return 'Vollbetrieb';
+                    if (stats.paperFactoryMode === 'RETROFITTING') return 'Filter-Tech';
+                    if (stats.paperFactoryMode === 'SHUTDOWN') return 'Stillgelegt';
+                    return 'Rückbau';
+                  },
+                  badgeColor: stats.paperFactoryMode === 'PRODUCTION' ? 'bg-rose-100 text-rose-800' :
+                              stats.paperFactoryMode === 'RETROFITTING' ? 'bg-amber-100 text-amber-800' :
+                              stats.paperFactoryMode === 'SHUTDOWN' ? 'bg-stone-200 text-stone-800' : 'bg-emerald-100 text-emerald-800'
+                },
+                {
+                  id: 'research' as const,
+                  title: 'Forschung',
+                  subtitle: 'Innovationsbaum',
+                  icon: Microscope,
+                  iconColor: 'text-sky-600',
+                  bgColor: 'bg-sky-500/10',
+                  getBadge: () => {
+                    const unlocked = researchTree.filter(r => r.unlocked).length;
+                    return `${unlocked} / ${researchTree.length}`;
+                  },
+                  badgeColor: 'bg-sky-100 text-sky-850'
+                },
+                {
+                  id: 'species' as const,
+                  title: 'Artenschutz',
+                  subtitle: 'Fauna & Biotop',
+                  icon: Leaf,
+                  iconColor: 'text-emerald-600',
+                  bgColor: 'bg-emerald-500/10',
+                  getBadge: () => {
+                    const restored = speciesList.filter(s => s.restored).length;
+                    return `${restored} / ${speciesList.length}`;
+                  },
+                  badgeColor: 'bg-emerald-100 text-emerald-850'
+                },
+                {
+                  id: 'reports' as const,
+                  title: 'Berichte',
+                  subtitle: 'Nachhaltigkeit',
+                  icon: FileText,
+                  iconColor: 'text-[#457b9d]',
+                  bgColor: 'bg-[#457b9d]/10',
+                  getBadge: () => {
+                    return `Gütesiegel: ${stats.globalWrrl <= 2.8 ? 'A' : stats.globalWrrl <= 3.5 ? 'B' : 'C'}`;
+                  },
+                  badgeColor: 'bg-[#457b9d]/25 text-[#1D4E5B]'
+                }
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      if (tab.id !== 'map') setSelectedBuilding(null);
+                    }}
+                    className={`flex flex-col text-left p-2 rounded-lg border transition-all cursor-pointer relative overflow-hidden group hover:shadow-sm select-none ${
+                      isActive
+                        ? 'bg-[#5A7247] border-[#415531] text-white shadow font-extrabold transform -translate-y-[1px]'
+                        : 'bg-white/85 hover:bg-white border-[#D4CCBA] text-[#2C3322] hover:border-[#5A7247]/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1 justify-between w-full">
+                      <div className={`p-1 rounded-md ${
+                        isActive ? 'bg-white/20 text-white' : `${tab.bgColor} ${tab.iconColor}`
+                      } transition-colors`}>
+                        <Icon className="w-3.5 h-3.5 shrink-0" />
+                      </div>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        isActive ? 'bg-white' : 'bg-transparent'
+                      }`} />
+                    </div>
+
+                    <div className="flex-grow min-w-0">
+                      <div className={`text-[10px] font-black tracking-tight leading-none truncate ${
+                        isActive ? 'text-white' : 'text-stone-850'
+                      }`}>
+                        {tab.title}
+                      </div>
+                      <div className={`text-[8.5px] truncate leading-tight mt-0.5 ${
+                        isActive ? 'text-white/80 font-normal' : 'text-[#8B8273]'
+                      }`}>
+                        {tab.subtitle}
+                      </div>
+                    </div>
+
+                    <div className="mt-1 w-full shrink-0">
+                      <span className={`inline-block text-[8px] font-mono font-bold px-1 py-0.2 rounded leading-none w-full text-center truncate ${
+                        isActive ? 'bg-white/15 text-white border border-white/10' : tab.badgeColor
+                      }`}>
+                        {tab.getBadge()}
+                      </span>
+                    </div>
+
+                    {!isActive && (
+                      <div className={`absolute left-0 top-0 bottom-0 w-[2.5px] opacity-65 transition-all group-hover:opacity-100 ${
+                        tab.id === 'map' ? 'bg-[#5A7247]' :
+                        tab.id === 'schoeller' ? 'bg-[#BC6C25]' :
+                        tab.id === 'research' ? 'bg-sky-500' :
+                        tab.id === 'species' ? 'bg-emerald-500' : 'bg-[#457b9d]'
+                      }`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tabs containers */}
+          <div className="flex-grow overflow-hidden bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl max-h-[580px]">
+            {activeTab === 'map' && (
+              <BuildingCatalog
+                stats={stats}
+                selectedBuilding={selectedBuilding}
+                onSelectBuilding={setSelectedBuilding}
+                researchTree={researchTree}
+                hasRurtalbahnStationNear={checkRurtalbahnDiscountActiveOnMap}
+                onDemolishModeToggle={() => {
+                  setSelectedBuilding(null);
+                  setIsDemolishMode(!isDemolishMode);
+                }}
+                isDemolishMode={isDemolishMode}
+                selectedTileInfo={selectedTileInfo}
+                onUpgradeBuilding={handleUpgradeBuilding}
+              />
+            )}
+
+            {activeTab === 'schoeller' && (
+              <SchoellershammerConsole
+                stats={stats}
+                onChangeMode={handleChangePaperFactoryMode}
+                researchTree={researchTree}
+              />
+            )}
+
+            {activeTab === 'research' && (
+              <ResearchTree
+                researchNodes={researchTree}
+                stats={stats}
+                onUnlockResearch={handleUnlockResearch}
+              />
+            )}
+
+            {activeTab === 'species' && (
+              <SpeciesTracker
+                speciesList={speciesList}
+                naturePoints={stats.naturePoints}
+              />
+            )}
+
+            {activeTab === 'reports' && (
+              <DashboardReports
+                stats={stats}
+                speciesList={speciesList}
+                logs={logs}
+                onTriggerPdfSim={handleTriggerPdfSim}
+                pdfSimulated={pdfSimulated}
+                grid={grid}
+              />
+            )}
+          </div>
 
           {/* Bottom logs HUD */}
           <div className={`bg-[#E8E2D6]/80 border border-[#D4CCBA] rounded-xl p-3 flex flex-col transition-all duration-300 shadow-inner shrink-0 ${
@@ -4066,7 +4274,7 @@ export default function App() {
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 50, scale: 0.9 }}
             transition={{ type: 'spring', damping: 20, stiffness: 120 }}
-            className="fixed bottom-22 right-6 z-50 bg-[#FCFBF9] border-2 border-[#5A7247] rounded-2xl shadow-2xl p-4.5 max-w-sm flex flex-col gap-3 backdrop-blur-md bg-white/95"
+            className="fixed bottom-6 right-6 z-50 bg-[#FCFBF9] border-2 border-[#5A7247] rounded-2xl shadow-2xl p-4.5 max-w-sm flex flex-col gap-3 backdrop-blur-md bg-white/95"
           >
             {/* Header / Avatar */}
             <div className="flex items-start justify-between">
@@ -4110,29 +4318,6 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* SYSTEM CONTROL DOCK: GLOBAL SETTINGS & UTILITIES */}
-      <SystemControlDock
-        saveGame={saveGame}
-        loadGame={loadGame}
-        handleUndo={handleUndo}
-        historyLength={history.length}
-        undoActionName={history.length > 0 ? history[0].actionName : undefined}
-        onStartTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}
-        onShowRules={() => setShowSpielregeln(true)}
-        onShowFeedback={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
-      />
-
-      {/* REGULATORY TARGET OVERLAYS (NATURA 2000 & EU-WRRL DIRECTIVES) */}
-      <RegulatoryModals
-        showNatura={showNatura2000Modal}
-        onCloseNatura={() => setShowNatura2000Modal(false)}
-        showWrrl={showWrrlModal}
-        onCloseWrrl={() => setShowWrrlModal(false)}
-        stats={stats}
-        speciesList={speciesList}
-        grid={grid}
-      />
 
     </div>
   );

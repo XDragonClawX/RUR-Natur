@@ -17,65 +17,6 @@ export const SchoellershammerConsole: React.FC<SchoellershammerConsoleProps> = (
     r => r.id === 'schoeller_renat'
   )?.unlocked || false;
 
-  const penalty = stats.factoryObsolescencePenalty ?? 0;
-  const modernizationGrade = Math.max(0, 100 - penalty * 20);
-
-  const getYearStatus = (y: number) => {
-    const curYear = stats.year;
-    if (y > curYear) {
-      return {
-        status: 'AUSSTEHEND',
-        color: 'text-stone-400 bg-stone-100/50 border-stone-200/40',
-        detail: 'Zukünftige Herstellungsperiode. Ertragsstabilität ungeklärt.',
-        action: 'Ausbau geplant'
-      };
-    }
-    if (y === curYear) {
-      if (stats.paperFactoryMode !== 'PRODUCTION') {
-        return {
-          status: 'STABIL (RUHEND)',
-          color: 'text-indigo-700 bg-indigo-50 border-indigo-200/50',
-          detail: 'Betrieb transformiert oder pausiert. Kein Verschleiß aktiv.',
-          action: 'Pausiert'
-        };
-      }
-      return {
-        status: stats.investedThisYear ? 'GESICHERT ✓' : 'WARTUNG NÖTIG ⚠',
-        color: stats.investedThisYear
-          ? 'text-emerald-750 bg-emerald-50 border-emerald-250/60'
-          : 'text-amber-700 bg-amber-50 border-amber-250/60',
-        detail: stats.investedThisYear
-          ? 'Investitions-Nachweis erbracht. Die Produktionsanlagen laufen stabil.'
-          : 'Bisher keine Investition oder Forschung in diesem Jahr erfolgt!',
-        action: stats.investedThisYear ? 'Filter optimal' : 'Malus droht!'
-      };
-    }
-    // Past year (y < curYear)
-    const pastYearsPassed = curYear - 2026;
-    let isPenaltyYear = false;
-    if (pastYearsPassed > 0) {
-      if (y === 2026 && penalty >= 1) isPenaltyYear = true;
-      if (y === 2027 && penalty >= 2) isPenaltyYear = true;
-      if (y === 2028 && penalty >= 3) isPenaltyYear = true;
-    }
-    
-    if (isPenaltyYear) {
-      return {
-        status: 'REDUZIERT (-1 €)',
-        color: 'text-red-750 bg-red-50 border-red-200/60',
-        detail: 'Keine Instandhaltungs-Upgrades. Veraltungsdruck senkte Rundenertrag.',
-        action: 'Unkorrigiert'
-      };
-    } else {
-      return {
-        status: 'GEPFLEGT ✓',
-        color: 'text-emerald-750 bg-emerald-50/70 border-emerald-200/50',
-        detail: 'Modernisierung durch aktive Forschung oder Ufersanierungen abgesichert.',
-        action: 'Gepflegt'
-      };
-    }
-  };
-
   const modesInfo = [
     {
       id: 'PRODUCTION' as PaperFactoryMode,
@@ -123,7 +64,7 @@ export const SchoellershammerConsole: React.FC<SchoellershammerConsoleProps> = (
   ];
 
   return (
-    <div id="SchoellershammerConsole" className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl p-5 shadow-sm flex flex-col h-full overflow-hidden">
+    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl p-5 shadow-sm flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-2 mb-4 border-b border-[#D4CCBA] pb-3">
         <div className="p-1.5 rounded bg-[#D4A373]/15 border border-[#D4A373]/30">
           <svg className="w-5 h-5 text-[#BC6C25]" viewBox="0 0 24 24" fill="currentColor">
@@ -232,77 +173,6 @@ export const SchoellershammerConsole: React.FC<SchoellershammerConsoleProps> = (
             </div>
           );
         })}
-
-        {/* 📋 Sektorkontroll-Logbuch & Wartungs-Bericht (Schoellershammer) */}
-        <div className="mt-4 bg-[#EADCC7]/50 border border-[#CDBEA6] rounded-xl p-3.5 space-y-3 shadow-xs">
-          <div className="flex items-center justify-between border-b border-[#CDBEA6]/60 pb-1.5">
-            <div className="flex items-center gap-1.5 text-xs font-black text-[#2C3322] font-sans">
-              <span>📋</span>
-              <span>Wartungs-Historie &amp; Veraltungs-Audit</span>
-            </div>
-            <span className="text-[8px] font-mono font-black text-stone-500 bg-white/50 px-1 py-0.2 rounded border border-stone-300">
-              S-PORTAL AUDIT
-            </span>
-          </div>
-
-          {/* Mini high-fidelity stats cards */}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white/80 p-2 rounded-lg border border-[#CDBEA6]/40">
-              <div className="text-[7.5px] font-mono text-stone-500 font-bold uppercase leading-none">Abzug / Runde</div>
-              <div className={`text-xs font-black mt-1 ${penalty > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                -{penalty} €
-              </div>
-            </div>
-            <div className="bg-white/80 p-2 rounded-lg border border-[#CDBEA6]/40">
-              <div className="text-[7.5px] font-mono text-stone-500 font-bold uppercase leading-none">Modernitätsgrad</div>
-              <div className="text-xs font-black text-[#5A7247] mt-1">
-                {modernizationGrade}%
-              </div>
-            </div>
-            <div className="bg-white/80 p-2 rounded-lg border border-[#CDBEA6]/40">
-              <div className="text-[7.5px] font-mono text-stone-500 font-bold uppercase leading-none">Jahres-Ergebnis</div>
-              <div className={`text-[9.5px] font-black mt-1 leading-none ${stats.investedThisYear ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}`}>
-                {stats.investedThisYear ? 'GESICHERT ✓' : 'WARTUNG NÖTIG'}
-              </div>
-            </div>
-          </div>
-
-          {/* Dynamic breakdown table */}
-          <div className="border border-[#CDBEA6]/60 rounded-lg overflow-hidden bg-white text-[10px] font-sans">
-            <div className="grid grid-cols-4 bg-[#FAF9F6] border-b border-[#CDBEA6]/60 text-[8px] font-mono font-black text-stone-500 px-2.5 py-1.5 uppercase tracking-wider text-left">
-              <span>Jahr</span>
-              <span className="col-span-2">Status &amp; Effekt</span>
-              <span className="text-right">Aktion</span>
-            </div>
-            <div className="divide-y divide-stone-100">
-              {[2026, 2027, 2028, 2029].map((y) => {
-                const audit = getYearStatus(y);
-                return (
-                  <div key={y} className="grid grid-cols-4 items-center px-2.5 py-2 hover:bg-stone-50/50 transition-colors">
-                    <span className="font-mono font-bold text-[#2C3322]">{y}</span>
-                    <div className="col-span-2 pr-1">
-                      <span className={`inline-block text-[8px] font-mono font-black px-1.5 rounded border leading-none mb-1 ${audit.color}`}>
-                        {audit.status}
-                      </span>
-                      <p className="text-[8.5px] text-[#6B6356] leading-tight font-sans">
-                        {audit.detail}
-                      </p>
-                    </div>
-                    <span className="text-[8.5px] font-semibold text-stone-600 text-right italic font-sans truncate">
-                      {audit.action}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Interactive summary explanation */}
-          <p className="text-[9.2px] text-stone-600 leading-normal bg-white/55 p-2 rounded border border-[#CDBEA6]/30">
-            <strong>💡 Info:</strong> Jedes neue Jahr (alle 4 Runden) verliert die Fabrik dauerhaft <strong>-1 €/Runde</strong> Ertrag herkömmlichen Vollbetriebs, sofern du in dem Jahr kein neues Forschungsprojekt finanzierst oder Rurbauten tätigst.
-          </p>
-        </div>
-
       </div>
 
       {/* Schoellershammer Operational Summary Gauge */}
