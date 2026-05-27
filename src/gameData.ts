@@ -1,4 +1,4 @@
-import { BuildingType, ActionCard, ResearchNode, Species, TerrainType, ClimateEvent, StakeholderQuest, DraftCard } from './types';
+import { BuildingType, ActionCard, ResearchNode, Species, TerrainType, ClimateEvent, StakeholderQuest } from './types';
 
 export const BUILDIONS_CATALOG: BuildingType[] = [
   // CATEGORY: Ökologie & Renaturierung (ecology)
@@ -597,39 +597,5 @@ export const STAKEHOLDER_QUESTS_DATA: StakeholderQuest[] = [
     },
     status: 'available'
   }
-];
-
-// ─── Maßnahmen-Draft Kartendeck ──────────────────────────────────────────────
-export const DRAFT_CARDS: DraftCard[] = [
-  // ── Ökologie (6) ──
-  { id:'draft_roehricht',    name:'Röhricht-Anlage',       icon:'🌾', category:'ecology',  is_danger:false, cost:2, description:'Schilfgürtel entlang des Ufers anlegen – Pufferzone & Bruthabitat.',                   effects:{ nature_points:8,  ffh:3, wrrl:-0.10 } },
-  { id:'draft_auenwald',     name:'Auenwald-Sukzession',   icon:'🌳', category:'ecology',  is_danger:false, cost:3, description:'Auwälder natürlich entwickeln lassen – Klimapuffer & Artenvielfalt.',                  effects:{ nature_points:12, ffh:5, climate_risk:-1 } },
-  { id:'draft_altarm',       name:'Altarm-Reaktivierung',  icon:'🌊', category:'ecology',  is_danger:false, cost:4, description:'Alte Flussschlingen wieder ans Gewässernetz anschließen.',                            effects:{ nature_points:15, ffh:8, wrrl:-0.20, continuity:5 } },
-  { id:'draft_kiesbank',     name:'Kiesbank-Anlage',       icon:'🪨', category:'ecology',  is_danger:false, cost:2, description:'Laichhabitat für Kieslaicher (Forelle, Lachs) herstellen.',                           effects:{ nature_points:6,  ffh:4, continuity:3 } },
-  { id:'draft_totholz',      name:'Totholz-Einbringung',   icon:'🪵', category:'ecology',  is_danger:false, cost:1, description:'Strukturvielfalt im Gewässer steigern – Habitat für Kleinfauna.',                     effects:{ nature_points:5,  ffh:3 } },
-  { id:'draft_grossrenat',   name:'Groß-Renaturierung',    icon:'🏞️', category:'ecology',  is_danger:false, cost:7, description:'Umfangreiches Renaturierungsprojekt auf Abschnittsebene.',                            effects:{ nature_points:25, ffh:10, wrrl:-0.30, continuity:8, climate_risk:-2 } },
-  // ── Wasser (5) ──
-  { id:'draft_monitoring',   name:'Pegel-Monitoring',      icon:'📡', category:'water',    is_danger:false, cost:1, description:'Kontinuierliche Wasserstandsmessung für Frühwarnsystem.',                             effects:{ research_points:2, nature_points:3 } },
-  { id:'draft_retention',    name:'Retentionsfläche',      icon:'💧', category:'water',    is_danger:false, cost:4, description:'Hochwasserrückhaltung durch gesteuerte Überflutungsflächen.',                         effects:{ nature_points:10, ffh:4, climate_risk:-1 } },
-  { id:'draft_wehr',         name:'Wehr-Rückbau',          icon:'🚧', category:'water',    is_danger:false, cost:5, description:'Querverbauungen entfernen – Durchgängigkeit herstellen.',                             effects:{ continuity:15, nature_points:8, wrrl:-0.15 } },
-  { id:'draft_fischpass',    name:'Fischpass',             icon:'🐟', category:'water',    is_danger:false, cost:3, description:'Fischwanderhilfe an bestehenden Bauwerken nachrüsten.',                               effects:{ continuity:10, nature_points:6, ffh:4 } },
-  { id:'draft_mindestabfl',  name:'Mindestabfluss',        icon:'🌡️', category:'water',    is_danger:false, cost:2, description:'Ökologischen Mindestabfluss per Managementplan sichern.',                            effects:{ wrrl:-0.20, nature_points:4, ffh:3 } },
-  // ── Fauna (6) ──
-  { id:'draft_groppe',       name:'Groppen-Förderung',     icon:'🐠', category:'fauna',    is_danger:false, cost:2, description:'Steinige Sohlenstruktur für Groppen-Population verbessern.',                          effects:{ nature_points:7,  ffh:5, biosecurity:2 } },
-  { id:'draft_bachneunauge', name:'Bachneunauge',          icon:'🐍', category:'fauna',    is_danger:false, cost:3, description:'Sandige Laichhabitate für das Bachneunauge anlegen.',                                 effects:{ nature_points:9,  ffh:6, continuity:4 } },
-  { id:'draft_eisvogel',     name:'Eisvogel-Habitat',      icon:'🐦', category:'fauna',    is_danger:false, cost:2, description:'Steile Uferböschungen als Brutwand für Eisvögel freilegen.',                          effects:{ nature_points:8,  ffh:4 } },
-  { id:'draft_biber',        name:'Biber-Ansiedlung',      icon:'🦫', category:'fauna',    is_danger:false, cost:3, description:'Biber-Reviere einrichten – natürliche Gewässerstrukturierung.',                       effects:{ nature_points:10, ffh:7, climate_risk:-0.5 } },
-  { id:'draft_feuerfalter',  name:'Feuerfalter-Programm',  icon:'🦋', category:'fauna',    is_danger:false, cost:2, description:'Lebensraumkomplexe auf Feuchtwiesen für den Feuerfalter.',                            effects:{ nature_points:7,  ffh:5 } },
-  { id:'draft_artenschutz',  name:'Allg. Artenschutz',     icon:'🌿', category:'fauna',    is_danger:false, cost:3, description:'Generelle Artenschutzmaßnahmen im gesamten Planungsgebiet.',                          effects:{ nature_points:8,  ffh:4, biosecurity:3 } },
-  // ── Forschung (3) ──
-  { id:'draft_kartierung',   name:'Artenkartierung',       icon:'🗺️', category:'research', is_danger:false, cost:2, description:'Vollständige Bestandserfassung – Basis für weitere Maßnahmen.',                      effects:{ research_points:4, nature_points:3 } },
-  { id:'draft_rwth',         name:'RWTH-Studie',           icon:'🎓', category:'research', is_danger:false, cost:3, description:'Wissenschaftliche RWTH-Aachen-Untersuchung der Rur-Dynamik.',                        effects:{ research_points:6, nature_points:2 } },
-  { id:'draft_eu_life',      name:'EU LIFE+ Antrag',       icon:'🇪🇺', category:'research', is_danger:false, cost:1, description:'EU-Fördermittel für Renaturierungsprojekte beantragen.',                             effects:{ budget:8, research_points:2 } },
-  // ── Gefahren (5) ──
-  { id:'draft_danger_tagebau',     name:'Tagebau-Sümpfung',      icon:'⛏️', category:'danger', is_danger:true, cost:0, description:'Rheinbraun-Grundwasserabsenkung belastet die gesamte Aue.',        effects:{ nature_points:-12, wrrl:0.25, climate_risk:3 } },
-  { id:'draft_danger_guelle',      name:'Gülle-Eintrag',          icon:'☠️', category:'danger', is_danger:true, cost:0, description:'Massiver Nährstoffeintrag aus intensiver Landwirtschaft.',        effects:{ nature_points:-8,  wrrl:0.20, ffh:-4 } },
-  { id:'draft_danger_grundwasser', name:'Grundwasserabsenkung',   icon:'📉', category:'danger', is_danger:true, cost:0, description:'Kritische Absenkung des Grundwasserspiegels durch Industrie.',     effects:{ nature_points:-10, wrrl:0.15, ffh:-3, continuity:-5 } },
-  { id:'draft_danger_trocken',     name:'Trockensommer',          icon:'🌵', category:'danger', is_danger:true, cost:0, description:'Extremes Niedrigwasser gefährdet Fischpopulationen.',              effects:{ nature_points:-8,  climate_risk:4, ffh:-2 } },
-  { id:'draft_danger_krise',       name:'Stakeholder-Krise',      icon:'😤', category:'danger', is_danger:true, cost:0, description:'Lokale Interessenkonflikte blockieren Renaturierungsmaßnahmen.',  effects:{ citizen_acceptance:-15, nature_points:-5 } },
 ];
 
