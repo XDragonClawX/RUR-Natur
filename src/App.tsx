@@ -18,7 +18,8 @@ import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
   X, Save, FolderOpen, MessageSquare, ScrollText, RefreshCw,
-  Hammer, Factory, Microscope, Leaf, FileText, ChevronDown, ChevronUp
+  Hammer, Factory, Microscope, Leaf, FileText, ChevronDown, ChevronUp,
+  Droplets, FlaskConical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -2390,7 +2391,7 @@ export default function App() {
   }, [grid]);
 
   return (
-    <div className="min-h-screen bg-brand-bg text-[#2C3322] flex flex-col font-sans select-none overflow-x-hidden antialiased">
+    <div className="min-h-screen bg-brand-bg text-[#2C3322] flex flex-col font-sans select-none overflow-x-hidden antialiased app-root">
 
       {/* ── Top Logo & Project Branding (Decoupled, Static) ────────────────── */}
       <div className="max-w-[1600px] w-full mx-auto px-4 pt-3 pb-1 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
@@ -2503,7 +2504,7 @@ export default function App() {
                 <Zap className="w-3.5 h-3.5 text-brand-teal shrink-0" />
                 <div className="text-left">
                   <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">Forschung</div>
-                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.researchPoints} 🧪</div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight flex items-center gap-0.5">{stats.researchPoints} <FlaskConical className="w-3 h-3 text-purple-600" /></div>
                 </div>
               </button>
 
@@ -2523,7 +2524,7 @@ export default function App() {
                 <Award className="w-3.5 h-3.5 text-brand-green shrink-0" />
                 <div className="text-left">
                   <div className="text-[8px] text-brand-green/65 font-bold uppercase tracking-wide leading-none">Naturpunkte</div>
-                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.naturePoints} 🌿</div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight flex items-center gap-0.5">{stats.naturePoints} <Leaf className="w-3 h-3 text-brand-green" /></div>
                 </div>
               </button>
 
@@ -2540,7 +2541,7 @@ export default function App() {
                     : 'bg-sky-50/60 border-sky-200/50 hover:bg-sky-100/60 hover:border-sky-300/50'
                 }`}
               >
-                <span className="text-sm leading-none shrink-0">💧</span>
+                <Droplets className="w-3.5 h-3.5 text-brand-teal shrink-0" />
                 <div className="text-left">
                   <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">WRRL</div>
                   <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">
@@ -2568,7 +2569,7 @@ export default function App() {
                     : 'bg-red-50/60 border-red-200/50 hover:bg-red-100/50'
                 }`}
               >
-                <span className="text-sm leading-none shrink-0">🌱</span>
+                <Leaf className="w-3.5 h-3.5 shrink-0 text-brand-green" />
                 <div className="text-left">
                   <div className="text-[8px] text-[#8B8273] font-bold uppercase tracking-wide leading-none">CO₂</div>
                   <div className={`text-[11px] font-black font-mono leading-tight ${
@@ -2593,8 +2594,8 @@ export default function App() {
                 onClick={handleNextRound}
                 className="px-4 py-2 rounded-xl bg-brand-green hover:bg-[#3d6830] text-white font-bold text-[11px] uppercase tracking-wide border border-brand-green/40 hover:border-[#5a9248] shadow-sm hover:shadow-md transition-all duration-150 active:scale-[0.97] cursor-pointer flex items-center gap-2 whitespace-nowrap"
               >
+                <RotateCcw className="w-3.5 h-3.5 opacity-90" />
                 <span>Runde beenden</span>
-                <span className="opacity-75 text-xs">↩</span>
               </button>
             </div>
 

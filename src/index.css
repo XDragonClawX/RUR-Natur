@@ -1,9 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* ── Typefaces ─────────────────────────────────────────────────────────────── */
+/* DM Sans: clean geometric UI font — avoids Inter/Roboto genericness           */
+/* Fraunces: optical-size variable serif — naturalist, authoritative, memorable */
+/* JetBrains Mono: kept for data/code labels                                    */
+@import "@fontsource-variable/dm-sans";
+@import "@fontsource-variable/dm-sans/wght-italic.css";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/fraunces/wght-italic.css";
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Rur Natur corporate identity colors */
@@ -14,6 +22,25 @@
   --color-brand-green: #4A7A3A;
 }
 
+/* ── Root & focus styles ──────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #2A6F7E;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── App-level ambient background ────────────────────────────────────────── */
+/* Subtle radial colour washes + micro dot grid for depth on cream surfaces    */
+.app-root {
+  background-color: #ECEDEF;
+  background-image:
+    radial-gradient(ellipse 80% 55% at 20% 30%, rgba(74, 122, 58, 0.055) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 60% at 80% 70%, rgba(42, 111, 126, 0.05) 0%, transparent 60%),
+    radial-gradient(circle, rgba(44, 51, 34, 0.038) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 20px 20px;
+}
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -22,9 +49,9 @@
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #7FA8B5/40;
+  background: rgba(127, 168, 181, 0.40);
   border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #2A6F7E/65;
+  background: rgba(42, 111, 126, 0.65);
 }
