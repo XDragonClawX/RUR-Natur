@@ -42,6 +42,36 @@ const STR_PALETTE = [
   { bar: 'bg-[#5A7247] animate-pulse', badge: 'bg-[#D4E0C1] text-[#2C3322] border-[#5A7247]', ring: 'border-b-[#5A7247]', text: 'text-[#5A7247]' },
 ] as const;
 
+// ── Research helper functions ───────────────────────────────────────────────
+const getNodeCategory = (nodeId: string): 'nature' | 'water' | 'energy' => {
+  switch (nodeId) {
+    case 'biber_management':
+    case 'lachs_nrw':
+    case 'auen_vitalisierung':
+      return 'nature';
+    case 'sohlgleiten_tech':
+    case 'mikroschadstoffe':
+      return 'water';
+    case 'schoeller_renat':
+    case 'green_energy_tech':
+    case 'zerkall_faserzentrum':
+      return 'energy';
+    default:
+      return 'nature';
+  }
+};
+
+const getCategoryConfig = (cat: 'nature' | 'water' | 'energy') => {
+  switch (cat) {
+    case 'nature':
+      return { label: 'Ökologie', accent: '#5A7247', icon: '🌿' };
+    case 'water':
+      return { label: 'Wasser', accent: '#457B9D', icon: '💧' };
+    case 'energy':
+      return { label: 'Werk & Energie', accent: '#BC6C25', icon: '⚡' };
+  }
+};
+
 // ── Card type metadata ─────────────────────────────────────────────────────────
 type CardTypeKey = ActionCardType | 'rurtalbahn';
 const TYPE_META: Record<CardTypeKey, { icon: React.ReactNode; color: string; label: string }> = {
@@ -465,10 +495,14 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
       const greenAfterExec  = greenEnergyNode && greenEnergyNode.cost <= stats.researchPoints + (researchGain[strength] ?? 1);
       const showEnergyHighlight = energyChallengeEnabled && greenEnergyNode;
 
+      const availableNow = researchNow.filter(r => !(energyChallengeEnabled && r.id === 'green_energy_tech'));
+      const reachableAfter = researchAfter.filter(r => !(energyChallengeEnabled && r.id === 'green_energy_tech'));
+      const hasAnyResearchOptions = availableNow.length > 0 || reachableAfter.length > 0;
+
       return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide">🔬 Forschungen</span>
+            <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide">🔬 Forschungen & Innovationen</span>
             <span className="text-[10px] text-[#6B6356]">
               Punkte: <strong className="text-purple-700">{stats.researchPoints} 🧪</strong>
             </span>
@@ -510,55 +544,98 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
             </div>
           )}
 
-          {researchNow.filter(r => r.id !== 'green_energy_tech').length > 0 && (
-            <div>
-              <div className="text-[9px] text-brand-green font-bold uppercase tracking-wide mb-1.5">
-                ✓ Jetzt freischaltbar
-              </div>
-              <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto">
-                {researchNow.filter(r => !(energyChallengeEnabled && r.id === 'green_energy_tech')).map(r => (
-                  <button key={r.id}
+          {/* ── Research Cards Catalog ── */}
+          {hasAnyResearchOptions ? (
+            <div className={`grid grid-cols-2 gap-2 overflow-y-auto pr-1 ${showEnergyHighlight ? 'max-h-32' : 'max-h-56'}`}>
+              
+              {/* ✓ JETZT FREISCHALTBAR (Available now) */}
+              {availableNow.map(r => {
+                const cat = getNodeCategory(r.id);
+                const cfg = getCategoryConfig(cat);
+                const accent = cfg.accent;
+
+                return (
+                  <button
+                    key={r.id}
                     onClick={() => { onUnlockResearch(r.id); setSelectedIdx(null); }}
-                    className="text-left p-2.5 rounded-lg bg-purple-50/60 border border-purple-200/50 hover:bg-purple-100/70 hover:border-purple-400 transition-all cursor-pointer group"
+                    className="text-left p-2.5 rounded-r-xl rounded-l-none bg-white border border-[#D4CCBA] hover:border-purple-400 hover:bg-purple-50/10 transition-all duration-150 cursor-pointer group border-l-4"
+                    style={{ borderLeftColor: accent }}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-[#2C3322]">{r.name}</span>
-                      <span className="text-[9px] font-black text-purple-700">{r.cost} 🧪</span>
+                    <div className="flex items-start justify-between gap-1.5 mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-black text-[#2C3322] leading-tight group-hover:text-purple-900">
+                            {cfg.icon} {r.name}
+                          </span>
+                          <span
+                            className="text-[7.5px] font-mono font-black px-1.5 py-0.5 rounded uppercase border whitespace-nowrap"
+                            style={{ color: accent, backgroundColor: `${accent}12`, borderColor: `${accent}25` }}
+                          >
+                            {cfg.label}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono font-black text-purple-700 shrink-0 bg-purple-50/60 px-1.5 py-0.5 rounded border border-purple-200/40">
+                        {r.cost} 🧪
+                      </span>
                     </div>
-                    <p className="text-[9px] text-[#6B6356] mt-0.5 leading-snug">{r.effect}</p>
-                    <div className="text-[9px] text-purple-600 font-semibold mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      → Jetzt freischalten
+                    
+                    <p className="text-[9px] text-[#6B6356] leading-snug line-clamp-2 mb-2">{r.effect}</p>
+                    
+                    <div className="flex items-center gap-1 text-[8px] font-mono text-emerald-700 bg-emerald-50/50 border border-emerald-200/30 rounded p-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-ping" />
+                      <span>✓ Bereit zum Freischalten</span>
                     </div>
                   </button>
-                ))}
-              </div>
-            </div>
-          )}
+                );
+              })}
 
-          {researchAfter.filter(r => !(energyChallengeEnabled && r.id === 'green_energy_tech')).length > 0 && (
-            <div>
-              <div className="text-[9px] text-amber-600 font-bold uppercase tracking-wide mb-1.5">
-                ◉ Nach Ausführen erreichbar (+{researchGain[strength] ?? 1} 🧪)
-              </div>
-              <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
-                {researchAfter.filter(r => !(energyChallengeEnabled && r.id === 'green_energy_tech')).map(r => (
-                  <div key={r.id}
-                    className="p-2 rounded-lg bg-amber-50/40 border border-amber-200/40 opacity-80"
+              {/* ◉ NACH AUSSPIELEN ERREICHBAR (Available after execution) */}
+              {reachableAfter.map(r => {
+                const cat = getNodeCategory(r.id);
+                const cfg = getCategoryConfig(cat);
+                const accent = cfg.accent;
+                const gain = researchGain[strength] ?? 1;
+
+                return (
+                  <div
+                    key={r.id}
+                    className="text-left p-2.5 rounded-r-xl rounded-l-none bg-[#FAF8F5]/80 border border-[#D4CCBA]/50 opacity-85 border-l-4"
+                    style={{ borderLeftColor: accent }}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold text-[#2C3322]">{r.name}</span>
-                      <span className="text-[9px] text-amber-700 font-black">{r.cost} 🧪</span>
+                    <div className="flex items-start justify-between gap-1.5 mb-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-bold text-[#8B8273] leading-tight">
+                            {cfg.icon} {r.name}
+                          </span>
+                          <span
+                            className="text-[7.5px] font-mono font-medium px-1.5 py-0.5 rounded uppercase border whitespace-nowrap"
+                            style={{ color: '#8B8273', backgroundColor: '#F2EDE4', borderColor: '#D4CCBA' }}
+                          >
+                            {cfg.label}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono font-black text-[#8B8273] shrink-0 bg-stone-50 px-1.5 py-0.5 rounded border border-[#D4CCBA]/30">
+                        {r.cost} 🧪
+                      </span>
                     </div>
-                    <p className="text-[9px] text-[#8B8273] mt-0.5">{r.effect}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {researchNow.length === 0 && researchAfter.length === 0 && !showEnergyHighlight && (
+                    <p className="text-[9px] text-[#8B8273] leading-snug line-clamp-2 mb-2">{r.effect}</p>
+
+                    <div className="flex items-center gap-1 text-[8px] font-mono text-amber-700 bg-amber-50/50 border border-amber-200/30 rounded p-1">
+                      <TrendingUp className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span>In dieser Runde erreichbar (+{gain} 🧪)</span>
+                    </div>
+                  </div>
+                );
+              })}
+
+            </div>
+          ) : (
             <p className="text-center py-5 text-[10px] text-[#8B8273] bg-[#F7F3ED] rounded-lg border border-[#D4CCBA]/50">
-              Keine weiteren Forschungen verfügbar.<br />Führe die Karte aus, um Punkte zu sammeln.
+              Keine weiteren Forschungen im Bereich verfügbar.<br />Führe die Karte aus, um Punkte zu sammeln.
             </p>
           )}
 
@@ -567,11 +644,11 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
             className={`mt-1 w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
               budgetExhausted
                 ? 'bg-[#E8E2D6] text-[#8B8273] cursor-not-allowed'
-                : 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+                : 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer animate-pulse'
             }`}
           >
             {budgetExhausted ? <Lock className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-            {budgetExhausted ? 'Limit erreicht – Runde beenden' : `Forschungsaktion ausführen (+${researchGain[strength] ?? 1} 🧪)`}
+            {budgetExhausted ? 'Limit erreicht – Runde beenden' : `Gewässer-Forschung ausführen (+${researchGain[strength] ?? 1} 🧪)`}
           </button>
         </div>
       );

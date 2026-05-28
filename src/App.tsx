@@ -2928,12 +2928,45 @@ export default function App() {
       )}
 
       {/* Main Container Layout */}
-      <main className="flex-grow flex flex-col md:flex-row gap-6 p-6 relative">
+      <main className="flex-grow flex flex-col lg:flex-row gap-6 p-6 relative">
         
-        {/* LEFT COLUMN: Isometric map Canvas & action card system */}
-        <div className="flex-grow flex flex-col gap-6 w-full md:w-3/5">
+        {/* LEFT COLUMN: Prime gameboard diorama surface + Card and actions cabinet */}
+        <div className="flex-grow flex flex-col gap-6 w-full lg:w-[64%]">
           
-          {/* Action slots System */}
+          {/* Interactive map display - Taller, stable, and dominant gameplay canvas */}
+          <div className="rounded-2xl relative h-[500px] lg:h-[650px] shadow-[0_12px_40px_rgba(0,0,0,0.18),0_1px_3px_rgba(0,0,0,0.06)] border border-[#D4E0C1]/60 bg-[#1a1510] shrink-0 overflow-hidden">
+            <IsometricMap
+              grid={grid}
+              onTileClick={handleTileClick}
+              selectedBuilding={selectedBuilding}
+              selectedLayer={selectedLayer}
+              onLayerChange={setSelectedLayer}
+              isDemolishMode={isDemolishMode}
+              season={currentSeasonString}
+              selectedTile={
+                placementConfirmation 
+                  ? { x: placementConfirmation.x, y: placementConfirmation.y } 
+                  : (selectedTileInfo ? { x: selectedTileInfo.x, y: selectedTileInfo.y } : null)
+              }
+            />
+
+            {/* Floating visual notice if constructing elements */}
+            {selectedBuilding && (
+              <div className="absolute top-16 left-4 z-20 bg-[#D4E0C1] text-[#2C3322] px-3 py-2 rounded-lg text-xs font-semibold border border-[#5A7247]/40 shadow-sm flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-[#5A7247]" />
+                <span>
+                  Baumodus aktiv: Platziere &apos;{selectedBuilding.name}&apos; auf zulässigem Terrain.
+                </span>
+              </div>
+            )}
+            {isDemolishMode && (
+              <div className="absolute top-16 left-4 z-20 bg-red-50 text-red-800 px-3 py-2 rounded-lg text-xs font-semibold border border-red-200 shadow-sm flex items-center gap-2">
+                <span>Rückbau-Modus aktiv: Klicke auf bebautes Tile zur Demontage!</span>
+              </div>
+            )}
+          </div>
+
+          {/* Action slots System - Docked right below the tabletop grid, acting as the player hand */}
           <ActionSlotSystem
             cards={cards}
             onExecuteCard={handleExecuteCard}
@@ -2973,42 +3006,10 @@ export default function App() {
             maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
           />
 
-          {/* Interactive map display */}
-          <div className="flex-grow rounded-xl relative min-h-[500px] shadow-lg">
-            <IsometricMap
-              grid={grid}
-              onTileClick={handleTileClick}
-              selectedBuilding={selectedBuilding}
-              selectedLayer={selectedLayer}
-              onLayerChange={setSelectedLayer}
-              isDemolishMode={isDemolishMode}
-              season={currentSeasonString}
-              selectedTile={
-                placementConfirmation 
-                  ? { x: placementConfirmation.x, y: placementConfirmation.y } 
-                  : (selectedTileInfo ? { x: selectedTileInfo.x, y: selectedTileInfo.y } : null)
-              }
-            />
-
-            {/* Floating visual notice if constructing elements */}
-            {selectedBuilding && (
-              <div className="absolute top-16 left-4 z-20 bg-[#D4E0C1] text-[#2C3322] px-3 py-2 rounded-lg text-xs font-semibold border border-[#5A7247]/40 shadow-sm flex items-center gap-2">
-                <Wrench className="w-4 h-4 text-[#5A7247]" />
-                <span>
-                  Baumodus aktiv: Platziere &apos;{selectedBuilding.name}&apos; auf zulässigem Terrain.
-                </span>
-              </div>
-            )}
-            {isDemolishMode && (
-              <div className="absolute top-16 left-4 z-20 bg-red-50 text-red-800 px-3 py-2 rounded-lg text-xs font-semibold border border-red-200 shadow-sm flex items-center gap-2">
-                <span>Rückbau-Modus aktiv: Klicke auf bebautes Tile zur Demontage!</span>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* RIGHT COLUMN: Tab selection & specific control modules */}
-        <div className="w-full md:w-2/5 shrink-0 flex flex-col gap-6">
+        {/* RIGHT COLUMN: Sidebar Companion Manual & Historical Logs Journal */}
+        <div className="w-full lg:w-[36%] shrink-0 flex flex-col gap-6">
           
           {/* COCKPIT NAVIGATION DECK */}
           <ActiveSimulationPanel
