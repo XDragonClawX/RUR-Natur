@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PaperFactoryMode, GameStats, ResearchNode } from '../types';
-import { Factory, AlertTriangle } from 'lucide-react';
+import {
+  Factory, AlertTriangle, Zap, PauseCircle, Leaf,
+  Coins, Waves, TrainFront, Users, TrendingDown,
+  CheckCircle2, Lock, ChevronDown, ChevronUp, Activity
+} from 'lucide-react';
 
 interface SchoellershammerConsoleProps {
   stats: GameStats;
@@ -8,49 +12,99 @@ interface SchoellershammerConsoleProps {
   researchTree: ResearchNode[];
 }
 
+// ─── Mode metadata ──────────────────────────────────────────────────────────
+const MODE_CONFIG = {
+  PRODUCTION: {
+    icon: <Factory className="w-4 h-4" />,
+    label: 'Vollbetrieb',
+    sublabel: 'Industrielle Produktion',
+    accentColor: '#BC6C25',
+    borderClass: 'border-l-[#BC6C25]',
+    activeBg: 'bg-orange-50',
+    pillClass: 'bg-orange-100 text-orange-800 border-orange-300/60',
+  },
+  RETROFITTING: {
+    icon: <Zap className="w-4 h-4" />,
+    label: 'Umrüstung',
+    sublabel: 'Reinigung & CO₂-Neutral',
+    accentColor: '#CA8A04',
+    borderClass: 'border-l-amber-500',
+    activeBg: 'bg-amber-50',
+    pillClass: 'bg-amber-100 text-amber-800 border-amber-300/60',
+  },
+  SHUTDOWN: {
+    icon: <PauseCircle className="w-4 h-4" />,
+    label: 'Stilllegung',
+    sublabel: 'Ruhender Kessel',
+    accentColor: '#457B9D',
+    borderClass: 'border-l-[#457B9D]',
+    activeBg: 'bg-sky-50',
+    pillClass: 'bg-sky-100 text-sky-800 border-sky-300/60',
+  },
+  RENATURIZATION: {
+    icon: <Leaf className="w-4 h-4" />,
+    label: 'Forschungspark',
+    sublabel: 'Renaturierter Fluss',
+    accentColor: '#5A7247',
+    borderClass: 'border-l-[#5A7247]',
+    activeBg: 'bg-green-50',
+    pillClass: 'bg-green-100 text-green-800 border-green-300/60',
+  },
+} as const;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function WRRLBar({ mode }: { mode: PaperFactoryMode }) {
+  const barConfig = {
+    PRODUCTION:    { pct: 15,  color: 'bg-red-400',    label: 'Belastend',      labelColor: 'text-red-700'     },
+    RETROFITTING:  { pct: 50,  color: 'bg-amber-400',  label: 'Stabilisierend', labelColor: 'text-amber-700'   },
+    SHUTDOWN:      { pct: 70,  color: 'bg-sky-400',    label: 'Regenerativ',    labelColor: 'text-sky-700'     },
+    RENATURIZATION:{ pct: 100, color: 'bg-[#5A7247]',  label: 'Optimal',        labelColor: 'text-[#5A7247]'  },
+  };
+  const c = barConfig[mode];
+  return (
+    <div className="mt-3 pt-3 border-t border-[#D4CCBA]/60">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#6B6356] uppercase tracking-wider">
+          <Waves className="w-3 h-3" />
+          WRRL Rurwasser-Zustand
+        </span>
+        <span className={`text-[10px] font-black ${c.labelColor}`}>{c.label}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-[#D4CCBA]/60 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${c.color}`}
+          style={{ width: `${c.pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export const SchoellershammerConsole: React.FC<SchoellershammerConsoleProps> = ({
   stats,
   onChangeMode,
   researchTree,
 }) => {
+  const [loreExpanded, setLoreExpanded] = useState(false);
+
   const isRenaturizationTechUnlocked = researchTree.find(
     r => r.id === 'schoeller_renat'
   )?.unlocked || false;
 
   const penalty = stats.factoryObsolescencePenalty ?? 0;
   const modernizationGrade = Math.max(0, 100 - penalty * 20);
+  const activeCfg = MODE_CONFIG[stats.paperFactoryMode];
 
   const getYearStatus = (y: number) => {
     const curYear = stats.year;
-    if (y > curYear) {
-      return {
-        status: 'AUSSTEHEND',
-        color: 'text-stone-400 bg-stone-100/50 border-stone-200/40',
-        detail: 'Zukünftige Herstellungsperiode. Ertragsstabilität ungeklärt.',
-        action: 'Ausbau geplant'
-      };
-    }
+    if (y > curYear) return { label: 'Ausstehend', cls: 'text-stone-400 bg-stone-100 border-stone-200/60' };
     if (y === curYear) {
-      if (stats.paperFactoryMode !== 'PRODUCTION') {
-        return {
-          status: 'STABIL (RUHEND)',
-          color: 'text-indigo-700 bg-indigo-50 border-indigo-200/50',
-          detail: 'Betrieb transformiert oder pausiert. Kein Verschleiß aktiv.',
-          action: 'Pausiert'
-        };
-      }
-      return {
-        status: stats.investedThisYear ? 'GESICHERT ✓' : 'WARTUNG NÖTIG ⚠',
-        color: stats.investedThisYear
-          ? 'text-emerald-750 bg-emerald-50 border-emerald-250/60'
-          : 'text-amber-700 bg-amber-50 border-amber-250/60',
-        detail: stats.investedThisYear
-          ? 'Investitions-Nachweis erbracht. Die Produktionsanlagen laufen stabil.'
-          : 'Bisher keine Investition oder Forschung in diesem Jahr erfolgt!',
-        action: stats.investedThisYear ? 'Filter optimal' : 'Malus droht!'
-      };
+      if (stats.paperFactoryMode !== 'PRODUCTION') return { label: 'Ruhend', cls: 'text-indigo-700 bg-indigo-50 border-indigo-200/50' };
+      return stats.investedThisYear
+        ? { label: 'Gesichert ✓', cls: 'text-emerald-700 bg-emerald-50 border-emerald-200/60' }
+        : { label: 'Wartung nötig ⚠', cls: 'text-amber-700 bg-amber-50 border-amber-200/60' };
     }
-    // Past year (y < curYear)
     const pastYearsPassed = curYear - 2026;
     let isPenaltyYear = false;
     if (pastYearsPassed > 0) {
@@ -58,268 +112,289 @@ export const SchoellershammerConsole: React.FC<SchoellershammerConsoleProps> = (
       if (y === 2027 && penalty >= 2) isPenaltyYear = true;
       if (y === 2028 && penalty >= 3) isPenaltyYear = true;
     }
-    
-    if (isPenaltyYear) {
-      return {
-        status: 'REDUZIERT (-1 €)',
-        color: 'text-red-750 bg-red-50 border-red-200/60',
-        detail: 'Keine Instandhaltungs-Upgrades. Veraltungsdruck senkte Rundenertrag.',
-        action: 'Unkorrigiert'
-      };
-    } else {
-      return {
-        status: 'GEPFLEGT ✓',
-        color: 'text-emerald-750 bg-emerald-50/70 border-emerald-200/50',
-        detail: 'Modernisierung durch aktive Forschung oder Ufersanierungen abgesichert.',
-        action: 'Gepflegt'
-      };
-    }
+    return isPenaltyYear
+      ? { label: '-1 € Abzug', cls: 'text-red-700 bg-red-50 border-red-200/60' }
+      : { label: 'Gepflegt ✓',  cls: 'text-emerald-700 bg-emerald-50/70 border-emerald-200/50' };
   };
 
   const modesInfo = [
     {
       id: 'PRODUCTION' as PaperFactoryMode,
-      name: 'Vollbetrieb (Industrielle Produktion)',
-      budgetEffect: stats.factoryObsolescencePenalty && stats.factoryObsolescencePenalty > 0 
-        ? `+${Math.max(5, 15 - stats.factoryObsolescencePenalty)} €/Runde (Veraltungsdruck: -${stats.factoryObsolescencePenalty} €)` 
-        : '+15 €/Runde',
-      ecologyEffect: '-1,0 Flussqualität pro Jahr regional. Erwärmt das Wasser.',
-      rurtalbahnEffect: 'Blockiert Güterbahnen (Personenverkehr priorisiert) -> Gleis-Rabatte deaktiviert.',
-      socialEffect: 'Sehr hohe Akzeptanz bei Arbeitgebern & Arbeitnehmern (Steuereinnahmen hoch, Arbeitsplätze gesichert).',
-      colorClass: 'border-[#D4CCBA] text-[#8B4513] bg-white hover:border-[#BC6C25]',
-      activeColor: 'border-[#BC6C25] bg-red-50 text-[#8B4513] ring-1 ring-[#BC6C25]/20'
+      budget: stats.factoryObsolescencePenalty && stats.factoryObsolescencePenalty > 0
+        ? `+${Math.max(5, 15 - stats.factoryObsolescencePenalty)} €`
+        : '+15 €',
+      budgetNote: penalty > 0 ? `(Abzug: -${penalty} €)` : 'pro Runde',
+      ecology: '-1,0 Flussqualität / Jahr',
+      train: 'Gleis-Rabatte deaktiviert',
+      social: 'Hohe Akzeptanz, gesicherte Arbeitsplätze',
     },
     {
       id: 'RETROFITTING' as PaperFactoryMode,
-      name: 'Umrüstung (Reinigungskreisläufe & CO2-Neutral)',
-      budgetEffect: '+5 €/Runde',
-      ecologyEffect: 'Neutraler Abflusseinfluss. Keine weitere Belastung.',
-      rurtalbahnEffect: 'Schaltet Schienenzufluss teilweise frei. Gleis-Rabatte reaktiviert.',
-      socialEffect: 'Forschungsförderung hoch: Generiert +1 Forschungspunkt/Runde.',
-      colorClass: 'border-[#D4CCBA] text-yellow-800 bg-white hover:border-yellow-600',
-      activeColor: 'border-yellow-600 bg-yellow-50 text-yellow-905 ring-1 ring-yellow-500/20'
+      budget: '+5 €',
+      budgetNote: 'pro Runde',
+      ecology: 'Kein Negativeinfluss',
+      train: 'Gleis-Rabatte reaktiviert',
+      social: '+1 Forschungspunkt / Runde',
     },
     {
       id: 'SHUTDOWN' as PaperFactoryMode,
-      name: 'Temporäre Stilllegung (Ruhender Kessel)',
-      budgetEffect: '-2 €/Runde (Sicherungsgebühr)',
-      ecologyEffect: 'Flusswasser klärt langsam auf. Flussqualität steigt um +0.5 pro Jahr.',
-      rurtalbahnEffect: 'Gleiskorridor frei für Bautransporte. Gleis-Rabatte aktiv.',
-      socialEffect: 'Proteste von Gewerkschaften wegen befürchteter Kurzarbeit. -10% Natur-Akzeptanz temporär.',
-      colorClass: 'border-[#D4CCBA] text-[#457B9D] bg-white hover:border-[#457B9D]',
-      activeColor: 'border-[#457B9D] bg-sky-50 text-[#457B9D] ring-1 ring-[#457B9D]/20'
+      budget: '-2 €',
+      budgetNote: 'Sicherungsgebühr',
+      ecology: '+0,5 Flussqualität / Jahr',
+      train: 'Bautransporte priorisiert',
+      social: '-10% Natur-Akzeptanz temporär',
     },
     {
       id: 'RENATURIZATION' as PaperFactoryMode,
-      name: 'Renaturierter Fluss-Forschungspark',
-      budgetEffect: '-3 €/Runde (Subventioniert)',
-      ecologyEffect: 'Absoluter Naturoase-Zustand! FFH-Potenzial ungedeckelt (+35 in Düren).',
-      rurtalbahnEffect: 'Komplette Transformation zum Öko-Express-Knotenpunkt.',
-      socialEffect: 'Globale Vorzeige-Kompensation. Ermöglicht Wildlachse in der gesamten Rur!',
+      budget: '-3 €',
+      budgetNote: 'Subventioniert',
+      ecology: 'FFH-Potenzial ungedeckelt',
+      train: 'Öko-Express-Knotenpunkt',
+      social: 'Globales Vorzeige-Projekt',
       locked: !isRenaturizationTechUnlocked,
-      colorClass: 'border-[#D4CCBA] text-[#5A7247] bg-white hover:border-[#5A7247]',
-      activeColor: 'border-[#5A7247] bg-[#D4E0C1] text-[#2C3322] ring-1 ring-[#5A7247]/30'
-    }
+    },
   ];
 
   return (
-    <div id="SchoellershammerConsole" className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl p-5 shadow-sm flex flex-col h-full overflow-hidden">
-      <div className="flex items-center gap-2 mb-4 border-b border-[#D4CCBA] pb-3">
-        <div className="p-1.5 rounded bg-[#D4A373]/15 border border-[#D4A373]/30">
-          <svg className="w-5 h-5 text-[#BC6C25]" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2 22h20V10l-4-4V2H6v4L2 10v12zm4-12l2-2h4l2 2v10H6V10zm10 10v-6h2v6h-2z"/>
-          </svg>
+    <div
+      id="SchoellershammerConsole"
+      className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col h-full overflow-hidden"
+    >
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <div className="px-4 pt-4 pb-3 border-b border-[#D4CCBA]/70 flex items-start gap-3 shrink-0">
+        <div className="p-2 rounded-lg bg-[#D4A373]/15 border border-[#D4A373]/30 mt-0.5">
+          <Factory className="w-5 h-5 text-[#BC6C25]" />
         </div>
-        <div>
-          <h2 className="text-lg font-bold font-sans text-[#2C3322]">
-            Papierfabrik Schoellershammer DÜREN
-          </h2>
-          <p className="text-xs text-[#6B6356] font-sans mt-0.5">
-            Der ökonomische Spannungskern der Rur-Renaturierung.
-          </p>
-        </div>
-      </div>
-
-      {/* Historical Facts & Lore Alert */}
-      <div className="mb-4 bg-[#E8E2D6] p-3 rounded-lg border border-[#D4CCBA] text-xs font-sans leading-relaxed text-[#2C3322]">
-        <span className="font-bold text-[#2C3322]">Hintergrund:</span> Das Papiergewerbe prägt Düren seit dem 16. Jahrhundert. Die Rur lieferte weiches Wasser zur Energie- und Papiererzeugung, wurde dadurch aber massiv kanalisiert und historisch verschmutzt. Deine Entscheidung bestimmt den Spagat zwischen Industrie-Identität und FFH-Artenschutz!
-      </div>
-
-      {/* Veraltungsdruck Warning Alert */}
-      <div className="mb-4 bg-amber-50 rounded-lg border border-amber-200 p-2.5 text-[10px] leading-relaxed text-amber-900 font-sans">
-        <div className="flex items-center gap-1.5 font-bold text-amber-850 mb-1">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-650 shrink-0" />
-          <span>⚡ TECHNOLOGISCHER VERALTUNGSDRUCK</span>
-        </div>
-        <p>
-          Ohne kontinuierliche Investitionen in Forschung oder Gebäude-Upgrades veraltet der klassische Vollkraftbetrieb durch globalen Konkurrenzdruck. Alle 4 Quartale (1 Jahr) verliert der Produktionsmodus dauerhaft <span className="font-extrabold">-1 € Rundenertrag</span>, wenn in diesem Jahr kein neues Forschungsprojekt oder Modernisierungs-Upgrade finanziert wurde.
-        </p>
-        <div className="mt-1.5 flex justify-between items-center font-mono text-[9px] border-t border-amber-200/50 pt-1 text-amber-850">
-          <span>In diesem Jahr bereits investiert:</span>
-          <span className={`font-black uppercase px-1 rounded ${stats.investedThisYear ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-850'}`}>
-            {stats.investedThisYear ? 'JA ✓' : 'NEIN ✗'}
-          </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-sm font-black font-sans text-[#2C3322] leading-tight">
+              Papierfabrik Schoellershammer
+            </h2>
+            <span className="text-[9px] font-mono font-black text-[#6B6356] bg-[#E8E2D6] px-1.5 py-0.5 rounded border border-[#D4CCBA]">
+              DÜREN
+            </span>
+          </div>
+          {/* Active mode badge */}
+          <div
+            className={`mt-1.5 inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold ${activeCfg.pillClass}`}
+            style={{ borderLeftColor: activeCfg.accentColor, borderLeftWidth: '3px' }}
+          >
+            {activeCfg.icon}
+            <span>{activeCfg.label}</span>
+            <span className="opacity-60">— {activeCfg.sublabel}</span>
+          </div>
         </div>
       </div>
 
-      {/* Mode selectors */}
-      <div className="flex-grow overflow-y-auto space-y-3.5 pr-1.5 custom-scrollbar">
-        {modesInfo.map((mode) => {
-          const isActive = stats.paperFactoryMode === mode.id;
-          
-          return (
-            <div
-              key={mode.id}
-              onClick={() => {
-                if (!mode.locked) {
-                  onChangeMode(mode.id);
-                }
-              }}
-              className={`border rounded-lg p-3 transition-all duration-200 ${
-                mode.locked 
-                  ? 'opacity-40 cursor-not-allowed bg-[#E8E2D6]/40 border-[#D4CCBA]' 
-                  : 'cursor-pointer'
-              } ${
-                isActive 
-                  ? mode.activeColor 
-                  : `${mode.colorClass}`
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">
-                    {mode.id === 'PRODUCTION' ? '🏭' :
-                     mode.id === 'RETROFITTING' ? '⚡' :
-                     mode.id === 'SHUTDOWN' ? '🔑' : '🌱'}
-                  </span>
-                  <span className="text-xs font-bold leading-tight">{mode.name}</span>
+      {/* ── Quick Stats ──────────────────────────────────────────────────── */}
+      <div className="px-4 py-3 grid grid-cols-3 gap-2 border-b border-[#D4CCBA]/50 shrink-0">
+        <div className="bg-white/70 rounded-lg border border-[#D4CCBA]/60 p-2 text-center">
+          <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-wider leading-none mb-1">
+            Ertrag / Runde
+          </div>
+          <div className={`text-sm font-black font-mono ${penalty > 0 ? 'text-amber-700' : 'text-[#2C3322]'}`}>
+            {stats.paperFactoryMode === 'PRODUCTION'
+              ? `+${Math.max(5, 15 - penalty)} €`
+              : stats.paperFactoryMode === 'RETROFITTING' ? '+5 €'
+              : stats.paperFactoryMode === 'SHUTDOWN' ? '-2 €'
+              : '-3 €'}
+          </div>
+        </div>
+        <div className="bg-white/70 rounded-lg border border-[#D4CCBA]/60 p-2 text-center">
+          <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-wider leading-none mb-1">
+            Modernität
+          </div>
+          <div className={`text-sm font-black font-mono ${modernizationGrade < 80 ? 'text-amber-700' : 'text-[#5A7247]'}`}>
+            {modernizationGrade}%
+          </div>
+        </div>
+        <div className="bg-white/70 rounded-lg border border-[#D4CCBA]/60 p-2 text-center">
+          <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-wider leading-none mb-1">
+            Jahres-Status
+          </div>
+          <div className={`text-[10px] font-black leading-tight ${stats.investedThisYear ? 'text-[#5A7247]' : 'text-amber-700'}`}>
+            {stats.investedThisYear ? '✓ Gesichert' : '⚠ Wartung'}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Scrollable Body ──────────────────────────────────────────────── */}
+      <div className="flex-grow overflow-y-auto custom-scrollbar">
+
+        {/* Obsolescence Alert */}
+        {(penalty > 0 || !stats.investedThisYear) && (
+          <div className="mx-4 mt-3 flex items-start gap-2 bg-amber-50 border border-amber-200/80 rounded-lg p-2.5">
+            <TrendingDown className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-[10px] text-amber-800 leading-snug">
+              <span className="font-black">Veraltungsdruck aktiv.</span>{' '}
+              {penalty > 0
+                ? <>Dauerhafte Ertragsminderung: <span className="font-black">-{penalty} €/Runde.</span></>
+                : <>Noch keine Investition dieses Jahr — Abzug droht zum Jahresende.</>}
+            </div>
+          </div>
+        )}
+
+        {/* Lore collapsible */}
+        <div className="mx-4 mt-3">
+          <button
+            onClick={() => setLoreExpanded(v => !v)}
+            className="w-full flex items-center justify-between text-[9.5px] font-bold text-[#6B6356] hover:text-[#2C3322] transition-colors cursor-pointer"
+          >
+            <span className="uppercase tracking-wider font-mono">Historischer Hintergrund</span>
+            {loreExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+          {loreExpanded && (
+            <div className="mt-1.5 text-[10px] text-[#6B6356] leading-relaxed bg-[#EAE4D8]/50 p-2.5 rounded-lg border border-[#D4CCBA]/60">
+              Das Papiergewerbe prägt Düren seit dem 16. Jahrhundert. Die Rur lieferte weiches Wasser zur Energie- und Papiererzeugung, wurde dadurch aber massiv kanalisiert und historisch verschmutzt. Deine Entscheidung bestimmt den Spagat zwischen Industrie-Identität und FFH-Artenschutz!
+            </div>
+          )}
+        </div>
+
+        {/* ── Mode Selector Cards ───────────────────────────────────────── */}
+        <div className="px-4 mt-4 space-y-2">
+          <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest mb-2 flex items-center gap-1.5">
+            <Activity className="w-2.5 h-2.5" />
+            Betriebsmodus wählen
+          </div>
+
+          {modesInfo.map((mode) => {
+            const cfg = MODE_CONFIG[mode.id];
+            const isActive = stats.paperFactoryMode === mode.id;
+            const locked = !!mode.locked;
+
+            return (
+              <div
+                key={mode.id}
+                onClick={() => { if (!locked) onChangeMode(mode.id); }}
+                className={[
+                  'border-l-4 border rounded-r-xl rounded-l-none p-3 transition-all duration-200 select-none',
+                  locked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
+                  isActive
+                    ? `${cfg.activeBg} border-[#D4CCBA] shadow-sm`
+                    : 'bg-white/60 border-[#D4CCBA] hover:bg-white/90 hover:shadow-sm',
+                ].join(' ')}
+                style={{ borderLeftColor: cfg.accentColor }}
+              >
+                {/* Row 1: Icon + Name + Active/Locked badge */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span style={{ color: cfg.accentColor }}>{cfg.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[11px] font-black text-[#2C3322] leading-tight block">
+                      {cfg.label}
+                    </span>
+                    <span className="text-[9px] text-[#6B6356]">{cfg.sublabel}</span>
+                  </div>
+                  {isActive && (
+                    <span className="text-[8px] font-mono font-black px-1.5 py-0.5 rounded border bg-white/80"
+                      style={{ color: cfg.accentColor, borderColor: `${cfg.accentColor}40` }}>
+                      AKTIV
+                    </span>
+                  )}
+                  {locked && (
+                    <span className="flex items-center gap-0.5 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border bg-red-50 text-red-700 border-red-200">
+                      <Lock className="w-2.5 h-2.5" />
+                      GESPERRT
+                    </span>
+                  )}
                 </div>
-                {isActive && (
-                  <span className="bg-[#5A7247]/20 text-[#5A7247] text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-[#5A7247]/30">
-                    AKTIV
-                  </span>
-                )}
-                {mode.locked && (
-                  <span className="bg-red-50 text-red-800 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border border-red-200">
-                    GESPERRT (Forschung)
-                  </span>
+
+                {/* Row 2: Effect chips */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                  {/* Budget */}
+                  <div className="flex items-start gap-1.5">
+                    <Coins className="w-3 h-3 shrink-0 text-[#8B8273] mt-0.5" />
+                    <div className="min-w-0">
+                      <span className={`text-[11px] font-black block leading-none ${
+                        mode.budget.startsWith('+') ? 'text-[#5A7247]'
+                        : mode.budget.startsWith('-') ? 'text-red-600'
+                        : 'text-[#2C3322]'
+                      }`}>{mode.budget}</span>
+                      <span className="text-[8.5px] text-[#8B8273] leading-none">{mode.budgetNote}</span>
+                    </div>
+                  </div>
+                  {/* Ecology */}
+                  <div className="flex items-start gap-1.5">
+                    <Waves className="w-3 h-3 shrink-0 text-[#8B8273] mt-0.5" />
+                    <span className="text-[9px] text-[#6B6356] leading-tight">{mode.ecology}</span>
+                  </div>
+                  {/* Train */}
+                  <div className="flex items-start gap-1.5">
+                    <TrainFront className="w-3 h-3 shrink-0 text-[#8B8273] mt-0.5" />
+                    <span className="text-[9px] text-[#6B6356] leading-tight">{mode.train}</span>
+                  </div>
+                  {/* Social */}
+                  <div className="flex items-start gap-1.5">
+                    <Users className="w-3 h-3 shrink-0 text-[#8B8273] mt-0.5" />
+                    <span className="text-[9px] text-[#6B6356] leading-tight">{mode.social}</span>
+                  </div>
+                </div>
+
+                {locked && (
+                  <div className="mt-2 flex items-center gap-1 text-[9px] text-[#BC6C25] font-semibold">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                    Erfordert Forschung: &bdquo;Fabrik-Transformationskonzept&ldquo;
+                  </div>
                 )}
               </div>
+            );
+          })}
+        </div>
 
-              {/* Impact parameters grid */}
-              <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-sans border-t border-[#D4CCBA]/50 pt-2 text-[#2C3322]">
-                <div>
-                  <span className="font-semibold text-[#6B6356]">Haushalt:</span> {mode.budgetEffect}
-                </div>
-                <div>
-                  <span className="font-semibold text-[#6B6356]">WRRL:</span> {mode.ecologyEffect}
-                </div>
-                <div className="sm:col-span-2">
-                  <span className="font-semibold text-[#6B6356]">Rurtalbahn:</span> {mode.rurtalbahnEffect}
-                </div>
-                <div className="sm:col-span-2">
-                  <span className="font-semibold text-[#6B6356]">Sozialer Spagat:</span> {mode.socialEffect}
-                </div>
-              </div>
-
-              {/* Informative warning on unlocked conditions */}
-              {mode.locked && (
-                <div className="mt-2 text-[9px] text-[#BC6C25] flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 text-[#BC6C25]" />
-                  <span>Erfordert Technologie &quot;Fabrik-Transformationskonzept&quot; (Forschung)</span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* 📋 Sektorkontroll-Logbuch & Wartungs-Bericht (Schoellershammer) */}
-        <div className="mt-4 bg-[#EADCC7]/50 border border-[#CDBEA6] rounded-xl p-3.5 space-y-3 shadow-xs">
-          <div className="flex items-center justify-between border-b border-[#CDBEA6]/60 pb-1.5">
-            <div className="flex items-center gap-1.5 text-xs font-black text-[#2C3322] font-sans">
-              <span>📋</span>
-              <span>Wartungs-Historie &amp; Veraltungs-Audit</span>
-            </div>
-            <span className="text-[8px] font-mono font-black text-stone-500 bg-white/50 px-1 py-0.2 rounded border border-stone-300">
-              S-PORTAL AUDIT
+        {/* ── Maintenance Audit Table ────────────────────────────────────── */}
+        <div className="mx-4 mt-4 mb-4">
+          <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Activity className="w-2.5 h-2.5" />
+              Wartungs-Audit
+            </span>
+            <span className="bg-white/60 border border-[#D4CCBA]/60 px-1.5 py-0.5 rounded text-[7.5px]">
+              S-PORTAL
             </span>
           </div>
 
-          {/* Mini high-fidelity stats cards */}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white/80 p-2 rounded-lg border border-[#CDBEA6]/40">
-              <div className="text-[7.5px] font-mono text-stone-500 font-bold uppercase leading-none">Abzug / Runde</div>
-              <div className={`text-xs font-black mt-1 ${penalty > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                -{penalty} €
-              </div>
-            </div>
-            <div className="bg-white/80 p-2 rounded-lg border border-[#CDBEA6]/40">
-              <div className="text-[7.5px] font-mono text-stone-500 font-bold uppercase leading-none">Modernitätsgrad</div>
-              <div className="text-xs font-black text-[#5A7247] mt-1">
-                {modernizationGrade}%
-              </div>
-            </div>
-            <div className="bg-white/80 p-2 rounded-lg border border-[#CDBEA6]/40">
-              <div className="text-[7.5px] font-mono text-stone-500 font-bold uppercase leading-none">Jahres-Ergebnis</div>
-              <div className={`text-[9.5px] font-black mt-1 leading-none ${stats.investedThisYear ? 'text-emerald-700 font-bold' : 'text-amber-700 font-bold'}`}>
-                {stats.investedThisYear ? 'GESICHERT ✓' : 'WARTUNG NÖTIG'}
-              </div>
-            </div>
-          </div>
-
-          {/* Dynamic breakdown table */}
-          <div className="border border-[#CDBEA6]/60 rounded-lg overflow-hidden bg-white text-[10px] font-sans">
-            <div className="grid grid-cols-4 bg-[#FAF9F6] border-b border-[#CDBEA6]/60 text-[8px] font-mono font-black text-stone-500 px-2.5 py-1.5 uppercase tracking-wider text-left">
+          <div className="bg-white/70 border border-[#D4CCBA]/70 rounded-xl overflow-hidden">
+            {/* Table header */}
+            <div className="grid grid-cols-[48px_1fr_88px] bg-[#F2EDE4] border-b border-[#D4CCBA]/60 px-3 py-1.5 text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-wider">
               <span>Jahr</span>
-              <span className="col-span-2">Status &amp; Effekt</span>
-              <span className="text-right">Aktion</span>
+              <span>Status</span>
+              <span className="text-right">Abzug</span>
             </div>
-            <div className="divide-y divide-stone-100">
-              {[2026, 2027, 2028, 2029].map((y) => {
-                const audit = getYearStatus(y);
-                return (
-                  <div key={y} className="grid grid-cols-4 items-center px-2.5 py-2 hover:bg-stone-50/50 transition-colors">
-                    <span className="font-mono font-bold text-[#2C3322]">{y}</span>
-                    <div className="col-span-2 pr-1">
-                      <span className={`inline-block text-[8px] font-mono font-black px-1.5 rounded border leading-none mb-1 ${audit.color}`}>
-                        {audit.status}
-                      </span>
-                      <p className="text-[8.5px] text-[#6B6356] leading-tight font-sans">
-                        {audit.detail}
-                      </p>
-                    </div>
-                    <span className="text-[8.5px] font-semibold text-stone-600 text-right italic font-sans truncate">
-                      {audit.action}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            {/* Table rows */}
+            {[2026, 2027, 2028, 2029].map((y) => {
+              const s = getYearStatus(y);
+              const isCurrent = y === stats.year;
+              return (
+                <div
+                  key={y}
+                  className={`grid grid-cols-[48px_1fr_88px] items-center px-3 py-2 border-b last:border-b-0 border-[#D4CCBA]/30 ${isCurrent ? 'bg-[#F2EDE4]/60' : ''}`}
+                >
+                  <span className={`font-mono text-[10px] font-bold ${isCurrent ? 'text-[#2C3322]' : 'text-[#6B6356]'}`}>
+                    {y}
+                    {isCurrent && <span className="ml-1 text-[7px] text-[#5A7247] font-black">↑ Aktuell</span>}
+                  </span>
+                  <span className={`inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded border mr-1 ${s.cls}`}>
+                    {s.label}
+                  </span>
+                  <span className={`text-[9px] font-mono font-black text-right ${
+                    s.label.includes('-1') ? 'text-red-600' : 'text-[#8B8273]'
+                  }`}>
+                    {s.label.includes('-1') ? '-1 €' : '—'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Interactive summary explanation */}
-          <p className="text-[9.2px] text-stone-600 leading-normal bg-white/55 p-2 rounded border border-[#CDBEA6]/30">
-            <strong>💡 Info:</strong> Jedes neue Jahr (alle 4 Runden) verliert die Fabrik dauerhaft <strong>-1 €/Runde</strong> Ertrag herkömmlichen Vollbetriebs, sofern du in dem Jahr kein neues Forschungsprojekt finanzierst oder Rurbauten tätigst.
+          <p className="mt-2 text-[9px] text-[#8B8273] leading-snug">
+            Pro Jahr ohne Investition verliert der Vollbetrieb dauerhaft <strong className="text-[#6B6356]">-1 €/Runde</strong>.
           </p>
         </div>
 
       </div>
 
-      {/* Schoellershammer Operational Summary Gauge */}
-      <div className="mt-4 p-3 bg-[#E8E2D6]/60 border border-[#D4CCBA] rounded-lg">
-        <div className="flex justify-between items-center text-xs text-[#6B6356] mb-1">
-          <span>Fabrik-Einfluss auf Kreisdürener Rurwasser (WRRL):</span>
-          <span className={`font-bold ${
-            stats.paperFactoryMode === 'PRODUCTION' ? 'text-red-700' :
-            stats.paperFactoryMode === 'RETROFITTING' ? 'text-yellow-700' :
-            'text-[#5A7247]'
-          }`}>
-            {stats.paperFactoryMode === 'PRODUCTION' ? 'Belastend (-1.0/Runde)' :
-             stats.paperFactoryMode === 'RETROFITTING' ? 'Stabilisierend' :
-             stats.paperFactoryMode === 'SHUTDOWN' ? 'Regenerativ (+0.5/Runde)' :
-             'Optimaler Auenzustand (+2.0/Runde)'}
-          </span>
-        </div>
+      {/* ── WRRL Gauge Footer ────────────────────────────────────────────── */}
+      <div className="px-4 pb-4 pt-2 border-t border-[#D4CCBA]/60 shrink-0 bg-[#EAE4D8]/40">
+        <WRRLBar mode={stats.paperFactoryMode} />
       </div>
     </div>
   );

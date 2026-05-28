@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TileData, BuildingType, ResearchNode, Species, PaperFactoryMode, GameLog, GameStats
 } from '../types';
 import {
   Hammer, Factory, Microscope, Leaf, FileText, ChevronRight,
-  Droplets, ShieldAlert, Award, Footprints, Users, Zap
+  Droplets, ShieldAlert, Footprints, Users,
+  Gauge, Activity, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { BuildingCatalog } from './BuildingCatalog';
 import { SchoellershammerConsole } from './SchoellershammerConsole';
@@ -33,114 +34,121 @@ interface ActiveSimulationPanelProps {
   logs: GameLog[];
 }
 
-// ── Tab Palette with premium cockpit branding ─────────────────────────────────
+// ── Tab colour tokens ─────────────────────────────────────────────────────────
 const TAB_PALETTE = {
   map: {
-    bg: 'bg-[#5A7247]/10',
-    border: 'border-[#5A7247]/30',
-    ring: 'border-b-[#5A7247]',
-    text: 'text-[#5A7247]',
-    hoverText: 'hover:text-[#4A5D3A]',
-    badge: 'bg-[#D4E0C1] text-[#2C3322] border-[#5A7247]/30',
-    glowing: 'bg-[#5A7247]',
-    accent: 'border-l-[#5A7247]',
-    leftBg: 'bg-[#F0F7EC]',
-    glowBg: 'rgba(90, 114, 71, 0.15)',
-    led: 'bg-[#5A7247]',
+    bg:      'bg-[#5A7247]/10',
+    text:    'text-[#5A7247]',
+    badge:   'bg-[#D4E0C1] text-[#2C3322] border-[#5A7247]/30',
+    bar:     'bg-[#5A7247]',
+    accent:  'border-l-[#5A7247]',
+    headerBg: 'bg-[#EEF5E8]',
+    bodyBg:  'bg-[#F5FAF2]',
+    led:     'bg-[#5A7247]',
+    ring:    'focus-visible:ring-[#5A7247]/40',
+    divider: 'border-[#C8DDB3]',
   },
   schoeller: {
-    bg: 'bg-[#BC6C25]/10',
-    border: 'border-[#BC6C25]/30',
-    ring: 'border-b-[#BC6C25]',
-    text: 'text-[#BC6C25]',
-    hoverText: 'hover:text-[#914F18]',
-    badge: 'bg-amber-100 text-[#7A3F1F] border-[#BC6C25]/20',
-    glowing: 'bg-[#BC6C25]',
-    accent: 'border-l-[#BC6C25]',
-    leftBg: 'bg-amber-50/40',
-    glowBg: 'rgba(188, 108, 37, 0.15)',
-    led: 'bg-[#BC6C25]',
+    bg:      'bg-[#BC6C25]/10',
+    text:    'text-[#BC6C25]',
+    badge:   'bg-amber-100 text-[#7A3F1F] border-[#BC6C25]/20',
+    bar:     'bg-[#BC6C25]',
+    accent:  'border-l-[#BC6C25]',
+    headerBg: 'bg-amber-50',
+    bodyBg:  'bg-[#FDFAF6]',
+    led:     'bg-[#BC6C25]',
+    ring:    'focus-visible:ring-[#BC6C25]/40',
+    divider: 'border-[#E8C99A]',
   },
   research: {
-    bg: 'bg-sky-500/10',
-    border: 'border-sky-300/30',
-    ring: 'border-b-sky-500',
-    text: 'text-sky-650',
-    hoverText: 'hover:text-sky-800',
-    badge: 'bg-sky-50 text-sky-800 border-sky-305/30',
-    glowing: 'bg-sky-500',
-    accent: 'border-l-sky-500',
-    leftBg: 'bg-sky-50/40',
-    glowBg: 'rgba(14, 165, 233, 0.15)',
-    led: 'bg-sky-500',
+    bg:      'bg-sky-500/10',
+    text:    'text-sky-700',
+    badge:   'bg-sky-50 text-sky-800 border-sky-200',
+    bar:     'bg-sky-500',
+    accent:  'border-l-sky-500',
+    headerBg: 'bg-sky-50',
+    bodyBg:  'bg-[#F5FAFD]',
+    led:     'bg-sky-500',
+    ring:    'focus-visible:ring-sky-400/40',
+    divider: 'border-sky-200',
   },
   species: {
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-300/30',
-    ring: 'border-b-emerald-500',
-    text: 'text-emerald-700',
-    hoverText: 'hover:text-emerald-900',
-    badge: 'bg-emerald-50 text-emerald-800 border-emerald-300/35',
-    glowing: 'bg-emerald-600',
-    accent: 'border-l-emerald-500',
-    leftBg: 'bg-emerald-50/40',
-    glowBg: 'rgba(16, 185, 129, 0.15)',
-    led: 'bg-emerald-500',
+    bg:      'bg-emerald-500/10',
+    text:    'text-emerald-700',
+    badge:   'bg-emerald-50 text-emerald-800 border-emerald-300/50',
+    bar:     'bg-emerald-600',
+    accent:  'border-l-emerald-500',
+    headerBg: 'bg-emerald-50',
+    bodyBg:  'bg-[#F4FBF7]',
+    led:     'bg-emerald-500',
+    ring:    'focus-visible:ring-emerald-400/40',
+    divider: 'border-emerald-200',
   },
   reports: {
-    bg: 'bg-[#457b9d]/10',
-    border: 'border-[#457b9d]/30',
-    ring: 'border-b-[#457b9d]',
-    text: 'text-[#1D4E5B]',
-    hoverText: 'hover:text-[#143B45]',
-    badge: 'bg-[#EBF3F5] text-[#1D4E5B] border-[#457b9d]/30',
-    glowing: 'bg-[#457b9d]',
-    accent: 'border-l-[#457b9d]',
-    leftBg: 'bg-[#EBF3F5]',
-    glowBg: 'rgba(69, 123, 157, 0.15)',
-    led: 'bg-[#457b9d]',
+    bg:      'bg-[#457b9d]/10',
+    text:    'text-[#1D4E5B]',
+    badge:   'bg-[#EBF3F5] text-[#1D4E5B] border-[#457b9d]/30',
+    bar:     'bg-[#457b9d]',
+    accent:  'border-l-[#457b9d]',
+    headerBg: 'bg-[#EBF3F5]',
+    bodyBg:  'bg-[#F3F8FB]',
+    led:     'bg-[#457b9d]',
+    ring:    'focus-visible:ring-[#457b9d]/40',
+    divider: 'border-[#A8CADA]',
   },
 } as const;
 
-// ── Tab Metadata ─────────────────────────────────────────────────────────────
+// ── Tab metadata ──────────────────────────────────────────────────────────────
 const TAB_META = {
   map: {
-    index: '01',
-    label: 'BAUMODUS',
-    title: '📐 Baukatalog & Planung',
-    desc: 'Errichte renaturierende Wasserbauten, kiesgelegte Fischlaichbetten oder biodiverse Uferbereiche entlang der Flusskarte.',
-    icon: Hammer,
+    label:    'Baumodus',
+    sublabel: 'PLANUNG',
+    title:    'Baukatalog & Planung',
+    desc:     'Errichte renaturierende Wasserbauten, Fischlaichbetten und biodiverse Uferbereiche entlang der Flusskarte.',
+    icon:     Hammer,
   },
   schoeller: {
-    index: '02',
-    label: 'INDUSTRIE',
-    title: '🏭 Werk Schoellershammer',
-    desc: 'Steuere den Betriebsmodus der Papierfabrik. Balanciere Gewinne, Arbeitsplätze und Filtertechnik-Investitionen.',
-    icon: Factory,
+    label:    'Industrie',
+    sublabel: 'FABRIK',
+    title:    'Werk Schoellershammer',
+    desc:     'Steuere den Betriebsmodus der Papierfabrik. Balanciere Gewinne, Arbeitsplätze und Filtertechnik-Investitionen.',
+    icon:     Factory,
   },
   research: {
-    index: '03',
-    label: 'FORSCHUNG',
-    title: '🔬 Innovationszentrum',
-    desc: 'Schalte technologische Filter-Upgrades, Gewässerschutzkonzepte oder europäische LIFE+ Fördergelder frei.',
-    icon: Microscope,
+    label:    'Forschung',
+    sublabel: 'INNOVATION',
+    title:    'Innovationszentrum',
+    desc:     'Schalte technologische Filter-Upgrades, Gewässerschutzkonzepte und LIFE+ Fördergelder frei.',
+    icon:     Microscope,
   },
   species: {
-    index: '04',
-    label: 'FAUNA & ARTEN',
-    title: '🦫 Biotop-Beobachtung',
-    desc: 'Verfolge und sichere die Ansiedlung bedrohter Leitarten wie Biber, Flusskrebs und Lachs durch Biotop-Güte.',
-    icon: Leaf,
+    label:    'Fauna & Arten',
+    sublabel: 'BIOTOP',
+    title:    'Biotop-Beobachtung',
+    desc:     'Verfolge Leitarten wie Biber, Flusskrebs und Lachs. Bewerte die Biotop-Güte aller Habitatzonen.',
+    icon:     Leaf,
   },
   reports: {
-    index: '05',
-    label: 'CONTROLLING',
-    title: '📊 Umwelt-Audit',
-    desc: 'Analysiere ökologische Kennzahlen, WRRL-Gewässergüte, globale Resilienzen und erstelle offizielle Jahresberichte.',
-    icon: FileText,
+    label:    'Controlling',
+    sublabel: 'AUDIT',
+    title:    'Umwelt-Audit',
+    desc:     'Analysiere WRRL-Güte, globale Resilienzen und erstelle offizielle Jahresberichte der Kreisbehörde.',
+    icon:     FileText,
   },
 } as const;
 
+// ── WRRL colour helper ────────────────────────────────────────────────────────
+const wrrlColor = (v: number) =>
+  v <= 2.2 ? 'bg-emerald-500' :
+  v <= 3.0 ? 'bg-teal-500' :
+  v <= 3.8 ? 'bg-amber-500' : 'bg-rose-500';
+
+const wrrlTextColor = (v: number) =>
+  v <= 2.2 ? 'text-emerald-700' :
+  v <= 3.0 ? 'text-teal-700' :
+  v <= 3.8 ? 'text-amber-700' : 'text-rose-700';
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   activeTab,
   setActiveTab,
@@ -161,342 +169,355 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   pdfSimulated,
   logs,
 }) => {
+  const [infoPanelOpen, setInfoPanelOpen] = useState(true);
 
-  // 计算选项卡徽章的值和样式
-  const getBadgeValueAndStyle = (tabId: 'map' | 'schoeller' | 'research' | 'species' | 'reports') => {
+  const tabsArray = ['map', 'schoeller', 'research', 'species', 'reports'] as const;
+  const p  = TAB_PALETTE[activeTab];
+  const m  = TAB_META[activeTab];
+
+  // ── Live badge per tab ──
+  const getBadge = (tabId: typeof tabsArray[number]) => {
     switch (tabId) {
       case 'map': {
-        const bcount = grid.flat().filter(t => t.buildingId && t.buildingId !== 'schoellershammer').length;
-        return {
-          text: `${bcount} Aktive Bauten`,
-          color: 'bg-[#5A7247]/10 text-[#4A5D3A] border-[#5A7247]/20'
-        };
+        const n = grid.flat().filter(t => t.buildingId && t.buildingId !== 'schoellershammer').length;
+        return { text: `${n} aktive Bauten`, color: 'bg-[#5A7247]/8 text-[#4A5D3A] border-[#5A7247]/20' };
       }
       case 'schoeller': {
-        let text = 'Vollbetrieb';
-        if (stats.paperFactoryMode === 'RETROFITTING') text = 'Filter-Sektor';
-        if (stats.paperFactoryMode === 'SHUTDOWN') text = 'Stillgelegt';
-        if (stats.paperFactoryMode === 'RENATURIZATION') text = 'Rückbau';
-        const color = stats.paperFactoryMode === 'PRODUCTION' ? 'bg-rose-50 text-rose-800 border-rose-200' :
-          stats.paperFactoryMode === 'RETROFITTING' ? 'bg-amber-50 text-amber-800 border-amber-300' :
-          stats.paperFactoryMode === 'SHUTDOWN' ? 'bg-stone-100 text-stone-700 border-stone-300' : 'bg-emerald-50 text-emerald-800 border-emerald-300';
-        return { text, color };
+        const modeMap: Record<string, string> = {
+          PRODUCTION: 'Vollbetrieb', RETROFITTING: 'Filter-Sektor',
+          SHUTDOWN: 'Stillgelegt', RENATURIZATION: 'Rückbau',
+        };
+        const colorMap: Record<string, string> = {
+          PRODUCTION:    'bg-rose-50 text-rose-800 border-rose-200',
+          RETROFITTING:  'bg-amber-50 text-amber-800 border-amber-300',
+          SHUTDOWN:      'bg-stone-100 text-stone-700 border-stone-300',
+          RENATURIZATION:'bg-emerald-50 text-emerald-800 border-emerald-300',
+        };
+        return { text: modeMap[stats.paperFactoryMode] ?? stats.paperFactoryMode, color: colorMap[stats.paperFactoryMode] ?? '' };
       }
       case 'research': {
-        const unlocked = researchTree.filter(r => r.unlocked).length;
-        return {
-          text: `${unlocked} / ${researchTree.length} Erforschten`,
-          color: 'bg-sky-50 text-sky-850 border-sky-200'
-        };
+        const u = researchTree.filter(r => r.unlocked).length;
+        return { text: `${u} / ${researchTree.length} erforscht`, color: 'bg-sky-50 text-sky-800 border-sky-200' };
       }
       case 'species': {
-        const activeSpeciesCount = speciesList.filter(s => s.unlocked || s.currentProgress >= 100).length;
-        return {
-          text: `${activeSpeciesCount} / ${speciesList.length} Arten`,
-          color: 'bg-emerald-50 text-emerald-850 border-emerald-200'
-        };
+        const a = speciesList.filter(s => s.unlocked || s.currentProgress >= 100).length;
+        return { text: `${a} / ${speciesList.length} Arten`, color: 'bg-emerald-50 text-emerald-800 border-emerald-200' };
       }
       case 'reports': {
         const grade = stats.globalWrrl <= 2.8 ? 'A' : stats.globalWrrl <= 3.5 ? 'B' : 'C';
-        return {
-          text: `Siegel: Klasse ${grade}`,
-          color: 'bg-blue-50 text-blue-800 border-blue-200'
-        };
+        return { text: `Klasse ${grade} — WRRL-Siegel`, color: 'bg-blue-50 text-blue-800 border-blue-200' };
       }
     }
   };
 
-  const tabsArray = ['map', 'schoeller', 'research', 'species', 'reports'] as const;
+  const activeBadge = getBadge(activeTab);
 
-  // Render water quality rating color helper
-  const getWrrlColorClass = (val: number) => {
-    if (val <= 2.2) return 'bg-emerald-500 text-emerald-50 border-emerald-600';
-    if (val <= 3.0) return 'bg-teal-500 text-teal-50 border-teal-600';
-    if (val <= 3.8) return 'bg-amber-500 text-amber-950 border-amber-600';
-    return 'bg-rose-500 text-rose-50 border-rose-600';
-  };
+  // ── System metrics (4 cards) ──
+  const metrics = [
+    {
+      Icon:       Droplets,
+      label:      'Gewässergüte',
+      unit:       'WRRL-Index',
+      value:      stats.globalWrrl.toFixed(2),
+      suffix:     '',
+      barWidth:   `${Math.max(4, Math.min(100, ((5 - stats.globalWrrl) / 4) * 100))}%`,
+      barColor:   wrrlColor(stats.globalWrrl),
+      valueColor: wrrlTextColor(stats.globalWrrl),
+    },
+    {
+      Icon:       Leaf,
+      label:      'FFH-Biotop',
+      unit:       'Habitatwert',
+      value:      String(stats.globalFfh),
+      suffix:     '%',
+      barWidth:   `${stats.globalFfh}%`,
+      barColor:   'bg-[#5A7247]',
+      valueColor: 'text-[#5A7247]',
+    },
+    {
+      Icon:       Footprints,
+      label:      'Durchgängigkeit',
+      unit:       'Fischwanderpfad',
+      value:      String(stats.continuity),
+      suffix:     '%',
+      barWidth:   `${stats.continuity}%`,
+      barColor:   'bg-indigo-500',
+      valueColor: 'text-indigo-700',
+    },
+    {
+      Icon:       Users,
+      label:      'Bürgerakzeptanz',
+      unit:       'Kreisbevölkerung',
+      value:      String(stats.citizenAcceptance),
+      suffix:     '%',
+      barWidth:   `${stats.citizenAcceptance}%`,
+      barColor:   'bg-[#BC6C25]',
+      valueColor: 'text-[#BC6C25]',
+    },
+  ];
 
   return (
     <div className="bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col">
 
-      {/* ── COCKPIT HEADER ── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 bg-white border-b border-[#D4CCBA] gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse border border-emerald-600"></div>
-          <div>
-            <h2 className="text-xs font-black text-[#262A1F] uppercase tracking-wider flex items-center gap-1.5 font-sans">
-              🎛️ Steuer-Cockpit & System-Zentralen
-            </h2>
-            <p className="text-[9px] text-[#8B8273] font-mono uppercase leading-tight mt-0.5">
-              Live-Überwachung des Rur-Ökomodells • Jahr {stats.year} • Quartal {((stats.round - 1) % 4) + 1}
+      {/* ── COCKPIT HEADER ───────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#D4CCBA] gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <Gauge className="w-3.5 h-3.5 text-[#5A7247] shrink-0" aria-hidden="true" />
+              <h2 className="text-[11px] font-black text-[#262A1F] uppercase tracking-wider font-sans leading-none truncate">
+                Steuer-Cockpit &amp; System-Zentralen
+              </h2>
+            </div>
+            <p className="text-[8.5px] text-[#8B8273] font-mono uppercase leading-none mt-1 truncate">
+              Rur-Ökomodell · Simulation läuft · Jahr {stats.year} · Q{((stats.round - 1) % 4) + 1}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-[#F3EDE2] border border-[#D4CCBA]/80 px-2.5 py-1 rounded-md shrink-0">
-          <span className="text-[9.5px] font-mono font-black text-[#5A7247]">SYSTEM: ACTIVE</span>
-          <span className="text-[9px] text-[#8B8273]">| DEV MODE</span>
+        {/* Year / Round pill */}
+        <div className="flex items-stretch gap-0 border border-[#D4CCBA] rounded-lg overflow-hidden shrink-0 bg-[#F3EDE2]">
+          <div className="px-2.5 py-1.5 text-center">
+            <div className="text-[7.5px] font-mono text-[#8B8273] uppercase leading-none">Jahr</div>
+            <div className="text-[12px] font-black text-[#2C3322] font-mono tabular-nums leading-tight mt-0.5">{stats.year}</div>
+          </div>
+          <div className="w-px bg-[#D4CCBA]" />
+          <div className="px-2.5 py-1.5 text-center">
+            <div className="text-[7.5px] font-mono text-[#8B8273] uppercase leading-none">Runde</div>
+            <div className={`text-[12px] font-black font-mono tabular-nums leading-tight mt-0.5 ${p.text}`}>R{stats.round}</div>
+          </div>
         </div>
       </div>
 
-      {/* ── COCKPIT INTERFACE TAB-STRIP (High-Fidelity mechanical design) ── */}
-      <div className="grid grid-cols-5 divide-x divide-[#D4CCBA] border-b border-[#D4CCBA] bg-[#EAE4D7]">
-        {tabsArray.map((tId, idx) => {
+      {/* ── TAB STRIP ────────────────────────────────────────────────────── */}
+      <div
+        role="tablist"
+        aria-label="Cockpit-Bereiche"
+        className="grid grid-cols-5 divide-x divide-[#D4CCBA] border-b border-[#D4CCBA] bg-[#EAE4D7]/70"
+      >
+        {tabsArray.map((tId) => {
           const isActive = activeTab === tId;
-          const p = TAB_PALETTE[tId];
-          const m = TAB_META[tId];
-          const badgeInfo = getBadgeValueAndStyle(tId);
-          const Icon = m.icon;
-
+          const tp  = TAB_PALETTE[tId];
+          const tm  = TAB_META[tId];
+          const TabIcon = tm.icon;
+          const badge   = getBadge(tId);
           return (
             <button
               key={tId}
-              onClick={() => {
-                setActiveTab(tId);
-                if (tId !== 'map') onSelectBuilding(null);
-              }}
-              style={{
-                boxShadow: isActive ? `inset 0 -2px 0 0 ${p.glowing}` : undefined,
-              }}
-              className={`relative flex flex-col gap-2 p-3 text-left cursor-pointer transition-all duration-200 group overflow-hidden ${
-                isActive
-                  ? 'bg-white font-extrabold shadow-sm'
-                  : 'bg-[#F2ECE1] hover:bg-white/60'
-              }`}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls="cockpit-workspace"
+              onClick={() => { setActiveTab(tId); if (tId !== 'map') onSelectBuilding(null); }}
+              className={`
+                relative flex flex-col items-center justify-center gap-1.5
+                py-3 px-2 min-h-[56px] cursor-pointer transition-colors duration-150
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${tp.ring}
+                ${isActive ? 'bg-white' : 'bg-[#F2ECE1]/80 hover:bg-white/70'}
+              `}
+              title={`${tm.title} — ${badge.text}`}
             >
-              {/* Monospace Indicator Deck */}
-              <div className="flex items-center justify-between w-full">
-                <span className="text-[8px] font-mono font-black text-[#8B8273] tracking-widest uppercase">
-                  SLOT 0{m.index}
-                </span>
-                
-                {/* Visual Status Led and small mechanical dots */}
-                <div className="flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                    isActive ? `${p.led} ring-2 ring-white` : 'bg-stone-300/60'
-                  }`} />
-                </div>
+              {isActive && (
+                <span className={`absolute bottom-0 left-0 right-0 h-[3px] ${tp.bar} rounded-t-sm`} aria-hidden="true" />
+              )}
+              <div className={`p-1.5 rounded-lg transition-all duration-150 ${isActive ? `${tp.bg} ${tp.text}` : 'text-[#A29A8C]'}`}>
+                <TabIcon className="w-4 h-4" aria-hidden="true" />
               </div>
-
-              {/* Tab Label with Responsive Icons */}
-              <div className="flex items-center gap-2">
-                <div className={`p-1 rounded-md transition-colors ${
-                  isActive ? p.bg + ' ' + p.text : 'bg-transparent text-[#8B8273] group-hover:text-[#2C3322]'
-                }`}>
-                  <Icon className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                </div>
-                <div className="hidden md:block">
-                  <div className="text-[9px] text-[#A29A8C] font-mono font-black uppercase tracking-wider leading-none">
-                    {m.label}
-                  </div>
-                  <div className="text-[11px] font-black text-[#2C3322] leading-tight font-sans mt-0.5">
-                    {tId === 'schoeller' ? 'Konsolen' : m.title.split(' ')[1]}
-                  </div>
-                </div>
-                {/* Fallback compact text for mobile */}
-                <span className="md:hidden text-[11px] font-black text-[#2C3322] truncate leading-tight">
-                  {tId === 'schoeller' ? 'Fabrik' : m.title.split(' ')[1]}
-                </span>
-              </div>
-
-              {/* Custom Badge to convey high-fidelity data density */}
-              <span className={`text-[8.5px] font-mono font-bold px-1.5 py-0.5 rounded border leading-none truncate w-full text-center transition-all ${
-                isActive ? 'bg-[#5A7247]/5 border-[#5A7247]/15 text-[#5A7247]' : badgeInfo.color
-              }`}>
-                {badgeInfo.text}
+              <span className={`text-[8.5px] font-bold uppercase tracking-wide leading-none transition-colors duration-150 ${isActive ? tp.text : 'text-[#8B8273]'}`}>
+                {tm.sublabel}
               </span>
-
-              {/* Color horizontal strip indicator in un-selected mode */}
               {!isActive && (
-                <div className={`absolute bottom-0 left-0 right-0 h-[2.5px] opacity-25 group-hover:opacity-100 transition-opacity ${p.glowing}`} />
+                <span className={`absolute bottom-0 left-3 right-3 h-[2px] rounded-full opacity-0 group-hover:opacity-30 transition-opacity ${tp.bar}`} aria-hidden="true" />
               )}
             </button>
           );
         })}
       </div>
 
-      {/* ── COCKPIT WORKSPACE ── */}
-      <div className="bg-white p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
+      {/* ── INFO ACCORDION ───────────────────────────────────────────────── */}
+      <div className={`border-b ${p.divider} border-l-4 ${p.accent}`}>
 
-          {/* Left Panel: Real-time Cockpit Controller HUD with gauges */}
-          <div className={`w-full lg:w-56 shrink-0 rounded-xl border border-[#D4CCBA] border-l-[5px] p-3 shadow-sm ${TAB_PALETTE[activeTab].accent} ${TAB_PALETTE[activeTab].leftBg}`}>
-            
-            {/* Tag line */}
-            <div className="flex items-center justify-between mb-2">
-              <span className={`text-[8px] font-mono font-black px-1.5 py-0.5 rounded border ${TAB_PALETTE[activeTab].badge} tracking-wider`}>
-                ZONE {tabsArray.indexOf(activeTab) + 1} ACTIVE
+        {/* Accordion toggle header — always visible */}
+        <button
+          onClick={() => setInfoPanelOpen(v => !v)}
+          aria-expanded={infoPanelOpen}
+          aria-controls="cockpit-info-body"
+          className={`
+            w-full flex items-center justify-between
+            px-4 py-2.5 cursor-pointer transition-colors duration-150
+            ${p.headerBg} hover:brightness-[0.97]
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${p.ring}
+          `}
+        >
+          {/* Left: zone badge + icon + title */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`hidden sm:inline-flex items-center gap-1.5 text-[7.5px] font-mono font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${p.badge}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${p.led}`} aria-hidden="true" />
+              Bereich {tabsArray.indexOf(activeTab) + 1} — {m.sublabel}
+            </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className={`shrink-0 ${p.text}`} aria-hidden="true">
+                {React.createElement(m.icon, { className: 'w-3.5 h-3.5' })}
               </span>
-              <span className="text-[8px] font-bold text-[#8B8273] tracking-widest font-mono">
-                {TAB_META[activeTab].label}
+              <span className="text-[10.5px] font-black text-[#2C3322] truncate font-sans">
+                {m.title}
               </span>
             </div>
+          </div>
 
-            {/* Header info */}
-            <div className="flex items-start gap-2 mb-2">
-              <span className={`p-1 rounded-md bg-white border border-[#D4CCBA]/80 ${TAB_PALETTE[activeTab].text}`}>
-                {React.createElement(TAB_META[activeTab].icon, { className: 'w-4 h-4' })}
-              </span>
-              <div>
-                <h3 className="text-xs font-black text-[#2C3322] leading-tight font-sans">
-                  {TAB_META[activeTab].title}
-                </h3>
-                <p className="text-[8px] font-mono text-[#8B8273] uppercase mt-0.5">ZUSTÄNDIGKEITSBEREICH</p>
+          {/* Right: 4 mini metric chips + chevron */}
+          <div className="flex items-center gap-3 shrink-0 ml-4">
+            {/* Compact metric values — visible even when collapsed */}
+            <div className="hidden md:flex items-center gap-3">
+              {metrics.map(({ Icon, label, value, suffix, valueColor }) => (
+                <div key={label} className="flex items-center gap-1" title={label}>
+                  <Icon className="w-3 h-3 text-[#B0A898]" aria-hidden="true" />
+                  <span className={`text-[9px] font-mono font-bold tabular-nums ${valueColor}`}>
+                    {value}{suffix}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {/* Separator */}
+            <div className="hidden md:block w-px h-4 bg-[#D4CCBA]" aria-hidden="true" />
+            {/* Toggle button */}
+            <div className={`flex items-center gap-1 text-[8.5px] font-mono font-bold ${p.text} uppercase tracking-wide`}>
+              <span className="hidden sm:inline">{infoPanelOpen ? 'Ausblenden' : 'Einblenden'}</span>
+              {infoPanelOpen
+                ? <ChevronUp   className="w-3.5 h-3.5" aria-hidden="true" />
+                : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
+              }
+            </div>
+          </div>
+        </button>
+
+        {/* Accordion body — collapsible */}
+        {infoPanelOpen && (
+          <div
+            id="cockpit-info-body"
+            className={`px-4 py-4 ${p.bodyBg} border-t ${p.divider}`}
+          >
+            {/* Row 1: Description + live status badge */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-4">
+              <p className="text-[10px] text-[#6B6356] leading-relaxed font-sans flex-1">
+                {m.desc}
+              </p>
+              <div className={`text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg border text-center whitespace-nowrap shrink-0 ${activeBadge.color}`}>
+                {activeBadge.text}
               </div>
             </div>
 
-            {/* Short functional description */}
-            <p className="text-[10px] text-[#6B6356] leading-relaxed mb-3 font-sans bg-white/40 p-2 rounded-lg border border-[#D4CCBA]/30">
-              {TAB_META[activeTab].desc}
-            </p>
-
-            {/* Dynamic Sytem Metrics & Progress Indicators (High Fidelity Interface) */}
-            <div className="border-t border-[#D4CCBA]/60 pt-3">
-              <div className="text-[8.5px] font-black text-[#5C564C] uppercase tracking-wider font-mono mb-2 flex items-center justify-between">
-                <span>RUR-SYSTEMSTATISTIKEN</span>
-                <span className="text-[7.5px] bg-slate-100 px-1 py-0.2 rounded border border-slate-200">REALTIME</span>
-              </div>
-              
-              <div className="space-y-2.5">
-                {/* Gauge Metric 1: WRRL Water Quality */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[9px] font-bold text-[#3E382F]">
-                    <span className="flex items-center gap-1">🌊 Gewässergüte WRRL:</span>
-                    <span className={`font-mono font-black text-[9px] px-1.5 py-0.2 rounded border shadow-2xs ${getWrrlColorClass(stats.globalWrrl)}`}>
-                      {stats.globalWrrl.toFixed(2)}
+            {/* Row 2: 4 metric cards in a responsive grid */}
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
+              {metrics.map(({ Icon, label, unit, value, suffix, barWidth, barColor, valueColor }) => (
+                <div
+                  key={label}
+                  className="bg-white rounded-xl border border-[#E8E2D6] px-3 py-2.5 shadow-xs"
+                >
+                  {/* Icon + label + value */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Icon className="w-3.5 h-3.5 text-[#8B8273] shrink-0" aria-hidden="true" />
+                      <span className="text-[9px] font-semibold text-[#5C564C] leading-none">{label}</span>
+                    </div>
+                    <span className={`font-mono font-black text-[11px] tabular-nums leading-none ${valueColor}`}>
+                      {value}{suffix}
                     </span>
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden flex">
-                    {/* WRRL goes from 1 (excellent) to 5 (bad), so let's reverse bar display to represent success */}
-                    <div 
-                      style={{ width: `${Math.max(5, Math.min(100, ((5 - stats.globalWrrl) / 4) * 100))}%` }} 
-                      className={`h-full transition-all duration-500 ${
-                        stats.globalWrrl <= 2.2 ? 'bg-emerald-500' :
-                        stats.globalWrrl <= 3.0 ? 'bg-teal-500' :
-                        stats.globalWrrl <= 3.8 ? 'bg-amber-500' : 'bg-rose-500'
-                      }`}
+                  {/* Progress bar */}
+                  <div className="w-full bg-[#EAE4D7] rounded-full h-1.5 overflow-hidden">
+                    <div
+                      style={{ width: barWidth }}
+                      className={`h-full rounded-full transition-all duration-500 ease-out ${barColor}`}
                     />
                   </div>
-                </div>
-
-                {/* Gauge Metric 2: FFH Biodiversity */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[9px] font-bold text-[#3E382F]">
-                    <span className="flex items-center gap-1">🌿 FFH-Wert (Biotop):</span>
-                    <span className="font-mono font-black text-[#5A7247]">{stats.globalFfh}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                    <div 
-                      style={{ width: `${stats.globalFfh}%` }} 
-                      className="bg-[#5A7247] h-full transition-all duration-500"
-                    />
+                  {/* Unit label */}
+                  <div className="text-[7.5px] text-[#B0A898] font-mono uppercase tracking-wide mt-1.5 leading-none">
+                    {unit}
                   </div>
                 </div>
-
-                {/* Gauge Metric 3: Longitudinal connectivity */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[9px] font-bold text-[#3E382F]">
-                    <span className="flex items-center gap-1">🐟 Durchgängigkeit:</span>
-                    <span className="font-mono font-black text-indigo-700">{stats.continuity}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                    <div 
-                      style={{ width: `${stats.continuity}%` }} 
-                      className="bg-indigo-600 h-full transition-all duration-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Gauge Metric 4: Bürgerakzeptanz or CO2 */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[9px] font-bold text-[#3E382F]">
-                    <span className="flex items-center gap-1">👥 Akzeptanz im Kreis:</span>
-                    <span className="font-mono font-black text-[#BC6C25]">{stats.citizenAcceptance}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                    <div 
-                      style={{ width: `${stats.citizenAcceptance}%` }} 
-                      className="bg-[#BC6C25] h-full transition-all duration-500"
-                    />
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
 
-            {/* Legend / Status alert warning box for high immersion */}
+            {/* Climate alert — shown when critical */}
             {stats.climateRisk >= 55 && (
-              <div className="mt-3 bg-red-50 border border-red-200 p-2 rounded-lg flex items-start gap-1.5">
-                <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
-                <div className="text-[8px] text-red-800 font-sans leading-snug">
-                  <strong>🚨 KLIMA-ALARM:</strong> Risiko bei {stats.climateRisk}%. Renaturierungen priorisieren!
-                </div>
+              <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-2.5 flex items-start gap-2">
+                <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
+                <p className="text-[9px] text-red-800 font-sans leading-snug">
+                  <strong>Klima-Alarm:</strong> Risikostufe bei {stats.climateRisk}% — Renaturierungsmaßnahmen sofort priorisieren!
+                </p>
               </div>
             )}
           </div>
+        )}
+      </div>
 
-          {/* Right Panel: The Modular Console Controller View Container */}
-          <div className="flex-1 min-w-0 bg-[#F4EFEB] border border-[#D4CCBA] rounded-xl overflow-hidden min-h-[480px] lg:h-[620px] max-h-[720px] p-1 shadow-inner relative flex flex-col">
-            
-            {/* Top tiny bar detailing inner workspace */}
-            <div className="bg-[#FAF8F5] px-3 py-1.5 border-b border-[#D4CCBA] flex items-center justify-between text-[8px] text-[#8B8273] font-mono shrink-0">
-              <span className="uppercase">MODULE_CONTROLLER_WORKSPACE_STABLE v1.0.4</span>
-              <span className="text-[#5A7247] font-bold uppercase">✔ CONNECTION LIVE</span>
-            </div>
-
-            {/* Inner scrollable block wrapper to host the specific views */}
-            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar focus:outline-none">
-              {activeTab === 'map' && (
-                <BuildingCatalog
-                  stats={stats}
-                  selectedBuilding={selectedBuilding}
-                  onSelectBuilding={onSelectBuilding}
-                  researchTree={researchTree}
-                  hasRurtalbahnStationNear={checkRurtalbahnDiscountActiveOnMap}
-                  onDemolishModeToggle={() => {
-                    onSelectBuilding(null);
-                    onDemolishModeToggle();
-                  }}
-                  isDemolishMode={isDemolishMode}
-                  selectedTileInfo={selectedTileInfo}
-                  onUpgradeBuilding={handleUpgradeBuilding}
-                />
-              )}
-
-              {activeTab === 'schoeller' && (
-                <SchoellershammerConsole
-                  stats={stats}
-                  onChangeMode={onChangePaperFactoryMode}
-                  researchTree={researchTree}
-                />
-              )}
-
-              {activeTab === 'research' && (
-                <ResearchTree
-                  researchNodes={researchTree}
-                  stats={stats}
-                  onUnlockResearch={onUnlockResearch}
-                />
-              )}
-
-              {activeTab === 'species' && (
-                <SpeciesTracker
-                  speciesList={speciesList}
-                  naturePoints={stats.naturePoints}
-                />
-              )}
-
-              {activeTab === 'reports' && (
-                <DashboardReports
-                  stats={stats}
-                  speciesList={speciesList}
-                  logs={logs}
-                  onTriggerPdfSim={onTriggerPdfSim}
-                  pdfSimulated={pdfSimulated}
-                  grid={grid}
-                />
-              )}
-            </div>
+      {/* ── WORKSPACE (full width, always visible) ───────────────────────── */}
+      <div
+        id="cockpit-workspace"
+        role="tabpanel"
+        className="flex flex-col overflow-hidden bg-[#FAF8F5]"
+      >
+        {/* Workspace breadcrumb bar */}
+        <div className="bg-white border-b border-[#D4CCBA] px-3.5 py-2 flex items-center justify-between shrink-0">
+          <nav className="flex items-center gap-1 text-[9px] font-mono" aria-label="Bereichspfad">
+            <span className="font-bold text-[#5C564C] uppercase">Cockpit</span>
+            <ChevronRight className="w-3 h-3 text-[#B0A898]" aria-hidden="true" />
+            <span className={`font-black uppercase tracking-wide ${p.text}`}>{m.label}</span>
+          </nav>
+          <div className="flex items-center gap-1.5" aria-label="Verbindungsstatus: Aktiv">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+            <span className="text-[7.5px] font-mono font-bold text-emerald-700 uppercase tracking-wide">Live</span>
           </div>
+        </div>
 
+        {/* Scrollable content */}
+        <div className="overflow-y-auto custom-scrollbar min-h-[420px] max-h-[580px]">
+          {activeTab === 'map' && (
+            <BuildingCatalog
+              stats={stats}
+              selectedBuilding={selectedBuilding}
+              onSelectBuilding={onSelectBuilding}
+              researchTree={researchTree}
+              hasRurtalbahnStationNear={checkRurtalbahnDiscountActiveOnMap}
+              onDemolishModeToggle={() => { onSelectBuilding(null); onDemolishModeToggle(); }}
+              isDemolishMode={isDemolishMode}
+              selectedTileInfo={selectedTileInfo}
+              onUpgradeBuilding={handleUpgradeBuilding}
+            />
+          )}
+          {activeTab === 'schoeller' && (
+            <SchoellershammerConsole
+              stats={stats}
+              onChangeMode={onChangePaperFactoryMode}
+              researchTree={researchTree}
+            />
+          )}
+          {activeTab === 'research' && (
+            <ResearchTree
+              researchNodes={researchTree}
+              stats={stats}
+              onUnlockResearch={onUnlockResearch}
+            />
+          )}
+          {activeTab === 'species' && (
+            <SpeciesTracker
+              speciesList={speciesList}
+              naturePoints={stats.naturePoints}
+            />
+          )}
+          {activeTab === 'reports' && (
+            <DashboardReports
+              stats={stats}
+              speciesList={speciesList}
+              logs={logs}
+              onTriggerPdfSim={onTriggerPdfSim}
+              pdfSimulated={pdfSimulated}
+              grid={grid}
+            />
+          )}
         </div>
       </div>
 
