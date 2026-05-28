@@ -17,7 +17,7 @@ import { RegulatoryModals } from './components/RegulatoryModals';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
-  X, Save, FolderOpen, MessageSquare,
+  X, Save, FolderOpen, MessageSquare, ScrollText, RefreshCw,
   Hammer, Factory, Microscope, Leaf, FileText, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -40,11 +40,11 @@ const TUTORIAL_STEPS = [
     title: "Das Aktionskarten-Prinzip 🎴",
     tagline: "BRETTCON KENNERSPIEL-LAYOUT",
     icon: "🎰",
-    description: "Das Spiel nutzt eine innovative Aktionsreihen-Mechanik:",
+    description: "Das Spiel nutzt die Aktionsreihen-Mechanik aus Arche Nova:",
     bullets: [
-      "⚡ Fünf Slots mit ansteigender Stärke (1 bis 5) steuern deine Macht beim Ausspielen der jeweiligen Fähigkeit.",
-      "↩️ Aktivierst du eine Karte, rutscht sie zurück auf Slot 1. Die anderen Karten rechts rücken nach und werden kräftiger!",
-      "🧠 Taktischer Tipp: Lass Karten an Stärke gewinnen, bevor du sie zündest, um die volle Effizienz zu entfesseln."
+      "🃏 Pro Runde darfst du genau eine Aktionskarte ausspielen — wähle sie mit Bedacht!",
+      "↩️ Die gespielte Karte rutscht zurück auf Stärke 1. Die anderen vier Karten rücken nach rechts und werden kräftiger!",
+      "🧠 Kernstrategie: Widerstehe dem Drang, starke Karten früh zu spielen — eine Karte auf Stärke 5 entfaltet maximale Wirkung und entscheidet Runden!"
     ]
   },
   {
@@ -138,14 +138,14 @@ export default function App() {
   const [logs, setLogs] = useState<GameLog[]>([]);
   const [activeEvent, setActiveEvent] = useState<ClimateEvent | null>(null);
   const [roundInvested, setRoundInvested] = useState<boolean>(false);
+  const [actionsUsed, setActionsUsed] = useState<number>(0);
+  const MAX_ACTIONS_PER_ROUND = 1; // Arche-Nova-Prinzip: genau 1 Karte pro Runde
+  const [statPopover, setStatPopover] = useState<{ type: 'season' | 'budget' | 'co2' | 'research' | 'nature' | 'wrrl'; x: number; y: number } | null>(null);
   const [activeYearChallengeModal, setActiveYearChallengeModal] = useState<number | null>(null);
   const [invasiveThreatEnabled, setInvasiveThreatEnabled] = useState<boolean>(false);
   const [showInvasiveRules, setShowInvasiveRules] = useState<boolean>(false);
-  const [isHoveringToggle, setIsHoveringToggle] = useState<boolean>(false);
   const [energyChallengeEnabled, setEnergyChallengeEnabled] = useState<boolean>(false);
   const [showEnergyRules, setShowEnergyRules] = useState<boolean>(false);
-  const [isHoveringEnergyToggle, setIsHoveringEnergyToggle] = useState<boolean>(false);
-  const [challengesCollapsed, setChallengesCollapsed] = useState<boolean>(true);
   
   // UI Panels / Tabs
   const [activeTab, setActiveTab] = useState<'map' | 'schoeller' | 'research' | 'species' | 'reports'>('map');
@@ -165,9 +165,11 @@ export default function App() {
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
   const [tutorialStep, setTutorialStep] = useState<number>(0);
   const [showSpielregeln, setShowSpielregeln] = useState<boolean>(false);
+  const [showKurzanleitung, setShowKurzanleitung] = useState<boolean>(false);
   const [showNatura2000Modal, setShowNatura2000Modal] = useState<boolean>(false);
   const [showWrrlModal, setShowWrrlModal] = useState<boolean>(false);
   const [logsCollapsed, setLogsCollapsed] = useState<boolean>(false);
+  const [logToasts, setLogToasts] = useState<GameLog[]>([]);
 
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
@@ -486,6 +488,10 @@ export default function App() {
       type
     };
     setLogs(prev => [newLog, ...prev.slice(0, 50)]);
+    setLogToasts(prev => [newLog, ...prev].slice(0, 4));
+    setTimeout(() => {
+      setLogToasts(prev => prev.filter(t => t.id !== newLog.id));
+    }, 4800);
   };
 
   const pushHistoryState = (actionName: string) => {
@@ -851,6 +857,13 @@ export default function App() {
 
   // --- Action Slots Execution Card click ---
   const handleExecuteCard = (card: ActionCard, strength: number) => {
+    // Arche-Nova-Prinzip: 1 Aktion pro Runde — gilt für alle Karten inkl. BUILD-Aktivierung
+    // BUILD-Platzierung zählt dann separat in executePendingPlacement
+    if (actionsUsed >= MAX_ACTIONS_PER_ROUND) {
+      addLog(`🚫 AKTIONSLIMIT: Pro Runde ist nur eine Aktion erlaubt (Arche-Nova-Prinzip). Beende die Runde, um fortzufahren.`, 'warning');
+      return;
+    }
+
     addLog(`Führe Aktion '${card.name}' mit Stärke ${strength} aus.`, 'info');
 
     if (!seenTips.includes('actionCard') && !showTutorial) {
@@ -858,7 +871,7 @@ export default function App() {
         id: 'actionCard',
         title: 'Aktionskarten & Stärke!',
         icon: '🃏',
-        text: `Du hast deine erste Aktionskarte '${card.name}' ausgespielt! Beachte: Je länger eine Karte in einem der drei Aktionsslots liegen bleibt, desto weiter steigt ihre Stärke an (von 1 bis maximal 5). Nutze diese Stärkesynergie für extrem wirkungsvolle Aktionen!`
+        text: `Du hast deine erste Aktionskarte '${card.name}' ausgespielt! Wichtig: Pro Runde ist nur eine Aktion erlaubt. Je länger eine Karte unberührt bleibt, desto höher ihre Stärke (1–5). Warte auf Stärke 4–5, bevor du wertvolle Karten spielst – das ist das Herzstück der Arche-Nova-Mechanik!`
       });
       setSeenTips(prev => [...prev, 'actionCard']);
     }
@@ -917,6 +930,7 @@ export default function App() {
   };
 
   const rotateActionSlots = (playedCardId: string) => {
+    setActionsUsed(prev => prev + 1);
     setCards(prev => {
       const playedCard = prev.find(c => c.id === playedCardId);
       if (!playedCard) return prev;
@@ -1338,6 +1352,14 @@ export default function App() {
 
   const executePendingPlacement = () => {
     if (!placementConfirmation) return;
+
+    if (actionsUsed >= MAX_ACTIONS_PER_ROUND) {
+      addLog(`🚫 AKTIONSLIMIT: Du hast bereits ${MAX_ACTIONS_PER_ROUND} Aktionen in dieser Runde ausgeführt. Beende die Runde, um fortzufahren.`, 'warning');
+      setPlacementConfirmation(null);
+      setSelectedBuilding(null);
+      return;
+    }
+
     const { x, y, building, finalCost, finalRebate, acceptanceSurcharge } = placementConfirmation;
     const targetTile = grid[y]?.[x];
     if (!targetTile) return;
@@ -1541,6 +1563,7 @@ export default function App() {
   const handleNextRound = () => {
     // Clear history on new round to avoid cross-round rollbacks
     setHistory([]);
+    setActionsUsed(0);
 
     // 1. Calculate and advance seasons
     const nextRound = stats.round + 1;
@@ -2245,9 +2268,130 @@ export default function App() {
     return seasonsList[(stats.round - 1) % 4];
   }, [stats.round]);
 
+  // --- Stat-chip popover helper ---
+  const openStatPopover = (type: 'season' | 'budget' | 'co2' | 'research' | 'nature' | 'wrrl', e: React.MouseEvent<HTMLButtonElement>) => {
+    if (statPopover?.type === type) { setStatPopover(null); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setStatPopover({ type, x: Math.min(rect.left, window.innerWidth - 264), y: rect.bottom + 8 });
+  };
+
+  // --- Next-round budget projection ---
+  const nextRoundBudgetPreview = useMemo(() => {
+    let baseRevenue = 5;
+    let buildingRevenue = 0;
+    let totalMaintenance = 0;
+    const revenueLines: { label: string; value: number }[] = [{ label: 'Kommunalsteuer', value: 5 }];
+
+    grid.forEach(row => row.forEach(t => {
+      if (!t.buildingId) return;
+      const m = BUILDIONS_CATALOG.find(b => b.id === t.buildingId);
+      if (!m) return;
+      totalMaintenance += m.maintenance;
+      const inc: Record<string, number> = {
+        oeko_tourismus: 2, besucherzentrum: 4, campingplatz: 3,
+        kanuverleih: 2, wasserkraft: 5, intensiv_farm: 8, extensive_weide: 2,
+      };
+      if (inc[m.id]) { buildingRevenue += inc[m.id]; revenueLines.push({ label: m.name, value: inc[m.id] }); }
+    }));
+
+    const obsolPenalty = (stats as any).factoryObsolescencePenalty ?? 0;
+    let factoryRevenue = 0;
+    if (stats.paperFactoryMode === 'PRODUCTION') {
+      factoryRevenue = Math.max(5, 15 - obsolPenalty);
+      totalMaintenance += 0;
+      revenueLines.push({ label: 'Schoellershammer', value: factoryRevenue });
+    } else if (stats.paperFactoryMode === 'RETROFITTING') {
+      factoryRevenue = 5; totalMaintenance += 3;
+      revenueLines.push({ label: 'Schoellershammer (Umbau)', value: 5 });
+    } else if (stats.paperFactoryMode === 'SHUTDOWN') {
+      totalMaintenance += 2;
+    } else if (stats.paperFactoryMode === 'RENATURIZATION') {
+      totalMaintenance += 3;
+    }
+
+    const isSewageFree = researchTree.find(r => r.id === 'mikroschadstoffe')?.unlocked || false;
+    if (isSewageFree) {
+      const upgradeCount = grid.flat().filter(t => t.buildingId === 'klaerwerk_upgrade').length;
+      totalMaintenance = Math.max(0, totalMaintenance - upgradeCount * 3);
+    }
+
+    const totalRevenue = baseRevenue + buildingRevenue + factoryRevenue;
+    const net = totalRevenue - totalMaintenance;
+    return { revenueLines, totalRevenue, totalMaintenance, net, projectedBudget: stats.budget + net };
+  }, [grid, stats.paperFactoryMode, stats.budget, researchTree]);
+
+  // --- CO₂ breakdown by source ---
+  const co2Breakdown = useMemo(() => {
+    const flat = grid.flat();
+    const factory = stats.paperFactoryMode === 'PRODUCTION' ? 40
+      : stats.paperFactoryMode === 'RETROFITTING' ? 12
+      : stats.paperFactoryMode === 'RENATURIZATION' ? -10 : 0;
+    const farms    = flat.filter(t => t.buildingId === 'intensiv_farm').length;
+    const wind     = flat.filter(t => t.buildingId === 'windkraft').length;
+    const solar    = flat.filter(t => t.buildingId === 'solarpark').length;
+    const hydro    = flat.filter(t => t.buildingId === 'wasserkraft').length;
+    const klaer    = flat.filter(t => t.buildingId === 'klaerwerk_upgrade').length;
+    const bahn     = flat.filter(t => t.buildingId === 'rurtalbahn_halt').length;
+    const auwald   = flat.filter(t => t.terrain === 'Auwald').length;
+    return { factory, farms, wind, solar, hydro, klaer, bahn, auwald };
+  }, [grid, stats.paperFactoryMode]);
+
+  // --- Season info for popover ---
+  const seasonInfo = useMemo(() => {
+    const idx = (stats.round - 1) % 4;
+    const roundInYear = idx + 1;
+    const roundsLeftInYear = 4 - idx;
+    const effects = [
+      { icon: '🌸', label: 'Frühling', desc: 'Jahresstart — Budgets und Forschung werden abgerechnet.' },
+      { icon: '☀️', label: 'Sommer',   desc: 'Klimaereignisse werden ausgelöst. Hochwasserrisiko steigt.' },
+      { icon: '🍂', label: 'Herbst',   desc: 'Biologische Inventur — Arten-Fortschritt wird geprüft.' },
+      { icon: '❄️', label: 'Winter',   desc: 'Jahresabschluss — Papierfabrik-Bilanz und Renaturierungswertung.' },
+    ];
+    const nextMilestone = stats.round < 5 ? { round: 5, year: 2027, desc: 'Bürgerakzeptanz-Challenge' }
+      : stats.round < 9 ? { round: 9, year: 2028, desc: 'Invasive Arten + Energiewende' }
+      : stats.round < 13 ? { round: 13, year: 2029, desc: 'Systemische Gesamtkrise' }
+      : null;
+    return { idx, roundInYear, roundsLeftInYear, effects, nextMilestone };
+  }, [stats.round]);
+
+  // --- Research popover data ---
+  const researchInfo = useMemo(() => {
+    const unlockedNodes = researchTree.filter(r => r.unlocked);
+    const available = researchTree.filter(r => {
+      if (r.unlocked) return false;
+      return r.dependencies.every(dep => researchTree.find(n => n.id === dep)?.unlocked);
+    });
+    const affordable = available.filter(r => stats.researchPoints >= r.cost);
+    const nextUp = available.sort((a, b) => a.cost - b.cost).slice(0, 3);
+    return { unlockedCount: unlockedNodes.length, total: researchTree.length, available, affordable, nextUp };
+  }, [researchTree, stats.researchPoints]);
+
+  // --- Species/Naturpunkte popover data ---
+  const speciesInfo = useMemo(() => {
+    const unlocked = speciesList.filter(s => s.unlocked);
+    const inProgress = speciesList
+      .filter(s => !s.unlocked && s.currentProgress > 0)
+      .sort((a, b) => b.currentProgress - a.currentProgress);
+    const nearReady = inProgress.filter(s => s.currentProgress >= 50);
+    return { unlockedCount: unlocked.length, total: speciesList.length, unlocked, inProgress, nearReady };
+  }, [speciesList]);
+
+  // --- WRRL popover data ---
+  const wrrlInfo = useMemo(() => {
+    const waterTiles = grid.flat().filter(t => t.terrain === 'Water');
+    const oberLauf  = waterTiles.filter(t => t.y < 5);
+    const mittelteil = waterTiles.filter(t => t.y >= 5 && t.y < 11);
+    const unterlauf  = waterTiles.filter(t => t.y >= 11);
+    const avg = (tiles: TileData[]) => tiles.length > 0 ? tiles.reduce((s, t) => s + t.wrrl_quality, 0) / tiles.length : null;
+    const worst = [...waterTiles].sort((a, b) => b.wrrl_quality - a.wrrl_quality).slice(0, 2);
+    const best  = [...waterTiles].sort((a, b) => a.wrrl_quality - b.wrrl_quality).slice(0, 2);
+    const label = (v: number) => v <= 2.2 ? 'Sehr gut' : v <= 2.8 ? 'Gut' : v <= 3.5 ? 'Mäßig' : v <= 4.2 ? 'Schlecht' : 'Sehr schlecht';
+    return { oberLauf: avg(oberLauf), mittelteil: avg(mittelteil), unterlauf: avg(unterlauf), worst, best, label };
+  }, [grid]);
+
   return (
     <div className="min-h-screen bg-brand-bg text-[#2C3322] flex flex-col font-sans select-none overflow-x-hidden antialiased">
-      
+
       {/* ── Top Logo & Project Branding (Decoupled, Static) ────────────────── */}
       <div className="max-w-[1600px] w-full mx-auto px-4 pt-3 pb-1 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
         <div className="flex items-center gap-3 select-none">
@@ -2270,7 +2414,7 @@ export default function App() {
 
         {/* Elegant metadata stats/indicators on the right of the logo bar */}
         <div className="flex items-center gap-3 text-[10px] font-mono">
-          <button 
+          <button
             onClick={() => setShowNatura2000Modal(true)}
             className="flex items-center gap-1.5 bg-brand-green/8 text-brand-dark px-2.5 py-1.5 rounded-md border border-brand-green/15 hover:bg-brand-green/15 hover:border-brand-green/30 transition-all active:scale-95 cursor-pointer shadow-2xs"
             title="Natura 2000 Info &amp; Audit-Katalog öffnen"
@@ -2278,8 +2422,8 @@ export default function App() {
             <span className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse"></span>
             <span className="font-extrabold tracking-wide text-brand-green">NATURA 2000 SCHUTZBEREICH</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={() => setShowWrrlModal(true)}
             className="hidden sm:flex items-center gap-1.5 bg-sky-50 text-sky-850 px-2.5 py-1.5 rounded-md border border-sky-150 hover:bg-sky-100 hover:border-sky-250 transition-all active:scale-95 cursor-pointer shadow-2xs"
             title="EU-Wasserrahmenrichtlinie &amp; Gütespiegel öffnen"
@@ -2305,48 +2449,99 @@ export default function App() {
             {/* ── Stat-Chips ────────────────────────────────────────────── */}
             <div className="flex-1 flex flex-wrap items-center gap-2 px-4 py-2">
 
-              {/* Zeitschritt */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-brand-teal/6 border border-brand-teal/16 shrink-0">
+              {/* Zeitschritt — popover: Saison-Info */}
+              <button
+                onClick={e => openStatPopover('season', e)}
+                title="Saison-Info & Meilensteine"
+                aria-expanded={statPopover?.type === 'season'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border shrink-0 cursor-pointer transition-all active:scale-95 ${
+                  statPopover?.type === 'season'
+                    ? 'bg-brand-teal/15 border-brand-teal/40 ring-1 ring-brand-teal/30'
+                    : 'bg-brand-teal/6 border-brand-teal/16 hover:bg-brand-teal/12 hover:border-brand-teal/30'
+                }`}
+              >
                 <Calendar className="w-3.5 h-3.5 text-brand-teal shrink-0" />
-                <div>
+                <div className="text-left">
                   <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">Zeitschritt</div>
                   <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{currentSeasonString} {stats.year}</div>
                 </div>
-              </div>
+              </button>
 
               <div className="w-px h-5 bg-brand-green/12 shrink-0" />
 
-              {/* Guthaben */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50/70 border border-amber-200/55 shrink-0">
+              {/* Guthaben — popover: Budget-Prognose */}
+              <button
+                onClick={e => openStatPopover('budget', e)}
+                title="Budget-Prognose nächste Runde"
+                aria-expanded={statPopover?.type === 'budget'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border shrink-0 cursor-pointer transition-all active:scale-95 ${
+                  statPopover?.type === 'budget'
+                    ? 'bg-amber-100/80 border-amber-400/50 ring-1 ring-amber-300/50'
+                    : 'bg-amber-50/70 border-amber-200/55 hover:bg-amber-100/60 hover:border-amber-300/50'
+                }`}
+              >
                 <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <div>
+                <div className="text-left">
                   <div className="text-[8px] text-amber-700/60 font-bold uppercase tracking-wide leading-none">Guthaben</div>
                   <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.budget} €</div>
                 </div>
-              </div>
+              </button>
 
-              {/* Forschung */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-50/70 border border-sky-200/55 shrink-0">
+              {/* Forschung — popover: Forschungs-Übersicht */}
+              <button
+                onClick={e => openStatPopover('research', e)}
+                title="Forschungs-Übersicht"
+                aria-expanded={statPopover?.type === 'research'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border shrink-0 cursor-pointer transition-all active:scale-95 ${
+                  statPopover?.type === 'research'
+                    ? 'bg-sky-100/80 border-sky-400/50 ring-1 ring-sky-300/40'
+                    : activeTab === 'research'
+                    ? 'bg-sky-100/80 border-sky-400/50 ring-1 ring-sky-300/40'
+                    : 'bg-sky-50/70 border-sky-200/55 hover:bg-sky-100/60 hover:border-sky-300/50'
+                }`}
+              >
                 <Zap className="w-3.5 h-3.5 text-brand-teal shrink-0" />
-                <div>
+                <div className="text-left">
                   <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">Forschung</div>
                   <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.researchPoints} 🧪</div>
                 </div>
-              </div>
+              </button>
 
-              {/* Naturpunkte */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-brand-green/6 border border-brand-green/18 shrink-0">
+              {/* Naturpunkte — popover: Artenschutz-Fortschritt */}
+              <button
+                onClick={e => openStatPopover('nature', e)}
+                title="Artenschutz-Fortschritt"
+                aria-expanded={statPopover?.type === 'nature'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border shrink-0 cursor-pointer transition-all active:scale-95 ${
+                  statPopover?.type === 'nature'
+                    ? 'bg-brand-green/15 border-brand-green/40 ring-1 ring-brand-green/30'
+                    : activeTab === 'species'
+                    ? 'bg-brand-green/15 border-brand-green/40 ring-1 ring-brand-green/30'
+                    : 'bg-brand-green/6 border-brand-green/18 hover:bg-brand-green/12 hover:border-brand-green/30'
+                }`}
+              >
                 <Award className="w-3.5 h-3.5 text-brand-green shrink-0" />
-                <div>
+                <div className="text-left">
                   <div className="text-[8px] text-brand-green/65 font-bold uppercase tracking-wide leading-none">Naturpunkte</div>
                   <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.naturePoints} 🌿</div>
                 </div>
-              </div>
+              </button>
 
-              {/* WRRL */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-50/60 border border-sky-200/50 shrink-0">
+              {/* WRRL — popover: Gewässergüte-Index */}
+              <button
+                onClick={e => openStatPopover('wrrl', e)}
+                title="Gewässergüte-Index & WRRL-Detail"
+                aria-expanded={statPopover?.type === 'wrrl'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border shrink-0 cursor-pointer transition-all active:scale-95 ${
+                  statPopover?.type === 'wrrl'
+                    ? 'bg-sky-100/80 border-sky-400/50 ring-1 ring-sky-300/40'
+                    : selectedLayer === 'wrrl'
+                    ? 'bg-sky-100/80 border-sky-400/50 ring-1 ring-sky-300/40'
+                    : 'bg-sky-50/60 border-sky-200/50 hover:bg-sky-100/60 hover:border-sky-300/50'
+                }`}
+              >
                 <span className="text-sm leading-none shrink-0">💧</span>
-                <div>
+                <div className="text-left">
                   <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">WRRL</div>
                   <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">
                     {stats.globalWrrl.toFixed(2)}{' '}
@@ -2355,16 +2550,26 @@ export default function App() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </button>
 
-              {/* CO₂ */}
-              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border shrink-0 ${
-                (stats.co2Footprint ?? 190) <= 60 ? 'bg-emerald-50/60 border-emerald-200/50' :
-                (stats.co2Footprint ?? 190) <= 120 ? 'bg-green-50/60 border-green-200/50' :
-                (stats.co2Footprint ?? 190) <= 180 ? 'bg-amber-50/60 border-amber-200/50' : 'bg-red-50/60 border-red-200/50'
-              }`}>
+              {/* CO₂ — popover: CO₂-Aufschlüsselung */}
+              <button
+                onClick={e => openStatPopover('co2', e)}
+                title="CO₂-Bilanz Details"
+                aria-expanded={statPopover?.type === 'co2'}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border shrink-0 cursor-pointer transition-all active:scale-95 ${
+                  statPopover?.type === 'co2'
+                    ? (stats.co2Footprint ?? 190) <= 60 ? 'bg-emerald-100/80 border-emerald-400/50 ring-1 ring-emerald-300/40'
+                    : (stats.co2Footprint ?? 190) <= 180 ? 'bg-amber-100/80 border-amber-400/50 ring-1 ring-amber-300/40'
+                    : 'bg-red-100/80 border-red-400/50 ring-1 ring-red-300/40'
+                    : (stats.co2Footprint ?? 190) <= 60 ? 'bg-emerald-50/60 border-emerald-200/50 hover:bg-emerald-100/50'
+                    : (stats.co2Footprint ?? 190) <= 120 ? 'bg-green-50/60 border-green-200/50 hover:bg-green-100/50'
+                    : (stats.co2Footprint ?? 190) <= 180 ? 'bg-amber-50/60 border-amber-200/50 hover:bg-amber-100/50'
+                    : 'bg-red-50/60 border-red-200/50 hover:bg-red-100/50'
+                }`}
+              >
                 <span className="text-sm leading-none shrink-0">🌱</span>
-                <div>
+                <div className="text-left">
                   <div className="text-[8px] text-[#8B8273] font-bold uppercase tracking-wide leading-none">CO₂</div>
                   <div className={`text-[11px] font-black font-mono leading-tight ${
                     (stats.co2Footprint ?? 190) <= 60 ? 'text-emerald-700' :
@@ -2374,7 +2579,7 @@ export default function App() {
                     {(stats.co2Footprint ?? 190).toFixed(1)} t
                   </div>
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* Divider Mitte | Rechts */}
@@ -2397,6 +2602,331 @@ export default function App() {
         </div>
       </div>
 
+      {/* ── Stat-Chip Popovers (rendered outside header to escape overflow-hidden) ── */}
+      {statPopover && (
+        <>
+          {/* Invisible backdrop — click to dismiss */}
+          <div className="fixed inset-0 z-[59]" onClick={() => setStatPopover(null)} />
+
+          {/* Popover card */}
+          <div
+            className="fixed z-[60] w-60 rounded-xl bg-white border border-[#D4CCBA] shadow-lg shadow-black/10 overflow-hidden"
+            style={{ left: statPopover.x, top: statPopover.y }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* ── SEASON popover ── */}
+            {statPopover.type === 'season' && (
+              <div>
+                <div className="px-3 py-2.5 bg-brand-teal/8 border-b border-brand-teal/15">
+                  <div className="text-[8px] font-black uppercase tracking-widest text-brand-teal/70 mb-0.5">Saison-Übersicht</div>
+                  <div className="text-sm font-black text-brand-dark">{seasonInfo.effects[seasonInfo.idx].icon} {currentSeasonString} {stats.year}</div>
+                  <div className="text-[9px] text-[#6B6356] mt-0.5">Runde {stats.round} · Jahr {seasonInfo.roundInYear}/4</div>
+                </div>
+                <div className="px-3 py-2 space-y-1.5">
+                  {seasonInfo.effects.map((s, i) => (
+                    <div key={i} className={`flex items-start gap-2 p-1.5 rounded-lg text-[9px] leading-snug ${
+                      i === seasonInfo.idx ? 'bg-brand-teal/8 border border-brand-teal/20 font-semibold text-brand-dark' : 'text-[#6B6356]'
+                    }`}>
+                      <span className="text-sm leading-none shrink-0">{s.icon}</span>
+                      <div>
+                        <span className={`font-black ${i === seasonInfo.idx ? 'text-brand-teal' : 'text-[#8B8273]'}`}>{s.label}:</span> {s.desc}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {seasonInfo.nextMilestone && (
+                  <div className="mx-3 mb-3 p-2 rounded-lg bg-amber-50/80 border border-amber-200/60">
+                    <div className="text-[8px] font-black uppercase tracking-wide text-amber-700 mb-0.5">Nächster Meilenstein</div>
+                    <div className="text-[9px] text-amber-900 font-semibold">Runde {seasonInfo.nextMilestone.round} — {seasonInfo.nextMilestone.year}</div>
+                    <div className="text-[8.5px] text-amber-700">{seasonInfo.nextMilestone.desc}</div>
+                    <div className="text-[8px] text-amber-600 mt-1">noch {seasonInfo.nextMilestone.round - stats.round} Runde{seasonInfo.nextMilestone.round - stats.round !== 1 ? 'n' : ''}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── BUDGET popover ── */}
+            {statPopover.type === 'budget' && (
+              <div>
+                <div className="px-3 py-2.5 bg-amber-50/80 border-b border-amber-200/50">
+                  <div className="text-[8px] font-black uppercase tracking-widest text-amber-700/70 mb-0.5">Budget-Prognose</div>
+                  <div className="text-sm font-black text-brand-dark">Nächste Runde</div>
+                </div>
+                <div className="px-3 py-2 space-y-1">
+                  {nextRoundBudgetPreview.revenueLines.map((l, i) => (
+                    <div key={i} className="flex items-center justify-between text-[9px]">
+                      <span className="text-[#6B6356] truncate max-w-[140px]">{l.label}</span>
+                      <span className="font-mono font-black text-[#5A7247]">+{l.value} €</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-[#E8E2D6] my-1" />
+                  <div className="flex items-center justify-between text-[9px]">
+                    <span className="text-[#6B6356]">Einnahmen gesamt</span>
+                    <span className="font-mono font-black text-[#5A7247]">+{nextRoundBudgetPreview.totalRevenue} €</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px]">
+                    <span className="text-[#6B6356]">Instandhaltung</span>
+                    <span className="font-mono font-black text-rose-600">−{nextRoundBudgetPreview.totalMaintenance} €</span>
+                  </div>
+                  <div className="border-t border-[#E8E2D6] my-1" />
+                  <div className="flex items-center justify-between text-[10px] font-black">
+                    <span className="text-[#2C3322]">Netto</span>
+                    <span className={`font-mono ${nextRoundBudgetPreview.net >= 0 ? 'text-[#5A7247]' : 'text-rose-600'}`}>
+                      {nextRoundBudgetPreview.net >= 0 ? '+' : ''}{nextRoundBudgetPreview.net} €
+                    </span>
+                  </div>
+                </div>
+                <div className="mx-3 mb-3 px-2.5 py-2 rounded-lg bg-amber-50/60 border border-amber-200/50 flex items-center justify-between">
+                  <span className="text-[9px] text-amber-800 font-semibold">Projiziertes Guthaben</span>
+                  <span className="text-[11px] font-black font-mono text-amber-700">{nextRoundBudgetPreview.projectedBudget} €</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── RESEARCH popover ── */}
+            {statPopover.type === 'research' && (
+              <div>
+                <div className="px-3 py-2.5 bg-sky-50/80 border-b border-sky-200/50">
+                  <div className="text-[8px] font-black uppercase tracking-widest text-sky-700/70 mb-0.5">Forschungs-Status</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-black text-brand-dark">{stats.researchPoints} 🧪</span>
+                    <span className="text-[9px] text-[#8B8273]">Punkte verfügbar</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 bg-[#E8E2D6] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-sky-500 transition-all"
+                      style={{ width: `${Math.min(100, (researchInfo.unlockedCount / Math.max(1, researchInfo.total)) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="text-[8px] text-[#8B8273] mt-0.5">
+                    {researchInfo.unlockedCount}/{researchInfo.total} Technologien freigeschaltet
+                  </div>
+                </div>
+                <div className="px-3 py-2 space-y-1.5">
+                  <div className="text-[8px] font-black uppercase tracking-wide text-[#8B8273] mb-1">
+                    {researchInfo.nextUp.length > 0 ? 'Nächste verfügbare Forschungen' : 'Alle Technologien freigeschaltet!'}
+                  </div>
+                  {researchInfo.nextUp.map(node => {
+                    const canAfford = stats.researchPoints >= node.cost;
+                    return (
+                      <div key={node.id} className={`p-1.5 rounded-lg border text-[9px] leading-snug ${
+                        canAfford ? 'bg-sky-50/60 border-sky-200/60' : 'bg-[#F7F3ED] border-[#E8E2D6]'
+                      }`}>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className={`font-black truncate max-w-[140px] ${canAfford ? 'text-sky-900' : 'text-[#6B6356]'}`}>{node.name}</span>
+                          <span className={`font-mono font-black shrink-0 ml-1 ${canAfford ? 'text-sky-700' : 'text-[#B0A898]'}`}>{node.cost} 🧪</span>
+                        </div>
+                        <div className="text-[8px] text-[#8B8273] leading-relaxed line-clamp-2">{node.effect}</div>
+                      </div>
+                    );
+                  })}
+                  {researchInfo.nextUp.length === 0 && researchInfo.available.length === 0 && (
+                    <div className="text-[9px] text-brand-green font-semibold text-center py-1">🎉 Alle Technologien erforscht!</div>
+                  )}
+                </div>
+                <div className="mx-3 mb-3">
+                  <button
+                    onClick={() => { setActiveTab('research'); setStatPopover(null); }}
+                    className="w-full py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-wide transition-colors cursor-pointer"
+                  >
+                    Zum Forschungslabor →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── NATURE popover ── */}
+            {statPopover.type === 'nature' && (
+              <div>
+                <div className="px-3 py-2.5 bg-brand-green/8 border-b border-brand-green/15">
+                  <div className="text-[8px] font-black uppercase tracking-widest text-brand-green/70 mb-0.5">Artenschutz-Fortschritt</div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-black text-brand-dark">{stats.naturePoints} 🌿</span>
+                    <span className="text-[9px] text-[#8B8273]">Naturpunkte</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 bg-[#E8E2D6] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-brand-green transition-all"
+                      style={{ width: `${Math.min(100, (speciesInfo.unlockedCount / Math.max(1, speciesInfo.total)) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="text-[8px] text-[#8B8273] mt-0.5">
+                    {speciesInfo.unlockedCount}/{speciesInfo.total} Zielarten angesiedelt
+                  </div>
+                </div>
+                <div className="px-3 py-2 space-y-2">
+                  {speciesList.map(sp => (
+                    <div key={sp.id}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm leading-none">{sp.icon}</span>
+                          <span className={`text-[9px] font-bold truncate max-w-[120px] ${sp.unlocked ? 'text-brand-green' : 'text-[#6B6356]'}`}>{sp.name}</span>
+                        </div>
+                        {sp.unlocked ? (
+                          <span className="text-[8px] font-black text-brand-green shrink-0">✓ Angesiedelt</span>
+                        ) : (
+                          <span className="text-[8px] font-mono text-[#B0A898] shrink-0">{sp.currentProgress}%</span>
+                        )}
+                      </div>
+                      <div className="h-1 bg-[#E8E2D6] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${sp.unlocked ? 'bg-brand-green' : sp.currentProgress >= 50 ? 'bg-amber-400' : 'bg-[#C8C0B0]'}`}
+                          style={{ width: `${sp.currentProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {speciesInfo.nearReady.length > 0 && (
+                  <div className="mx-3 mb-2 p-2 rounded-lg bg-amber-50/80 border border-amber-200/60">
+                    <div className="text-[8px] font-black uppercase tracking-wide text-amber-700 mb-0.5">Fast bereit</div>
+                    {speciesInfo.nearReady.map(sp => (
+                      <div key={sp.id} className="text-[9px] text-amber-900 font-semibold">{sp.icon} {sp.name} — {sp.currentProgress}%</div>
+                    ))}
+                  </div>
+                )}
+                <div className="mx-3 mb-3">
+                  <button
+                    onClick={() => { setActiveTab('species'); setStatPopover(null); }}
+                    className="w-full py-1.5 rounded-lg bg-brand-green hover:bg-[#3d6830] text-white text-[9px] font-black uppercase tracking-wide transition-colors cursor-pointer"
+                  >
+                    Zum Artenschutz-Tab →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── WRRL popover ── */}
+            {statPopover.type === 'wrrl' && (() => {
+              const globalWrrl = stats.globalWrrl;
+              const wrrlColor = globalWrrl <= 2.2 ? 'text-emerald-700' : globalWrrl <= 2.8 ? 'text-green-700' : globalWrrl <= 3.5 ? 'text-amber-700' : 'text-rose-600';
+              const wrrlBg = globalWrrl <= 2.2 ? 'bg-emerald-50/80 border-emerald-200/50' : globalWrrl <= 2.8 ? 'bg-green-50/80 border-green-200/50' : globalWrrl <= 3.5 ? 'bg-amber-50/80 border-amber-200/50' : 'bg-rose-50/80 border-rose-200/50';
+              const barColor = globalWrrl <= 2.2 ? 'bg-emerald-500' : globalWrrl <= 2.8 ? 'bg-green-500' : globalWrrl <= 3.5 ? 'bg-amber-500' : 'bg-rose-500';
+              const segments = [
+                { label: 'Oberlauf (Eifel)', value: wrrlInfo.oberLauf, desc: 'Heimbach–Kreuzau' },
+                { label: 'Mittelteil (Düren)', value: wrrlInfo.mittelteil, desc: 'Industriebereich' },
+                { label: 'Unterlauf (Jülich)', value: wrrlInfo.unterlauf, desc: 'Agrarzone' },
+              ];
+              return (
+                <div>
+                  <div className={`px-3 py-2.5 border-b ${wrrlBg}`}>
+                    <div className="text-[8px] font-black uppercase tracking-widest text-[#8B8273] mb-0.5">Gewässergüte-Index (WRRL)</div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className={`text-lg font-black font-mono ${wrrlColor}`}>{globalWrrl.toFixed(2)}</span>
+                      <span className={`text-[10px] font-black ${wrrlColor}`}>{wrrlInfo.label(globalWrrl)}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 bg-[#E8E2D6] rounded-full overflow-hidden">
+                      {/* Invert: lower is better — bar fills from bad(5) to good(1) */}
+                      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(100, ((5 - globalWrrl) / 4) * 100)}%` }} />
+                    </div>
+                    <div className="text-[8px] text-[#8B8273] mt-0.5">Ziel: ≤ 2.0 (EU-Klasse I Excellent)</div>
+                  </div>
+                  <div className="px-3 py-2 space-y-2">
+                    <div className="text-[8px] font-black uppercase tracking-wide text-[#8B8273] mb-1">Abschnitte</div>
+                    {segments.map((seg, i) => {
+                      if (seg.value === null) return null;
+                      const c = seg.value <= 2.2 ? 'text-emerald-700' : seg.value <= 2.8 ? 'text-green-700' : seg.value <= 3.5 ? 'text-amber-700' : 'text-rose-600';
+                      const bc = seg.value <= 2.2 ? 'bg-emerald-500' : seg.value <= 2.8 ? 'bg-green-500' : seg.value <= 3.5 ? 'bg-amber-400' : 'bg-rose-500';
+                      return (
+                        <div key={i}>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <div>
+                              <span className="text-[9px] font-black text-[#4A4035]">{seg.label}</span>
+                              <span className="text-[8px] text-[#B0A898] ml-1">{seg.desc}</span>
+                            </div>
+                            <span className={`text-[9px] font-black font-mono ${c}`}>{seg.value.toFixed(2)}</span>
+                          </div>
+                          <div className="h-1 bg-[#E8E2D6] rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${bc}`} style={{ width: `${((5 - seg.value) / 4) * 100}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {wrrlInfo.worst.length > 0 && (
+                    <div className="mx-3 mb-2 p-2 rounded-lg bg-rose-50/70 border border-rose-200/50">
+                      <div className="text-[8px] font-black uppercase tracking-wide text-rose-700 mb-0.5">Kritische Abschnitte</div>
+                      {wrrlInfo.worst.map((t, i) => (
+                        <div key={i} className="text-[9px] text-rose-900 font-mono">
+                          ({t.x},{t.y}) — Klasse {t.wrrl_quality.toFixed(1)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mx-3 mb-3">
+                    <button
+                      onClick={() => { setSelectedLayer('wrrl'); setActiveTab('map'); setStatPopover(null); }}
+                      className="w-full py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-wide transition-colors cursor-pointer"
+                    >
+                      WRRL-Layer auf Karte →
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── CO₂ popover ── */}
+            {statPopover.type === 'co2' && (() => {
+              const co2 = stats.co2Footprint ?? 190;
+              const d = co2Breakdown;
+              const rows: { label: string; delta: number; color: string }[] = [
+                { label: 'Schoellershammer', delta: d.factory, color: d.factory > 0 ? 'text-rose-600' : 'text-emerald-600' },
+                ...(d.farms > 0 ? [{ label: `Intensivfarmen (${d.farms}×)`, delta: d.farms * 15, color: 'text-rose-600' }] : []),
+                ...(d.wind > 0 ? [{ label: `Windkraft (${d.wind}×)`, delta: -(d.wind * 18), color: 'text-emerald-600' }] : []),
+                ...(d.solar > 0 ? [{ label: `Solarpark (${d.solar}×)`, delta: -(d.solar * 12), color: 'text-emerald-600' }] : []),
+                ...(d.hydro > 0 ? [{ label: `Wasserkraft (${d.hydro}×)`, delta: -(d.hydro * 6), color: 'text-emerald-600' }] : []),
+                ...(d.klaer > 0 ? [{ label: `Klärwerk-Upgrade (${d.klaer}×)`, delta: -(d.klaer * 22), color: 'text-emerald-600' }] : []),
+                ...(d.bahn > 0 ? [{ label: `Rurtalbahn-Halte (${d.bahn}×)`, delta: -(d.bahn * 8), color: 'text-emerald-600' }] : []),
+                ...(d.auwald > 0 ? [{ label: `Auwald-Flächen (${d.auwald}×)`, delta: -(d.auwald * 4), color: 'text-emerald-600' }] : []),
+              ];
+              return (
+                <div>
+                  <div className={`px-3 py-2.5 border-b ${
+                    co2 <= 60 ? 'bg-emerald-50/80 border-emerald-200/50' :
+                    co2 <= 180 ? 'bg-amber-50/80 border-amber-200/50' : 'bg-rose-50/80 border-rose-200/50'
+                  }`}>
+                    <div className="text-[8px] font-black uppercase tracking-widest text-[#8B8273] mb-0.5">CO₂-Bilanz</div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className={`text-lg font-black font-mono ${
+                        co2 <= 60 ? 'text-emerald-700' : co2 <= 180 ? 'text-amber-700' : 'text-rose-600'
+                      }`}>{co2.toFixed(0)} t</span>
+                      <span className="text-[9px] text-[#8B8273]">CO₂-äq./Jahr</span>
+                    </div>
+                    <div className="mt-1 h-1.5 bg-[#E8E2D6] rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${
+                        co2 <= 60 ? 'bg-emerald-500' : co2 <= 120 ? 'bg-green-500' : co2 <= 180 ? 'bg-amber-500' : 'bg-rose-500'
+                      }`} style={{ width: `${Math.min(100, (co2 / 250) * 100)}%` }} />
+                    </div>
+                    <div className="text-[8px] text-[#8B8273] mt-0.5">Ziel: &lt; 60 t (Klimaneutral)</div>
+                  </div>
+                  <div className="px-3 py-2 space-y-1 max-h-48 overflow-y-auto">
+                    <div className="text-[8px] font-black uppercase tracking-wide text-[#8B8273] mb-1">Quellen & Senken</div>
+                    <div className="flex items-center justify-between text-[9px]">
+                      <span className="text-[#6B6356]">Basis-Industrie</span>
+                      <span className="font-mono font-black text-rose-500">+150 t</span>
+                    </div>
+                    {rows.map((r, i) => (
+                      <div key={i} className="flex items-center justify-between text-[9px]">
+                        <span className="text-[#6B6356] truncate max-w-[150px]">{r.label}</span>
+                        <span className={`font-mono font-black ${r.color}`}>
+                          {r.delta > 0 ? '+' : ''}{r.delta} t
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mx-3 mb-3 px-2.5 py-1.5 rounded-lg bg-[#F7F3ED] border border-[#D4CCBA]/60 flex items-center justify-between">
+                    <span className="text-[9px] text-[#6B6356] font-semibold">Gesamt</span>
+                    <span className={`text-[11px] font-black font-mono ${
+                      co2 <= 60 ? 'text-emerald-700' : co2 <= 180 ? 'text-amber-700' : 'text-rose-600'
+                    }`}>{co2.toFixed(0)} t</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </>
+      )}
+
       {/* Main Container Layout */}
       <main className="flex-grow flex flex-col md:flex-row gap-6 p-6 relative">
         
@@ -2416,6 +2946,31 @@ export default function App() {
             grid={grid}
             onSelectBuilding={setSelectedBuilding}
             onUnlockResearch={handleUnlockResearch}
+            invasiveThreatEnabled={invasiveThreatEnabled}
+            energyChallengeEnabled={energyChallengeEnabled}
+            roundInvested={roundInvested}
+            onToggleInvasive={(enabled) => {
+              setInvasiveThreatEnabled(enabled);
+              if (enabled) {
+                setShowInvasiveRules(true);
+                addLog('🚨 BIOLOGISCHER STRESSOR-MODUS AKTIVIERT: Biologische Sicherheit sinkt nun und bricht bei Vernachlässigung zusammen!', 'warning');
+              } else {
+                addLog('🛡️ Biologischer Stressor-Modus deaktiviert. Biologische Sicherheit stabilisiert.', 'success');
+              }
+            }}
+            onToggleEnergy={(enabled) => {
+              setEnergyChallengeEnabled(enabled);
+              if (enabled) {
+                setShowEnergyRules(true);
+                addLog('⚡ ENERGIEWENDE GELADEN: Dürens Industrie gerät unter Dekarbonisierungsdruck! Baue grüne Kraftwerke zur Versorgung.', 'warning');
+              } else {
+                addLog('🛡️ Energiewende-Szenario deaktiviert. Ökostromversorgung stabilisiert.', 'success');
+              }
+            }}
+            onShowInvasiveRules={() => setShowInvasiveRules(true)}
+            onShowEnergyRules={() => setShowEnergyRules(true)}
+            actionsUsed={actionsUsed}
+            maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
           />
 
           {/* Interactive map display */}
@@ -2455,344 +3010,36 @@ export default function App() {
         {/* RIGHT COLUMN: Tab selection & specific control modules */}
         <div className="w-full md:w-2/5 shrink-0 flex flex-col gap-6">
           
-          {/* Simulation-Szenarien & Extra-Herausforderungen (Invasive & Energiewende) */}
-          <div className="bg-[#EADECE]/85 border-2 border-[#BC6C25]/45 rounded-xl shadow-sm flex flex-col gap-1 relative overflow-hidden transition-all duration-300">
-            {/* Collapse/Expand Toggle Bar */}
-            <div 
-              onClick={() => setChallengesCollapsed(prev => !prev)}
-              className="p-3.5 flex items-center justify-between cursor-pointer select-none hover:bg-[#EADBCE] duration-150 border-b border-[#D4CCBA]/30 bg-white/[0.12]"
-            >
+          {/* Simulation-Szenarien: kompakte Statusanzeige (Steuerung jetzt im Aktions-Slot-System) */}
+          <div className="bg-[#EADECE]/60 border border-[#BC6C25]/30 rounded-xl shadow-sm flex flex-col overflow-hidden">
+            <div className="px-4 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm">🏆</span>
-                <div className="text-left">
-                  <h3 className="text-xs font-black text-[#2C3311] uppercase tracking-wider leading-none">
-                    Zusatz-Herausforderungen
-                  </h3>
-                  <span className="text-[9px] text-[#8B8273] font-bold">
-                    {challengesCollapsed ? 'Klicken zum Einblenden & Verwalten' : 'Klicken zum Einklappen & Verbergen'}
-                  </span>
+                <span className="text-sm select-none">🏆</span>
+                <div>
+                  <h3 className="text-[10px] font-black text-[#2C3311] uppercase tracking-wider leading-none">Zusatz-Herausforderungen</h3>
+                  <p className="text-[8.5px] text-[#8B8273] font-semibold mt-0.5">Steuerung im Aktions-Slot-System (links)</p>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                {/* Mini status indicators */}
-                <div className="flex items-center gap-1.5 text-[9.5px] font-mono font-bold select-none">
-                  {invasiveThreatEnabled ? (
-                    <span className={`px-1.5 py-0.5 rounded ${
-                      (stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]/20 text-[#2C3311]' :
-                      (stats.biosecurity ?? 100) >= 30 ? 'bg-[#BC6C25]/20 text-[#7A3F1F]' : 'bg-red-100 text-red-900 animate-pulse'
-                    }`}>
-                      🦠 Bio: {stats.biosecurity}%
-                    </span>
-                  ) : (
-                    <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-400">
-                      🦠 Aus
-                    </span>
-                  )}
-
-                  {energyChallengeEnabled ? (
-                    <span className={`px-1.5 py-0.5 rounded ${
-                      (stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-100 text-emerald-850' :
-                      (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-100 text-[#7A3F1F]' : 'bg-red-100 text-red-900 animate-pulse'
-                    }`}>
-                      ⚡ Öko: {stats.renewableEnergy}%
-                    </span>
-                  ) : (
-                    <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-400">
-                      ⚡ Aus
-                    </span>
-                  )}
-                </div>
-
-                {challengesCollapsed ? (
-                  <ChevronDown className="w-4 h-4 text-[#BC6C25] shrink-0" />
+              <div className="flex items-center gap-2 text-[9px] font-mono font-black">
+                {invasiveThreatEnabled ? (
+                  <span className={`px-2 py-1 rounded-lg ${
+                    (stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]/20 text-[#2C3311]'
+                    : (stats.biosecurity ?? 100) >= 30 ? 'bg-amber-100 text-amber-900'
+                    : 'bg-rose-100 text-rose-900 animate-pulse'
+                  }`}>🦠 Bio: {stats.biosecurity}%</span>
                 ) : (
-                  <ChevronUp className="w-4 h-4 text-[#BC6C25] shrink-0" />
+                  <span className="px-2 py-1 rounded-lg bg-stone-100 text-stone-400">🦠 Aus</span>
+                )}
+                {energyChallengeEnabled ? (
+                  <span className={`px-2 py-1 rounded-lg ${
+                    (stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-100 text-emerald-900'
+                    : (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-100 text-amber-900'
+                    : 'bg-rose-100 text-rose-900 animate-pulse'
+                  }`}>⚡ Öko: {stats.renewableEnergy}%</span>
+                ) : (
+                  <span className="px-2 py-1 rounded-lg bg-stone-100 text-stone-400">⚡ Aus</span>
                 )}
               </div>
-            </div>
-
-            {/* Collapsible content wrapper */}
-            <div className={`p-4 pt-1 flex flex-col gap-4 relative ${challengesCollapsed ? 'hidden' : 'block'}`}>
-            
-            {/* INVASIVE SPECIES CHALLENGE */}
-            <div className="border-b border-[#D4CCBA] pb-3.5">
-              {(() => {
-                const currentBio = stats.biosecurity !== undefined ? stats.biosecurity : 100;
-                const projectedDelta = roundInvested ? 15 : -25;
-                const projectedNext = Math.max(0, Math.min(100, currentBio + projectedDelta));
-                
-                return (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm select-none">🦠</span>
-                        <span className="text-xs font-black text-[#2C3311] uppercase tracking-wide">
-                          Invasive Bedrohung (Schwer)
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowInvasiveRules(true)}
-                          className="text-[#BC6C25] hover:text-[#9e5212] underline text-[10px] font-black cursor-pointer transition-colors"
-                        >
-                          [Regeln]
-                        </button>
-                      </div>
-                      
-                      {/* Switch style toggle */}
-                      <div 
-                        className="flex items-center gap-2 relative"
-                        onMouseEnter={() => setIsHoveringToggle(true)}
-                        onMouseLeave={() => setIsHoveringToggle(false)}
-                      >
-                        <span className={`text-[10px] font-mono font-black uppercase transition-colors duration-200 ${invasiveThreatEnabled ? 'text-[#BC6C25]' : 'text-[#8B8273]'}`}>
-                          {invasiveThreatEnabled ? 'Aktiv' : 'Aus'}
-                        </span>
-                        
-                        <label className="relative inline-flex items-center cursor-pointer select-none">
-                          <input
-                            id="invasive-difficulty-toggle"
-                            type="checkbox"
-                            checked={invasiveThreatEnabled}
-                            onChange={(e) => {
-                              const enabled = e.target.checked;
-                              setInvasiveThreatEnabled(enabled);
-                              if (enabled) {
-                                setShowInvasiveRules(true);
-                                addLog('🚨 BIOLOGISCHER STRESSOR-MODUS AKTIVIERT: Biologische Sicherheit sinkt nun und bricht bei Vernachlässigung zusammen!', 'warning');
-                              } else {
-                                addLog('🛡️ Biologischer Stressor-Modus deaktiviert. Biologische Sicherheit stabilisiert.', 'success');
-                              }
-                            }}
-                            onFocus={() => setIsHoveringToggle(true)}
-                            onBlur={() => setIsHoveringToggle(false)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 bg-[#D4CCBA] rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#BC6C25]"></div>
-                        </label>
-
-                        {/* PROJECTION PREVIEW TOOLTIP */}
-                        {isHoveringToggle && (
-                          <div 
-                            id="biosecurity-hover-preview" 
-                            className="absolute right-0 top-6 mt-1.5 w-64 bg-[#2C3311] text-[#F2EDE4] text-[10px] p-3 rounded-xl border-2 border-[#BC6C25] shadow-xl z-[9999] pointer-events-none space-y-2 animate-fade-in text-left font-sans animate-scale-up"
-                          >
-                            <div className="flex items-center justify-between border-b border-white/10 pb-1 font-extrabold text-[9px] uppercase tracking-wider text-[#BC6C25]">
-                              <span>🔮 Prognose-Vorschau</span>
-                              <span className="font-mono bg-white/10 px-1 py-0.5 rounded text-[8px] tracking-normal text-white">Nächste Runde</span>
-                            </div>
-
-                            {!invasiveThreatEnabled ? (
-                              <div className="space-y-1.5">
-                                <p className="text-[10px] text-white/90 leading-normal block">
-                                  Vor der Aktivierung beachten:
-                                </p>
-                                <div className="flex justify-between font-mono bg-white/5 p-1 rounded text-[9.5px]">
-                                  <span className="text-white/60">Aktueller Wert:</span>
-                                  <span className="text-white font-bold">{currentBio}%</span>
-                                </div>
-                                <p className="text-[9.5px] text-stone-300 leading-tight">
-                                  Nach Aktivierung sinkt die Bio-Sicherheit bei Inaktivität um <strong className="text-rose-400 font-black">-25%</strong>, lässt sich jedoch durch gezielten Bio- &amp; Artenschutz um <strong className="text-emerald-400 font-black">+15%</strong> stabilisieren.
-                                </p>
-                                <div className="text-[9px] font-mono text-[#BC6C25] bg-amber-950/20 p-1.5 rounded border border-[#BC6C25]/30">
-                                  Erwartet bei Aktivierung:<br/>
-                                  • Erholung: <strong className="text-emerald-400">{Math.min(100, currentBio + 15)}%</strong><br/>
-                                  • Verfall: <strong className="text-rose-400">{Math.max(0, currentBio - 25)}%</strong>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-1.5">
-                                <div className="flex justify-between font-mono text-[9.5px]">
-                                  <span className="text-white/60">Aktueller Status:</span>
-                                  <span className="text-white font-bold">{currentBio}%</span>
-                                </div>
-                                <div className="flex justify-between font-mono text-[9.5px]">
-                                  <span className="text-white/60 text-left">Investition getätigt:</span>
-                                  <span className={roundInvested ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
-                                    {roundInvested ? "Ja (+15%)" : "Nein (-25%)"}
-                                  </span>
-                                </div>
-                                <hr className="border-white/10 my-1" />
-                                <div className="flex justify-between font-mono font-bold leading-tight text-[9.5px]">
-                                  <span className="text-[#BC6C25]">Trend nächste Runde:</span>
-                                  <span className={projectedDelta >= 0 ? "text-emerald-400 bg-emerald-950/50 px-1.5 py-0.5 rounded font-black text-[10px]" : "text-rose-400 bg-rose-950/50 px-1.5 py-0.5 rounded font-black text-[10px]"}>
-                                    ➔ {projectedNext}% ({projectedDelta >= 0 ? '+' : ''}{projectedDelta}%)
-                                  </span>
-                                </div>
-
-                                {projectedNext <= 30 && (
-                                  <div className="text-[9px] text-rose-300 leading-tight bg-rose-950/60 p-1.5 rounded border border-rose-900/30">
-                                    {projectedNext === 0 
-                                      ? '🚨 KRITISCH: Drohender Plagen-Ausbruch bei 0%!' 
-                                      : '⚠️ ACHTUNG: Schleichender Gewässerverfall bei <30%!'}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <p className="text-[10px] text-[#554A3C]/95 leading-normal">
-                      Aktiviert biologische Bedrohungszyklen: Runder-Zollschritt verringert die Bio-Sicherheit kontinuierlich um <span className="font-extrabold">-25%</span> bei Inaktivität. Bei biom-kritischem Wert (<span className="font-extrabold">&lt;30%</span>) degradieren Flussqualitäten (WRRL) schleichend, bei <span className="font-extrabold">0%</span> droht ein unkontrollierter Befall (Plagen-Event).
-                    </p>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* RENEWABLE ENERGY CHALLENGE */}
-            <div>
-              {(() => {
-                const currentEnergy = stats.renewableEnergy !== undefined ? stats.renewableEnergy : 25;
-                
-                // Calculate projected delta
-                let decay = -10;
-                const isGreenEnergyTechUnlocked = researchTree.find(r => r.id === 'green_energy_tech')?.unlocked || false;
-                if (isGreenEnergyTechUnlocked) {
-                  decay = -5;
-                }
-                const hydroCount = grid.flat().filter(t => t.buildingId === 'wasserkraft').length;
-                const solarCount = grid.flat().filter(t => t.buildingId === 'solarpark').length;
-                const windCount = grid.flat().filter(t => t.buildingId === 'windkraft').length;
-
-                let investmentBonus = 0;
-                if (roundInvested) {
-                  investmentBonus = 10;
-                }
-
-                const generationOffset = (hydroCount * 12) + (solarCount * 10) + (windCount * 15);
-                const netDelta = decay + generationOffset + investmentBonus;
-                const projectedNext = Math.max(0, Math.min(100, currentEnergy + netDelta));
-
-                return (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm select-none">⚡</span>
-                        <span className="text-xs font-black text-[#2C3311] uppercase tracking-wide">
-                          Energiewende-Zwang (Mittel)
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowEnergyRules(true)}
-                          className="text-[#BC6C25] hover:text-[#9e5212] underline text-[10px] font-black cursor-pointer transition-colors"
-                        >
-                          [Regeln]
-                        </button>
-                      </div>
-
-                      {/* Switch style toggle */}
-                      <div 
-                        className="flex items-center gap-2 relative"
-                        onMouseEnter={() => setIsHoveringEnergyToggle(true)}
-                        onMouseLeave={() => setIsHoveringEnergyToggle(false)}
-                      >
-                        <span className={`text-[10px] font-mono font-black uppercase transition-colors duration-200 ${energyChallengeEnabled ? 'text-[#BC6C25]' : 'text-[#8B8273]'}`}>
-                          {energyChallengeEnabled ? 'Aktiv' : 'Aus'}
-                        </span>
-                        
-                        <label className="relative inline-flex items-center cursor-pointer select-none">
-                          <input
-                            id="energy-difficulty-toggle"
-                            type="checkbox"
-                            checked={energyChallengeEnabled}
-                            onChange={(e) => {
-                              const enabled = e.target.checked;
-                              setEnergyChallengeEnabled(enabled);
-                              if (enabled) {
-                                setShowEnergyRules(true);
-                                addLog('⚡ ENERGIEWENDE GELADEN: Dürens Industrie gerät unter Dekarbonisierungsdruck! Baue grüne Kraftwerke zur Versorgung.', 'warning');
-                              } else {
-                                addLog('🛡️ Energiewende-Szenario deaktiviert. Ökostromversorgung stabilisiert.', 'success');
-                              }
-                            }}
-                            onFocus={() => setIsHoveringEnergyToggle(true)}
-                            onBlur={() => setIsHoveringEnergyToggle(false)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 bg-[#D4CCBA] rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#BC6C25]"></div>
-                        </label>
-
-                        {/* PROJECTION PREVIEW TOOLTIP */}
-                        {isHoveringEnergyToggle && (
-                          <div 
-                            id="energy-hover-preview" 
-                            className="absolute right-0 top-6 mt-1.5 w-64 bg-[#2C3311] text-[#F2EDE4] text-[10px] p-3 rounded-xl border-2 border-[#BC6C25] shadow-xl z-[9999] pointer-events-none space-y-2 animate-fade-in text-left font-sans animate-scale-up"
-                          >
-                            <div className="flex items-center justify-between border-b border-white/10 pb-1 font-extrabold text-[9px] uppercase tracking-wider text-[#BC6C25]">
-                              <span>🔮 Energiewende-Prognose</span>
-                              <span className="font-mono bg-white/10 px-1 py-0.5 rounded text-[8px] tracking-normal text-white">Nächste Runde</span>
-                            </div>
-
-                            {!energyChallengeEnabled ? (
-                              <div className="space-y-1.5">
-                                <p className="text-[10px] text-white/90 leading-normal block">
-                                  Vor der Aktivierung beachten:
-                                </p>
-                                <div className="flex justify-between font-mono bg-white/5 p-1 rounded text-[9.5px]">
-                                  <span className="text-white/60">Aktuelle Versorgung:</span>
-                                  <span className="text-white font-bold">{currentEnergy}%</span>
-                                </div>
-                                <p className="text-[9.5px] text-stone-300 leading-tight">
-                                  Dürens Industrie verlangt Dekarbonisierung. Ohne Erzeuger droht ein Runden-Abfall von <strong className="text-rose-400 font-black">{decay}%</strong>.
-                                </p>
-                                <div className="text-[9px] font-mono text-[#BC6C25] bg-amber-950/20 p-1.5 rounded border border-[#BC6C25]/30">
-                                  Wirkung auf der Karte:<br/>
-                                  • Klein-Wasserkraft: <strong className="text-emerald-400">+{hydroCount * 12}%</strong><br/>
-                                  • Solarwiesen: <strong className="text-emerald-400">+{solarCount * 10}%</strong><br/>
-                                  • Bürger-Windturbinen: <strong className="text-emerald-400">+{windCount * 15}%</strong>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-1.5 font-sans">
-                                <div className="flex justify-between font-mono text-[9.5px]">
-                                  <span className="text-white/60 text-left">Grüne Quote:</span>
-                                  <span className="text-white font-bold">{currentEnergy}%</span>
-                                </div>
-                                <div className="flex justify-between font-mono text-[9.5px]">
-                                  <span className="text-white/60 text-left">Basis-Industriewert:</span>
-                                  <span className="text-rose-400 font-bold">{decay}% / Runde</span>
-                                </div>
-                                <div className="flex justify-between font-mono text-[9.5px]">
-                                  <span className="text-white/60 text-left">Grüne Generierung:</span>
-                                  <span className="text-emerald-400 font-bold">+{generationOffset}% / Runde</span>
-                                </div>
-                                <div className="flex justify-between font-mono text-[9.5px]">
-                                  <span className="text-white/60 text-left">Bautätigkeit-Boost:</span>
-                                  <span className="text-emerald-400 font-bold">+{investmentBonus}%</span>
-                                </div>
-                                <hr className="border-white/10 my-1" />
-                                <div className="flex justify-between font-mono font-bold leading-tight text-[9.5px]">
-                                  <span className="text-[#BC6C25]">Ziel-Wert nächste Runde:</span>
-                                  <span className={netDelta >= 0 ? "text-emerald-400 bg-emerald-950/50 px-1.5 py-0.5 rounded font-black text-[10px]" : "text-rose-400 bg-rose-950/50 px-1.5 py-0.5 rounded font-black text-[10px]"}>
-                                    ➔ {projectedNext}% ({netDelta >= 0 ? '+' : ''}{netDelta}%)
-                                  </span>
-                                </div>
-
-                                {projectedNext < 35 && (
-                                  <div className="text-[9px] text-rose-300 leading-tight bg-rose-950/60 p-1.5 rounded border border-rose-900/30">
-                                    {projectedNext === 0 
-                                      ? '🚨 NETZCOLLAPS: Drohender Netzausfall bei 0%!' 
-                                      : '⚠️ GEBÜHR: CO2-Fossil-Steuer droht bei <35%!'}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <p className="text-[10px] text-[#554A3C]/95 leading-normal">
-                      Simuliert den industriellen Ökostrom-Zwang: Verfall von <span className="font-extrabold">-10%</span> pro Runde (reduzierbar auf <span className="font-extrabold">-5%</span> per Forschung). Halte die Quote über <span className="font-extrabold">35%</span>, um Strafsteuern abzuwenden, oder erreiche <span className="font-extrabold">75%</span> für lukrative Boni.
-                    </p>
-                  </div>
-                );
-              })()}
-            </div>
-
             </div>
           </div>
 
@@ -2822,48 +3069,77 @@ export default function App() {
           />
 
           {/* Bottom logs HUD */}
-          <div className={`bg-[#E8E2D6]/80 border border-[#D4CCBA] rounded-xl p-3 flex flex-col transition-all duration-300 shadow-inner shrink-0 ${
-            logsCollapsed ? 'h-[44px]' : 'h-[200px]'
+          <div className={`bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl overflow-hidden flex flex-col transition-all duration-300 shadow-inner shrink-0 ${
+            logsCollapsed ? 'h-[40px]' : 'h-[200px]'
           }`}>
-            <div 
-              className="text-[10px] font-mono uppercase tracking-widest text-[#8B8273] flex items-center justify-between border-b border-[#D4CCBA] pb-1.5 cursor-pointer select-none"
+
+            {/* Log header bar — clickable to collapse */}
+            <div
+              role="button"
+              aria-expanded={!logsCollapsed}
+              aria-controls="simulation-log"
+              tabIndex={0}
+              className="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-[#EAE4D7] transition-colors duration-150"
               onClick={() => setLogsCollapsed(prev => !prev)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setLogsCollapsed(prev => !prev); }}
             >
-              <span className="flex items-center gap-1.5">
-                <span>📜 Amts- & Simulationsprotokoll</span>
-                <span className="text-[8.5px] font-normal tracking-tight normal-case text-[#8B8273]/70">
-                  ({logsCollapsed ? 'klicken zum Aufklappen' : 'klicken zum Minimieren'})
+              {/* Left: icon + label */}
+              <div className="flex items-center gap-2 min-w-0">
+                <ScrollText className="w-3.5 h-3.5 text-[#8B8273] shrink-0" aria-hidden="true" />
+                <span className="text-[9.5px] font-mono font-bold text-[#5C564C] uppercase tracking-wider leading-none">
+                  Amts- &amp; Simulationsprotokoll
                 </span>
-              </span>
-              <div className="flex items-center gap-3">
+                <span className="text-[8px] font-normal text-[#B0A898] normal-case leading-none hidden sm:inline">
+                  {logs.length} Einträge
+                </span>
+              </div>
+
+              {/* Right: destructive restart + chevron */}
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleRestartGame();
                   }}
-                  className="text-red-700 hover:text-red-600 transition-colors uppercase cursor-pointer text-[9px] font-bold"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-colors cursor-pointer text-[8.5px] font-bold uppercase tracking-wide"
+                  aria-label="Simulation vollständig neustarten"
                 >
-                  Simulation Neustarten
+                  <RefreshCw className="w-2.5 h-2.5" aria-hidden="true" />
+                  <span>Neustart</span>
                 </button>
                 {logsCollapsed ? (
-                  <ChevronDown className="w-3.5 h-3.5 text-[#8B8273]" />
+                  <ChevronDown className="w-3.5 h-3.5 text-[#8B8273]" aria-hidden="true" />
                 ) : (
-                  <ChevronUp className="w-3.5 h-3.5 text-[#8B8273]" />
+                  <ChevronUp className="w-3.5 h-3.5 text-[#8B8273]" aria-hidden="true" />
                 )}
               </div>
             </div>
 
+            {/* Log entries */}
             {!logsCollapsed && (
-              <div className="flex-grow overflow-y-auto space-y-1.5 custom-scrollbar pr-1 mt-2">
+              <div
+                id="simulation-log"
+                className="flex-grow overflow-y-auto space-y-1 custom-scrollbar px-3 pb-2 pt-1 bg-white/50"
+              >
                 {logs.map(log => (
-                  <div key={log.id} className="text-[10.5px] font-mono leading-relaxed flex items-start gap-1.5">
-                    <span className="text-[#8B8273] font-bold shrink-0">W:{(log.round)}</span>
-                    <span className={
-                      log.type === 'success' ? 'text-[#5A7247] font-medium' :
+                  <div key={log.id} className="flex items-start gap-2 py-0.5">
+                    {/* Type indicator dot */}
+                    <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                      log.type === 'success' ? 'bg-[#5A7247]' :
+                      log.type === 'warning' ? 'bg-amber-500' :
+                      log.type === 'error' ? 'bg-red-500' : 'bg-[#B0A898]'
+                    }`} aria-hidden="true" />
+                    {/* Round stamp */}
+                    <span className="text-[8.5px] font-mono font-bold text-[#B0A898] shrink-0 tabular-nums mt-px">
+                      R{log.round}
+                    </span>
+                    {/* Message */}
+                    <span className={`text-[10px] font-mono leading-relaxed ${
+                      log.type === 'success' ? 'text-[#3D6B2E]' :
                       log.type === 'warning' ? 'text-amber-800' :
                       log.type === 'error' ? 'text-red-800' :
-                      'text-[#2C3322]'
-                    }>
+                      'text-[#3E382F]'
+                    }`}>
                       {log.message}
                     </span>
                   </div>
@@ -3664,6 +3940,198 @@ export default function App() {
         </div>
       )}
 
+      {/* KURZANLEITUNG PROTOTYP */}
+      {showKurzanleitung && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
+          <div className="bg-[#F2EDE4] border-4 border-[#2A6F7E] rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+
+            {/* Header */}
+            <div className="bg-white border-b border-[#2A6F7E]/20 p-5 shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🚀</span>
+                <div>
+                  <span className="text-[10px] font-mono tracking-widest text-[#2A6F7E] uppercase font-black block">PROTOTYP-TEST · SCHRITT FÜR SCHRITT</span>
+                  <h3 className="text-lg font-black text-[#2C3311]">RurNova: Kurzanleitung für Testerinnen &amp; Tester</h3>
+                </div>
+              </div>
+              <button onClick={() => setShowKurzanleitung(false)} className="text-[#8B8273] hover:text-[#2C3311] p-2 rounded-full hover:bg-[#E8E2D6]/70 transition-colors cursor-pointer border border-[#D4CCBA]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
+
+              {/* Intro */}
+              <div className="bg-[#2A6F7E]/10 border border-[#2A6F7E]/25 rounded-2xl p-4 text-[11px] text-[#1A3F48] leading-relaxed">
+                Diese Kurzanleitung führt dich in ca. <b>10–15 Minuten</b> durch alle wesentlichen Bereiche des Prototypen. Folge den nummerierten Schritten der Reihe nach. Alle Aktionen lösen direkt sichtbare Rückmeldungen aus — beobachte das <b>Simulationsprotokoll</b> unten und die <b>Ressourcenanzeige</b> oben.
+              </div>
+
+              {/* Steps */}
+              {[
+                {
+                  n: '01', icon: '📖', color: 'border-sky-400/50 bg-sky-50', tc: 'text-sky-800', bc: 'bg-sky-500',
+                  title: 'Tutorial lesen',
+                  area: 'Tutorial-Fenster (öffnet sich automatisch beim Start)',
+                  steps: [
+                    'Das Tutorial-Fenster erscheint automatisch. Lies die erste Seite.',
+                    'Klicke mehrfach auf den "Weiter →"-Button, um alle 6 Seiten durchzublättern.',
+                    'Auf der letzten Seite: "Spiel starten!" klicken.',
+                    '→ Das Tutorial schließt sich und das Spiel beginnt.',
+                  ],
+                },
+                {
+                  n: '02', icon: '🗺️', color: 'border-green-400/50 bg-green-50', tc: 'text-green-900', bc: 'bg-green-600',
+                  title: 'Oberfläche kennenlernen',
+                  area: 'Gesamte Bildschirmfläche',
+                  steps: [
+                    'Oben: Ressourcen-HUD — Budget (€), Forschungspunkte (🧪), Naturpunkte (🌿), WRRL-Güte.',
+                    'Mitte: Isometrische Karte der Rur (von der Eifel bis Jülich).',
+                    'Links/Unten: Aktionskarten-System — hier spielst du deine Züge.',
+                    'Rechts: Tabpanel mit Karte, Schoellershammer, Forschung, Arten, Berichte.',
+                    'Ganz unten: Simulationsprotokoll — zeigt alle Spielereignisse.',
+                  ],
+                },
+                {
+                  n: '03', icon: '🔭', color: 'border-teal-400/50 bg-teal-50', tc: 'text-teal-900', bc: 'bg-teal-600',
+                  title: 'Karte erkunden',
+                  area: 'Isometrische Karte (Mitte)',
+                  steps: [
+                    'Mausrad drehen oder Pinch-Geste: Karte zoomen.',
+                    'Linksklick + Ziehen: Karte verschieben.',
+                    'Auf den "⊙ Zentrieren"-Button (unten rechts in der Karte) klicken: Ansicht zurücksetzen.',
+                    'Ein Fluss-Hexfeld (blaue Kachel) anklicken → Felddetails erscheinen im Log.',
+                    'Eine Wiesen- oder Auwald-Kachel anklicken → Terrain und Werte werden angezeigt.',
+                  ],
+                },
+                {
+                  n: '04', icon: '💧', color: 'border-blue-400/50 bg-blue-50', tc: 'text-blue-900', bc: 'bg-blue-600',
+                  title: 'Kartenebenen wechseln',
+                  area: 'Obere Leiste in der Karte (oben rechts)',
+                  steps: [
+                    'Oben rechts in der Karte befinden sich 4 Filter-Buttons: 🗺️ Satellit | 💧 WRRL | 🌿 FFH | 🌊 Schutz.',
+                    '"💧 WRRL Wasser" anklicken → Karte zeigt farbkodierte Gewässerqualität (dunkelgrün = gut, rot = schlecht).',
+                    '"🌿 FFH-Flora" anklicken → Biotopschutzpotenzial der Flächen wird sichtbar.',
+                    '"🌊 HWRM Hochwasser" anklicken → Hochwasserrisiko-Zonen werden angezeigt.',
+                    'Zurück auf "🗺️ Satellit" klicken für die Normalansicht.',
+                  ],
+                },
+                {
+                  n: '05', icon: '💶', color: 'border-yellow-400/50 bg-yellow-50', tc: 'text-yellow-900', bc: 'bg-yellow-600',
+                  title: 'Erste Aktion: Förderung beantragen',
+                  area: 'Aktionskarten-Leiste (linker Bereich / unten)',
+                  steps: [
+                    'Im Aktionskarten-Bereich die Karte "💶 Förderung beantragen" suchen und anklicken.',
+                    'Die Karte expandiert und zeigt Stärke-Details.',
+                    '"Karte ausspielen" klicken.',
+                    '→ Das Budget (€) in der Ressourcenanzeige steigt sofort.',
+                    '→ Eine Toast-Meldung erscheint unten rechts.',
+                    '"Runde beenden" klicken (Button am Ende der Aktionskarten-Leiste).',
+                  ],
+                },
+                {
+                  n: '06', icon: '🏗️', color: 'border-amber-400/50 bg-amber-50', tc: 'text-amber-900', bc: 'bg-amber-600',
+                  title: 'Bauen: erstes Gebäude errichten',
+                  area: 'Aktionskarten + Karte',
+                  steps: [
+                    'Die "🏗️ Bauen & Errichten"-Karte anklicken → Gebäudekatalog öffnet sich im rechten Panel.',
+                    'Ein günstiges Gebäude wählen, z.B. "Biber-Station" (3 €) oder "Insektenhotel" (2 €).',
+                    'Auf ein geeignetes Feld der Karte klicken (grüne Hervorhebung zeigt erlaubte Felder).',
+                    'Der Bestätigungsdialog erscheint mit Kosten und Rabatten — "Bestätigen & Bauen" klicken.',
+                    '→ Das Gebäude erscheint auf der Karte, Budget sinkt, Naturpunkte steigen.',
+                    '"Runde beenden" klicken.',
+                  ],
+                },
+                {
+                  n: '07', icon: '🧪', color: 'border-purple-400/50 bg-purple-50', tc: 'text-purple-900', bc: 'bg-purple-600',
+                  title: 'Forschung betreiben',
+                  area: 'Aktionskarten + Forschungs-Tab',
+                  steps: [
+                    'Die "🧪 Gewässer-Forschung"-Karte ausspielen → Forschungspunkte steigen.',
+                    'Im oberen Tabmenü auf "🔬 Forschung" klicken.',
+                    'Im Tech-Baum einen verfügbaren Knoten (grün umrandet) anklicken, z.B. "Biber-Management-Plan".',
+                    '"Forschung freischalten" klicken wenn genug Punkte vorhanden.',
+                    '→ Der Knoten leuchtet auf, Effekte werden permanent aktiv.',
+                  ],
+                },
+                {
+                  n: '08', icon: '🏭', color: 'border-zinc-400/50 bg-zinc-50', tc: 'text-zinc-800', bc: 'bg-zinc-600',
+                  title: 'Schoellershammer konfigurieren',
+                  area: 'Schoellershammer-Tab (oben im Tabmenü)',
+                  steps: [
+                    'Im Tabmenü oben auf "🏭 Schoellershammer" klicken.',
+                    'Den aktuellen Betriebsmodus ablesen (Standard: Vollbetrieb).',
+                    'Auf "🔧 Umrüstung" klicken um den Modus zu wechseln.',
+                    '→ Log zeigt Auswirkungen auf Budget und Bürgerakzeptanz.',
+                    'Beobachte die WRRL-Güte oben im HUD — sie verbessert sich nach dem nächsten Rundenwechsel.',
+                  ],
+                },
+                {
+                  n: '09', icon: '🐟', color: 'border-cyan-400/50 bg-cyan-50', tc: 'text-cyan-900', bc: 'bg-cyan-600',
+                  title: 'Artenschutz-Status einsehen',
+                  area: 'Arten-Tab (oben im Tabmenü)',
+                  steps: [
+                    'Im Tabmenü auf "🦅 Artenvielfalt" klicken.',
+                    'Die Liste der Zielarten (Bachforelle, Biber, Feuerfalter, Eisvogel, Lachs) anzeigen.',
+                    'Fortschrittsbalken und Bedingungen für jede Art ablesen.',
+                    'Prüfen: Welche Bedingungen fehlen noch für die Bachforelle?',
+                    '→ Ziel: Alle 5 Arten bis zum Spielende ansiedeln.',
+                  ],
+                },
+                {
+                  n: '10', icon: '⏭️', color: 'border-rose-400/50 bg-rose-50', tc: 'text-rose-900', bc: 'bg-rose-600',
+                  title: 'Mehrere Runden spielen',
+                  area: 'Aktionskarten-Leiste',
+                  steps: [
+                    '2–3 weitere Runden durchspielen: je Runde eine Aktionskarte ausspielen und Runde beenden.',
+                    'Beobachte wie Karten-Stärken durch Nichtnutzung steigen (Stärke 1 → 5).',
+                    'Eine Karte auf Stärke 4 oder 5 ausspielen und den verstärkten Effekt beobachten.',
+                    'Im Simulationsprotokoll (unten) den Rundenüberblick lesen.',
+                    '→ Optional: "Rückgängig"-Funktion testen (im ⚙-Menü oben rechts).',
+                  ],
+                },
+              ].map(step => (
+                <div key={step.n} className={`rounded-2xl border ${step.color} overflow-hidden`}>
+                  <div className={`${step.bc} px-4 py-2 flex items-center gap-3`}>
+                    <span className="text-white font-black text-sm font-mono w-8 shrink-0">#{step.n}</span>
+                    <span className="text-lg">{step.icon}</span>
+                    <div>
+                      <div className="text-white font-black text-[11px] uppercase tracking-wide">{step.title}</div>
+                      <div className="text-white/75 text-[9.5px] font-mono">📍 {step.area}</div>
+                    </div>
+                  </div>
+                  <ul className="px-4 py-3 space-y-1.5">
+                    {step.steps.map((s, i) => (
+                      <li key={i} className={`text-[10.5px] ${step.tc} leading-snug flex items-start gap-2`}>
+                        <span className="shrink-0 font-bold text-[9px] mt-0.5 opacity-60">{i + 1}.</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+
+              {/* Closing note */}
+              <div className="bg-[#5A7247]/10 border border-[#5A7247]/30 rounded-2xl p-4 text-[11px] text-[#2C3311] leading-relaxed">
+                <b>🌿 Glückwunsch!</b> Du hast alle wesentlichen Bereiche des Prototypen kennengelernt. Spiele jetzt frei weiter und versuche, den Atlantischen Lachs zurück in die Rur zu bringen — das ultimative Renaturierungsziel!
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="bg-white border-t border-[#2A6F7E]/20 p-4 shrink-0 flex items-center justify-between">
+              <span className="text-[10px] text-[#8B8273] font-mono">RurNova Prototyp-Testversion · Kreis Düren</span>
+              <button
+                onClick={() => setShowKurzanleitung(false)}
+                className="px-6 py-2.5 bg-[#2A6F7E] hover:bg-[#1E5A68] text-white text-xs font-extrabold uppercase rounded-xl shadow-md transition-all duration-150 cursor-pointer active:scale-95"
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DETAILED GAME RULES MANUAL (SPIELANLEITUNG IN CD) */}
       {showSpielregeln && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-[9999] p-4 text-[#2C3311]">
@@ -3688,200 +4156,223 @@ export default function App() {
 
             {/* Scrollable Rules Container */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-brand-lightsky/20">
-              
-              {/* Introduction Card */}
-              <div className="bg-emerald-500/10 border border-[#A7C080]/30 rounded-2xl p-4.5">
+
+              {/* Introduction */}
+              <div className="bg-emerald-500/10 border border-[#A7C080]/30 rounded-2xl p-4">
                 <p className="text-xs leading-relaxed text-[#2C3311]">
-                  Herzlichen Glückwunsch! Du leitest die **ökologische und strukturpolitische Transformation des Rurtals**. Deine Entscheidungen steuern das Schicksal der Region Düren. Dieses Handbuch erklärt dir die mathematischen und mechanischen Zusammenhänge, damit du deinen Nachhaltigkeitsbericht zur Bestnote führen kannst.
+                  Du leitest die ökologische Transformation des Rurtals im Kreis Düren. Jede Entscheidung beeinflusst Gewässerqualität, Artenvielfalt, Budget und Bürgerakzeptanz. Dieses Handbuch erklärt alle Regeln und Mechaniken — von der Aktionskarte bis zur Lachs-Rückkehr.
                 </p>
               </div>
 
-              {/* 1. PROGRESSIVE DIFFICULTY TIMELINE */}
+              {/* 1. AKTIONSKARTEN & ARCHE-NOVA-PRINZIP */}
               <div className="space-y-3">
                 <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
-                  <span>📅</span> 1. DER PROGRESSIVE SCHWIERIGKEITSGRAD (LERNEFFEKT)
+                  <span>🃏</span> 1. AKTIONSKARTEN &amp; DAS ARCHE-NOVA-PRINZIP
                 </h4>
-                <p className="text-[11px] text-[#4A4F3F] leading-normal">
-                  Das Spiel startet einfach, damit du die Grundlagen verinnerlichen kannst. Mit jedem neuen Jahr zieht das Niveau spürbar an:
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5 mt-2">
-                  
-                  {/* Year 2026 */}
-                  <div className="bg-white/85 p-3.5 rounded-2xl border border-[#D4CCBA] flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="px-1.5 py-0.5 bg-sky-100 text-[#2A6F7E] text-[9px] font-mono rounded font-black">Level 1</span>
-                        <span className="text-sm">🌱</span>
+                <div className="bg-amber-50 border border-amber-300/50 rounded-xl p-3 text-[10.5px] text-amber-900 leading-relaxed">
+                  <b>Kernregel:</b> Pro Runde darfst du genau <b>eine</b> Aktionskarte ausspielen. Die gespielte Karte kehrt auf Stärke 1 zurück — die anderen vier Karten rücken nach rechts und gewinnen jeweils +1 Stärke. Je länger du eine Karte schonst, desto mächtiger wird ihre Wirkung (Stärke 1–5).
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2.5 mt-1">
+                  {[
+                    { icon: '🏗️', name: 'Bauen', color: 'border-amber-400/60 bg-amber-50', tc: 'text-amber-900', desc: 'Aktiviert den Baumodus. Die Platzierung eines Gebäudes verbraucht die Aktion. Höhere Stärke = größere Budgetfreigabe und Materialrabatte.' },
+                    { icon: '🌱', name: 'Pflanzen', color: 'border-green-400/60 bg-green-50', tc: 'text-green-900', desc: 'Wandelt Acker- oder Wiesenflächen in Auwälder um. Stärke bestimmt die Anzahl konvertierbarer Felder (+Naturpunkte, -Klimarisiko).' },
+                    { icon: '💧', name: 'Wasser leiten', color: 'border-sky-400/60 bg-sky-50', tc: 'text-sky-900', desc: 'Verbessert WRRL-Qualität aller Wasserfelder und steigert FFH-Werte. Stärke × 0,15 WRRL-Verbesserung pro Wasserfeld.' },
+                    { icon: '💶', name: 'Förderung', color: 'border-yellow-400/60 bg-yellow-50', tc: 'text-yellow-900', desc: 'Sichert EU/NRW-Fördermittel. Stärke 1→3 €, 2→6 €, 3→9 €, 4→12 €+1🧪, 5→16 €+2🧪.' },
+                    { icon: '🧪', name: 'Forschung', color: 'border-purple-400/60 bg-purple-50', tc: 'text-purple-900', desc: 'Generiert Forschungspunkte zum Freischalten von Tech-Baum-Knoten. Stärke 1–2→ direkt, 3→3🧪+1🌿, 4→5🧪+2🌿, 5→7🧪+4🌿.' },
+                  ].map(c => (
+                    <div key={c.name} className={`rounded-xl border p-3 space-y-1.5 ${c.color}`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">{c.icon}</span>
+                        <span className={`font-extrabold text-[10.5px] uppercase ${c.tc}`}>{c.name}</span>
                       </div>
-                      <h5 className="font-extrabold text-[11px] text-[#2C3311] uppercase tracking-wide">Jahr 2026</h5>
-                      <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed mt-1.5">
-                        <b>Schonzeit</b>. Bürgerakzeptanz ist stabilisiert, keine Naturkatastrophen, Biosicherheit bei 100%. Baue in Ruhe dein Fundament!
-                      </p>
+                      <p className="text-[10px] text-[#4A4F3F] leading-relaxed">{c.desc}</p>
                     </div>
-                    <div className="text-[10px] mt-3 pt-2 border-t border-[#D4CCBA]/40 font-bold text-sky-700">
-                      👍 Zu 100% einsteigerfreundlich
-                    </div>
-                  </div>
-
-                  {/* Year 2027 */}
-                  <div className="bg-white/85 p-3.5 rounded-2xl border border-amber-600/35 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-mono rounded font-black">Level 2</span>
-                        <span className="text-sm">👥</span>
-                      </div>
-                      <h5 className="font-extrabold text-[11px] text-amber-900 uppercase tracking-wide">Jahr 2027</h5>
-                      <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed mt-1.5">
-                        <b>Bürgerakzeptanz</b>. Anwohner wehren sich gegen Windenergie direkt an Wohngebieten und Fabrikstilllegungen.
-                      </p>
-                    </div>
-                    <div className="text-[10px] mt-3 pt-2 border-t border-[#D4CCBA]/40 font-bold text-amber-700">
-                      💡 Schalte Genossenschaften frei!
-                    </div>
-                  </div>
-
-                  {/* Year 2028 */}
-                  <div className="bg-white/85 p-3.5 rounded-2xl border border-rose-500/30 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="px-1.5 py-0.5 bg-rose-100 text-rose-800 text-[9px] font-mono rounded font-black">Level 3</span>
-                        <span className="text-sm">🌊</span>
-                      </div>
-                      <h5 className="font-extrabold text-[11px] text-rose-950 uppercase tracking-wide">Jahr 2028</h5>
-                      <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed mt-1.5">
-                        <b>Naturkatastrophen</b>. Jährliche Fluten und Dürren drohen, falls das Klimarisiko &gt;35% ist. Die Biosicherheit schrumpft kontinuierlich.
-                      </p>
-                    </div>
-                    <div className="text-[10px] mt-3 pt-2 border-t border-[#D4CCBA]/40 font-bold text-rose-700">
-                      🦫 Schütze die Biosicherheit!
-                    </div>
-                  </div>
-
-                  {/* Year 2029+ */}
-                  <div className="bg-white/85 p-3.5 rounded-2xl border border-purple-500/30 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="px-1.5 py-0.5 bg-purple-100 text-purple-850 text-[9px] font-mono rounded font-black">Final</span>
-                        <span className="text-sm">🔥</span>
-                      </div>
-                      <h5 className="font-extrabold text-[11px] text-purple-950 uppercase tracking-wide">Jahr 2029+</h5>
-                      <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed mt-1.5">
-                        <b>Globale Krise</b>. Der Klimawandel beschleunigt sich. Das Rurtal leidet unter 25% schnellerer Risiko-Erhöhung.
-                      </p>
-                    </div>
-                    <div className="text-[10px] mt-3 pt-2 border-t border-[#D4CCBA]/40 font-bold text-purple-700">
-                      🌿 Bestnote ist nur im Gleichgewicht möglich!
-                    </div>
-                  </div>
-
+                  ))}
                 </div>
               </div>
 
-              {/* 2. BÜRGERAKZEPTANZ */}
+              {/* 2. RUNDENSTRUKTUR & BUDGET */}
               <div className="space-y-3">
                 <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
-                  <span>👥</span> 2. SOZIALE AKZEPTANZ &amp; DER NIMBY-EFFEKT (AB 2027)
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  
-                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-2">
-                    <h5 className="font-bold text-amber-900 text-[11px] uppercase">🚨 Der NIMBY-Effekt</h5>
-                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">
-                      Der Bau von Windenergieanlagen direkt angrenzend an Siedlung-Kacheln schadet der Akzeptanz sofort um <b>-20%</b>! Solarparks ohne Bürgerbeteiligung führen zu <b>-3%</b> Akzeptanz.
-                    </p>
-                  </div>
-
-                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-2">
-                    <h5 className="font-bold text-red-700 text-[11px] uppercase">💸 Teure Klagen (&lt;40% Akzeptanz)</h5>
-                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">
-                      Fällt deine Bürgerakzeptanz unter <b>40%</b>, rebelliert die Region. Verwaltungsanträge werden blockiert, was jeden Neubau auf der Karte um **+2 € Protest-Zuschlag** verteuert.
-                    </p>
-                  </div>
-
-                  <div className="bg-emerald-500/5 p-3.5 rounded-xl border border-emerald-600/20 space-y-2">
-                    <h5 className="font-bold text-emerald-950 text-[11px] uppercase flex items-center gap-1">🪙 Die Bürgergenossenschaft</h5>
-                    <p className="text-[10.5px] text-emerald-900 leading-relaxed">
-                      Gründe in der Öko-Zentrale Stufe I eine <b>Genossenschaft</b> (12 €, 4 🧪). Sie erhöht die Zufriedenheit augenblicklich um <b>+40%</b> und schaltet künftige NIMBY-Abzüge vollständig aus!
-                    </p>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* 3. SCHOELLERSHAMMER-GLEICHUNG */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
-                  <span>🏭</span> 3. DIE SCHOELLERSHAMMER-GLEICHUNG
-                </h4>
-                <p className="text-[11px] text-[#4A4F3F] leading-normal">
-                  Die Papierfabrik ist dein wichtigster Steuerzahler, belastet jedoch Schiene, Klima und Gewässer. Wähle die Transformation weise:
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
-                  <div className="bg-white/70 p-3 rounded-xl border border-[#D4CCBA]">
-                    <span className="font-black text-[10.5px] text-zinc-800 uppercase block">⚙️ Vollbetrieb</span>
-                    <div className="mt-1.5 text-[10px] text-[#4A4F3F] leading-normal space-y-1">
-                      <div>💵 <b>+15 €</b> Steuern / Runde</div>
-                      <div>👥 <b>+15%</b> Akzeptanz-Vorteil</div>
-                      <div className="text-red-700">💧 Massive Gewässerschäden</div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white/70 p-3 rounded-xl border border-[#D4CCBA]">
-                    <span className="font-black text-[10.5px] text-blue-800 uppercase block">🔧 Umrüstung</span>
-                    <div className="mt-1.5 text-[10px] text-[#4A4F3F] leading-normal space-y-1">
-                      <div>💵 <b>+5 €</b> Nettoeinnahme</div>
-                      <div>🧪 <b>+1 🧪</b> Passiv-Forschung</div>
-                      <div className="text-blue-700">⚙️ Verringert Emissionen</div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white/70 p-3 rounded-xl border border-[#D4CCBA]">
-                    <span className="font-black text-[10.5px] text-amber-800 uppercase block">⚠️ Stilllegung</span>
-                    <div className="mt-1.5 text-[10px] text-[#4A4F3F] leading-normal space-y-1">
-                      <div className="text-red-600">💵 Cost: <b>2 €</b> Notwartung</div>
-                      <div className="text-red-700">👥 <b>-30%</b> Akzeptanzschaden</div>
-                      <div>💧 Rur erholt sich prächtig</div>
-                    </div>
-                  </div>
-
-                  <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-600/15">
-                    <span className="font-black text-[10.5px] text-emerald-950 uppercase block">🌿 Renaturierung</span>
-                    <div className="mt-1.5 text-[10px] text-emerald-900 leading-normal space-y-1">
-                      <div>💵 Cost: <b>3 €</b> Pachtschutz</div>
-                      <div>👥 <b>+10% Akzeptanz</b> (nur mit aktiver eG; sonst -15%)</div>
-                      <div className="text-emerald-800 font-bold">🌿 Maximale Naturpunkte</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. ECO-SYSTEM SYSTEM */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
-                  <span>🌲</span> 4. KLIMARISIKO &amp; NATURZAHNRÄDER
+                  <span>📅</span> 2. RUNDENSTRUKTUR &amp; BUDGET
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  <div className="bg-white/80 p-4 rounded-xl border border-[#D4CCBA] space-y-2">
-                    <h5 className="font-bold text-[#2C3311] text-[11px] uppercase flex items-center gap-1.5">
-                      <span>🌲</span> Auwald-Dämpfung
-                    </h5>
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-2">
+                    <h5 className="font-bold text-[#2C3311] text-[11px] uppercase">Jahresverlauf</h5>
                     <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">
-                      Jedes Runde erhöht sich die Klimalast der Erde. Jede gepflanzte **Auwald-Fläche** bremst diesen Effekt dauerhaft ab! Viele Auwälder verringern die Wahrscheinlichkeit extremer Hochwasser.
+                      Jedes Jahr besteht aus <b>4 Runden</b>: Frühling → Sommer → Herbst → Winter. Am Rundenwechsel werden Einnahmen und Ausgaben automatisch verrechnet und passive Boni gutgeschrieben.
                     </p>
                   </div>
-
-                  <div className="bg-white/80 p-4 rounded-xl border border-[#D4CCBA] space-y-2">
-                    <h5 className="font-bold text-[#2C3311] text-[11px] uppercase flex items-center gap-1.5">
-                      <span>🦠</span> Biologische Biosicherheit (ab 2028)
-                    </h5>
-                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">
-                      Ab 2028 dezimieren invasive Krebse ungeschützte Teiche kontinuierlich. Nutze gezielte Abwehrprojekte in der Öko-Zentrale oder investiere Forschung, um wertvolle Tierarten vor dem Aussterben zu bewahren!
-                    </p>
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-2">
+                    <h5 className="font-bold text-[#2C3311] text-[11px] uppercase">Budget pro Runde</h5>
+                    <div className="text-[10.5px] text-[#4A4F3F] leading-relaxed space-y-0.5">
+                      <div>💵 Basis-Steuereinnahmen: <b>+5 €</b></div>
+                      <div>🏭 Schoellershammer (Vollbetrieb): <b>+15 €</b>, Umrüstung: <b>+5 €</b></div>
+                      <div>🏘️ Tourismus-Gebäude: +2–4 € / Gebäude</div>
+                      <div>⚡ Wasserkraft: <b>+5 €</b> passiv</div>
+                      <div className="text-red-700">🔧 Instandhaltungskosten: −X € je Gebäude</div>
+                    </div>
                   </div>
+                </div>
+              </div>
 
+              {/* 3. BAUEN-KARTE: STÄRKE & FREIGABEN */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>🏗️</span> 3. BAUEN-KARTE: STÄRKE, FREIGABEN &amp; RABATTE
+                </h4>
+                <p className="text-[11px] text-[#4A4F3F]">Die Stärke der Bauen-Karte beim Ausspielen bestimmt, welche Projekte du errichten darfst und welche Materialrabatte du erhältst:</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[10.5px] border-collapse">
+                    <thead>
+                      <tr className="bg-[#E8E2D6] text-[#2C3311]">
+                        <th className="text-left p-2 font-black rounded-tl-lg">Stärke</th>
+                        <th className="text-left p-2 font-black">Max. Baukosten</th>
+                        <th className="text-left p-2 font-black">Materialrabatt</th>
+                        <th className="text-left p-2 font-black rounded-tr-lg">Hinweis</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#D4CCBA]">
+                      <tr className="bg-white/60"><td className="p-2 font-bold text-slate-600">⬤ Stärke 1</td><td className="p-2">max. 4 €</td><td className="p-2 text-[#8B8273]">kein Rabatt</td><td className="p-2 text-[#8B8273]">Nur Basismaßnahmen</td></tr>
+                      <tr className="bg-white/60"><td className="p-2 font-bold text-cyan-700">⬤ Stärke 2</td><td className="p-2">max. 6 €</td><td className="p-2 text-[#8B8273]">kein Rabatt</td><td className="p-2 text-[#8B8273]">Kleine Renaturierungen</td></tr>
+                      <tr className="bg-white/60"><td className="p-2 font-bold text-amber-700">⬤ Stärke 3</td><td className="p-2">max. 8 €</td><td className="p-2 text-green-700 font-bold">−1 € Rabatt</td><td className="p-2">Mittlere Projekte</td></tr>
+                      <tr className="bg-white/60"><td className="p-2 font-bold text-purple-700">⬤ Stärke 4</td><td className="p-2">max. 10 €</td><td className="p-2 text-green-700 font-bold">−1 € Rabatt</td><td className="p-2">Große Infrastruktur</td></tr>
+                      <tr className="bg-[#D4E0C1]/40"><td className="p-2 font-black text-[#5A7247]">⬤ Stärke 5</td><td className="p-2 font-bold">unbegrenzt</td><td className="p-2 text-green-700 font-black">−2 € Rabatt</td><td className="p-2 font-bold text-[#5A7247]">Alle Großprojekte freigegeben</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-[#8B8273]">💡 Rurtalbahn-Haltepunkte in der Nähe gewähren zusätzlich −1 € Logistikrabatt. Bei Bürgerakzeptanz unter 40 % wird +2 € Protestzuschlag erhoben (ab 2027).</p>
+              </div>
+
+              {/* 4. KARTENEBENEN */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>🗺️</span> 4. KARTENEBENEN: WRRL, FFH &amp; HOCHWASSER
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                  <div className="bg-sky-50 border border-sky-300/50 rounded-xl p-3.5 space-y-1.5">
+                    <h5 className="font-bold text-sky-900 text-[11px] uppercase">💧 WRRL-Gewässergüte</h5>
+                    <p className="text-[10.5px] text-sky-800 leading-relaxed">Skala 1 (sehr gut) bis 5 (sehr schlecht). Ziel: globalen Durchschnitt unter 3,0 senken. Verbessert durch: Wasser-leiten-Karte, Kläranlagen-Upgrade, Sohlgleiten, weniger Fabrikbetrieb.</p>
+                  </div>
+                  <div className="bg-green-50 border border-green-300/50 rounded-xl p-3.5 space-y-1.5">
+                    <h5 className="font-bold text-green-900 text-[11px] uppercase">🌿 FFH-Biotopwert</h5>
+                    <p className="text-[10.5px] text-green-800 leading-relaxed">0–100 %. Zeigt das Artenschutzpotenzial jeder Fläche. Wird erhöht durch: Auwald-Pflanzung, Altarme, Biber-Stationen, Insektenhotels. Bestimmt die Artenansiedlung.</p>
+                  </div>
+                  <div className="bg-rose-50 border border-rose-300/50 rounded-xl p-3.5 space-y-1.5">
+                    <h5 className="font-bold text-rose-900 text-[11px] uppercase">🌊 HWRM-Hochwasser</h5>
+                    <p className="text-[10.5px] text-rose-800 leading-relaxed">Risikoanzeige 0–100 %. Hohe Werte führen ab 2028 zu Schadenereignissen. Senken durch: Auwälder, Altarme, Ufer-Entfesselung und gute Fluss-Durchgängigkeit.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. ARTENSCHUTZ */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>🐟</span> 5. ARTENSCHUTZ: ANSIEDLUNGSBEDINGUNGEN
+                </h4>
+                <p className="text-[11px] text-[#4A4F3F]">Jede Art benötigt spezifische Voraussetzungen. Sind alle erfüllt (100 % Fortschritt), siedelt sie sich an und bringt <b>+15 Naturpunkte</b>:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[
+                    { icon: '🐟', name: 'Bachforelle & Groppe', conds: ['WRRL-Güte ≤ 3,5', 'Kiesbett gebaut'] },
+                    { icon: '🦫', name: 'Eurasischer Biber', conds: ['Mind. 2 Auwald-Felder', 'Forschung „Biber-Management" abgeschlossen'] },
+                    { icon: '🦋', name: 'Blauschillernder Feuerfalter', conds: ['Mind. 2 Insektenhotels', 'Globaler FFH-Wert ≥ 45 %'] },
+                    { icon: '🐦', name: 'Eisvogel', conds: ['Ufer-Entfesselung gebaut', 'WRRL-Güte ≤ 2,8', 'Bachforelle bereits angesiedelt'] },
+                    { icon: '🐡', name: 'Atlantischer Lachs', conds: ['Durchgängigkeit ≥ 60 %', 'Fabrik nicht im Vollbetrieb', 'Lachszucht-Station gebaut', 'Forschung „Lachs NRW" abgeschlossen'] },
+                  ].map(sp => (
+                    <div key={sp.name} className="bg-white/80 border border-[#D4CCBA] rounded-xl p-3 flex gap-3 items-start">
+                      <span className="text-xl shrink-0">{sp.icon}</span>
+                      <div>
+                        <div className="font-bold text-[11px] text-[#2C3311]">{sp.name}</div>
+                        <ul className="mt-1 space-y-0.5">
+                          {sp.conds.map(c => <li key={c} className="text-[10px] text-[#4A4F3F] flex items-start gap-1"><span className="text-[#5A7247] shrink-0">✓</span>{c}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 6. SCHOELLERSHAMMER */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>🏭</span> 6. DIE SCHOELLERSHAMMER-GLEICHUNG
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                  {[
+                    { label: '⚙️ Vollbetrieb', bg: 'bg-white/70 border-[#D4CCBA]', tc: 'text-zinc-800', rows: ['+15 € / Runde', '+15 % Akzeptanz', '⚠️ Massive WRRL-Schäden', 'Rurtalbahn gesperrt'] },
+                    { label: '🔧 Umrüstung', bg: 'bg-white/70 border-[#D4CCBA]', tc: 'text-blue-800', rows: ['+5 € / Runde', '+1 🧪 Passivforschung', 'Emissionen sinken', '−5 % Akzeptanz (ab 2027)'] },
+                    { label: '⚠️ Stilllegung', bg: 'bg-white/70 border-[#D4CCBA]', tc: 'text-amber-800', rows: ['−2 € Notwartung', '−30 % Akzeptanz', 'WRRL erholt sich', 'Gelände bleibt bebaut'] },
+                    { label: '🌿 Renaturierung', bg: 'bg-emerald-50 border-emerald-600/20', tc: 'text-emerald-950', rows: ['−3 € Pachtschutz', '+10 % Akzeptanz (mit eG)', 'Max. WRRL-Verbesserung', 'Erfordert Forschung!'] },
+                  ].map(m => (
+                    <div key={m.label} className={`p-3 rounded-xl border ${m.bg}`}>
+                      <span className={`font-black text-[10.5px] uppercase block mb-1.5 ${m.tc}`}>{m.label}</span>
+                      <ul className="space-y-0.5 text-[10px] text-[#4A4F3F]">
+                        {m.rows.map(r => <li key={r}>{r}</li>)}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 7. PROGRESSIVER SCHWIERIGKEITSGRAD */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>📅</span> 7. PROGRESSIVER SCHWIERIGKEITSGRAD
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                  {[
+                    { year: '2026', level: 'Level 1', badge: 'bg-sky-100 text-sky-800', border: 'border-[#D4CCBA]', icon: '🌱', title: 'Schonzeit', desc: 'Keine Naturkatastrophen, Akzeptanz stabil, Biosicherheit 100 %. Lerne die Grundlagen ohne Druck.' },
+                    { year: '2027', level: 'Level 2', badge: 'bg-amber-100 text-amber-800', border: 'border-amber-400/40', icon: '👥', title: 'NIMBY-Effekt', desc: 'Bürgerakzeptanz wird aktiviert. Wind nahe Siedlungen kostet −20 %, Fabrikstilllegung −30 %.' },
+                    { year: '2028', level: 'Level 3', badge: 'bg-rose-100 text-rose-800', border: 'border-rose-400/40', icon: '🌊', title: 'Naturkatastrophen', desc: 'Fluten & Dürren bei Klimarisiko > 35 %. Biosicherheit sinkt kontinuierlich ab.' },
+                    { year: '2029+', level: 'Final', badge: 'bg-purple-100 text-purple-800', border: 'border-purple-400/40', icon: '🔥', title: 'Globale Krise', desc: 'Klimarisiko steigt 25 % schneller. Nur konsequentes Gleichgewicht aller Werte ermöglicht Bestnoten.' },
+                  ].map(y => (
+                    <div key={y.year} className={`bg-white/85 p-3.5 rounded-2xl border ${y.border} flex flex-col gap-1.5`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`px-1.5 py-0.5 text-[9px] font-mono rounded font-black ${y.badge}`}>{y.level}</span>
+                        <span>{y.icon}</span>
+                      </div>
+                      <div className="font-extrabold text-[11px] text-[#2C3311] uppercase">{y.year} — {y.title}</div>
+                      <p className="text-[10px] text-[#4A4F3F] leading-relaxed">{y.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 8. SOZIALE AKZEPTANZ */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>👥</span> 8. SOZIALE AKZEPTANZ &amp; BÜRGERGENOSSENSCHAFT
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-1.5">
+                    <h5 className="font-bold text-amber-900 text-[11px] uppercase">🚨 NIMBY-Effekt (ab 2027)</h5>
+                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">Windkraft direkt an Siedlung: <b>−20 %</b>. Solarpark ohne Genossenschaft: <b>−3 %</b>. Fabrik-Stilllegung: <b>−30 %</b>. Fabrik-Renaturierung ohne Genossenschaft: <b>−15 %</b>.</p>
+                  </div>
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-rose-400/30 space-y-1.5">
+                    <h5 className="font-bold text-red-700 text-[11px] uppercase">💸 Unter 40 % Akzeptanz</h5>
+                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">Verwaltungsklagen blockieren Bauprojekte: jedes neue Gebäude kostet <b>+2 € Protestzuschlag</b> zusätzlich zu den normalen Baukosten.</p>
+                  </div>
+                  <div className="bg-emerald-500/5 p-3.5 rounded-xl border border-emerald-600/20 space-y-1.5">
+                    <h5 className="font-bold text-emerald-950 text-[11px] uppercase">🪙 Bürgergenossenschaft</h5>
+                    <p className="text-[10.5px] text-emerald-900 leading-relaxed">Einmalig freischaltbar in der Öko-Zentrale (12 €, 4 🧪). Sofortbonus: <b>+40 % Akzeptanz</b>. Schaltet alle künftigen NIMBY-Abzüge dauerhaft aus.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 9. KLIMARISIKO & BIOSICHERHEIT */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-black tracking-widest text-[#BC6C25] uppercase border-b border-[#BC6C25]/20 pb-1.5 flex items-center gap-2">
+                  <span>🌲</span> 9. KLIMARISIKO &amp; BIOSICHERHEIT
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-1.5">
+                    <h5 className="font-bold text-[#2C3311] text-[11px] uppercase">🌲 Klimarisiko senken</h5>
+                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">Jede Auwald-Fläche, jede Renaturierungsaktion und jeder Rückbau von Industrieanlagen senkt das Klimarisiko dauerhaft. Ab 2028 lösen Werte über 35 % Schadenereignisse aus (Hochwasser, Dürre).</p>
+                  </div>
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-[#D4CCBA] space-y-1.5">
+                    <h5 className="font-bold text-[#2C3311] text-[11px] uppercase">🦠 Biosicherheit (ab 2028)</h5>
+                    <p className="text-[10.5px] text-[#4A4F3F] leading-relaxed">Invasive Arten dezimieren die Rur-Fauna kontinuierlich (−25 % / Runde ohne Gegenmaßnahmen). Schutzmöglichkeiten: Abwehrprojekte in der Öko-Zentrale oder Forschungsinvestitionen in Bioschutz.</p>
+                  </div>
                 </div>
               </div>
 
@@ -4111,6 +4602,48 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* LOG TOAST NOTIFICATIONS */}
+      <div className="fixed bottom-8 right-6 z-[55] flex flex-col-reverse gap-2 items-end pointer-events-none">
+        <AnimatePresence>
+          {logToasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 48, scale: 0.93 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 48, scale: 0.93 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 200 }}
+              className="pointer-events-auto flex items-start gap-0 bg-[#FCFBF8] rounded-xl shadow-xl overflow-hidden max-w-[340px]"
+              style={{
+                border: '1px solid #D4CCBA',
+                borderLeft: `4px solid ${
+                  toast.type === 'success' ? '#5A7247' :
+                  toast.type === 'warning' ? '#C07820' :
+                  toast.type === 'error'   ? '#B83030' : '#6A8BB0'
+                }`
+              }}
+            >
+              <div className="flex items-start gap-2 px-3 py-2.5 flex-1 min-w-0">
+                <span className="shrink-0 mt-px text-[13px] select-none">
+                  {toast.type === 'success' ? '✅' :
+                   toast.type === 'warning' ? '⚠️' :
+                   toast.type === 'error'   ? '❌' : 'ℹ️'}
+                </span>
+                <p className="text-[11px] leading-snug font-sans text-[#2C3322] flex-1 min-w-0 break-words">
+                  {toast.message}
+                </p>
+              </div>
+              <button
+                onClick={() => setLogToasts(prev => prev.filter(t => t.id !== toast.id))}
+                className="shrink-0 self-start mt-1.5 mr-1.5 p-1 rounded-md text-[#B0A898] hover:text-[#5C564C] hover:bg-[#EAE4D7] transition-colors cursor-pointer"
+                aria-label="Meldung schließen"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
       {/* SYSTEM CONTROL DOCK: GLOBAL SETTINGS & UTILITIES */}
       <SystemControlDock
         saveGame={saveGame}
@@ -4120,6 +4653,7 @@ export default function App() {
         undoActionName={history.length > 0 ? history[0].actionName : undefined}
         onStartTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}
         onShowRules={() => setShowSpielregeln(true)}
+        onShowQuickGuide={() => setShowKurzanleitung(true)}
         onShowFeedback={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
       />
 

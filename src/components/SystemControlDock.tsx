@@ -12,6 +12,7 @@ interface SystemControlDockProps {
   undoActionName?: string;
   onStartTutorial: () => void;
   onShowRules: () => void;
+  onShowQuickGuide: () => void;
   onShowFeedback: () => void;
 }
 
@@ -23,6 +24,7 @@ export const SystemControlDock: React.FC<SystemControlDockProps> = ({
   undoActionName,
   onStartTutorial,
   onShowRules,
+  onShowQuickGuide,
   onShowFeedback,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -172,6 +174,18 @@ export const SystemControlDock: React.FC<SystemControlDockProps> = ({
               >
                 <HelpCircle className="w-3.5 h-3.5 text-[#5A7247]" />
                 <span className="flex-1 uppercase tracking-wide">📖 Einführung starten</span>
+              </button>
+
+              {/* Quick Guide */}
+              <button
+                onClick={() => {
+                  onShowQuickGuide();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg text-left text-[9.5px] font-bold text-[#2A6F7E] hover:bg-[#2A6F7E]/6 transition-all border border-transparent hover:border-[#2A6F7E]/15 cursor-pointer"
+              >
+                <Info className="w-3.5 h-3.5 text-[#2A6F7E]" />
+                <span className="flex-1 uppercase tracking-wide">🚀 Kurzanleitung Prototyp</span>
               </button>
 
               {/* Official Game Rules */}
