@@ -169,7 +169,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   pdfSimulated,
   logs,
 }) => {
-  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(true);
 
   const tabsArray = ['map', 'schoeller', 'research', 'species', 'reports'] as const;
   const p  = TAB_PALETTE[activeTab];
@@ -400,13 +400,47 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
             className={`px-4 py-4 ${p.bodyBg} border-t ${p.divider}`}
           >
             {/* Row 1: Description + live status badge */}
-            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-4">
               <p className="text-[10px] text-[#6B6356] leading-relaxed font-sans flex-1">
                 {m.desc}
               </p>
               <div className={`text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg border text-center whitespace-nowrap shrink-0 ${activeBadge.color}`}>
                 {activeBadge.text}
               </div>
+            </div>
+
+            {/* Row 2: 4 metric cards in a responsive grid */}
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
+              {metrics.map(({ Icon, label, unit, value, suffix, barWidth, barColor, valueColor }) => (
+                <div
+                  key={label}
+                  className="bg-white rounded-xl border border-[#E8E2D6] px-3 py-2.5 shadow-xs flex flex-col justify-between min-w-0"
+                >
+                  {/* Icon + label + value */}
+                  <div className="flex items-center justify-between gap-1.5 mb-2 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <Icon className="w-3.5 h-3.5 text-[#8B8273] shrink-0" aria-hidden="true" />
+                      <span className="text-[9px] font-semibold text-[#5C564C] leading-none truncate" title={label}>
+                        {label}
+                      </span>
+                    </div>
+                    <span className={`font-mono font-black text-[11px] tabular-nums leading-none shrink-0 ${valueColor}`}>
+                      {value}{suffix}
+                    </span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-full bg-[#EAE4D7] rounded-full h-1.5 overflow-hidden">
+                    <div
+                      style={{ width: barWidth }}
+                      className={`h-full rounded-full transition-all duration-500 ease-out ${barColor}`}
+                    />
+                  </div>
+                  {/* Unit label */}
+                  <div className="text-[7.5px] text-[#B0A898] font-mono uppercase tracking-wide mt-1.5 leading-none truncate" title={unit}>
+                    {unit}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Climate alert — shown when critical */}
