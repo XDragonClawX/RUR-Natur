@@ -166,7 +166,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
 
   const buildOptions = useMemo(() => {
     if (!card || card.type !== 'BUILD') return [];
-    return buildingsCatalog.filter(b => (b.cost - discount) <= stats.budget);
+    return buildingsCatalog.filter(b => b.id !== 'schoellershammer' && (b.cost - discount) <= stats.budget);
   }, [card, discount, buildingsCatalog, stats.budget]);
 
   const researchNow = useMemo(() => {
