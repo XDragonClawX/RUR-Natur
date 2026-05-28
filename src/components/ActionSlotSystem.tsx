@@ -4,7 +4,8 @@ import {
 } from '../types';
 import {
   Play, Train, ChevronLeft, Hammer, Leaf, Droplets,
-  Coins, Microscope, ArrowRight, AlertTriangle, Zap, Shield, TrendingUp, Lock
+  Coins, Microscope, ArrowRight, AlertTriangle, Zap, Shield, TrendingUp, Lock,
+  Waves, Factory, Wrench, MapPin, Bird, Sun, Wind, LayoutGrid
 } from 'lucide-react';
 
 interface ActionSlotSystemProps {
@@ -61,14 +62,14 @@ const getNodeCategory = (nodeId: string): 'nature' | 'water' | 'energy' => {
   }
 };
 
-const getCategoryConfig = (cat: 'nature' | 'water' | 'energy') => {
+const getCategoryConfig = (cat: 'nature' | 'water' | 'energy'): { label: string; accent: string; icon: React.ReactNode } => {
   switch (cat) {
     case 'nature':
-      return { label: 'Ökologie', accent: '#5A7247', icon: '🌿' };
+      return { label: 'Ökologie',       accent: '#5A7247', icon: <Leaf     className="w-3 h-3" /> };
     case 'water':
-      return { label: 'Wasser', accent: '#457B9D', icon: '💧' };
+      return { label: 'Wasser',          accent: '#457B9D', icon: <Droplets className="w-3 h-3" /> };
     case 'energy':
-      return { label: 'Werk & Energie', accent: '#BC6C25', icon: '⚡' };
+      return { label: 'Werk & Energie', accent: '#BC6C25', icon: <Zap      className="w-3 h-3" /> };
   }
 };
 
@@ -84,8 +85,13 @@ const TYPE_META: Record<CardTypeKey, { icon: React.ReactNode; color: string; lab
 };
 
 // ── Building category icons ────────────────────────────────────────────────────
-const CAT_ICON: Record<string, string> = {
-  ecology: '🌿', water: '💧', fauna: '🦅', economy: '🏭', infrastructure: '🔧', tourism: '🎯'
+const CAT_ICON: Record<string, React.ReactNode> = {
+  ecology:        <Leaf     className="w-3 h-3 text-[#5A7247]" />,
+  water:          <Droplets className="w-3 h-3 text-[#2A6F7E]" />,
+  fauna:          <Bird     className="w-3 h-3 text-[#5A7247]" />,
+  economy:        <Factory  className="w-3 h-3 text-[#BC6C25]" />,
+  infrastructure: <Wrench   className="w-3 h-3 text-[#8B8273]" />,
+  tourism:        <MapPin   className="w-3 h-3 text-[#2A6F7E]" />,
 };
 
 // ── Energy building contributions ──────────────────────────────────────────────
@@ -112,7 +118,7 @@ const ProgressBar: React.FC<{
 
 // ── Challenge toggle pill ──────────────────────────────────────────────────────
 const ChallengePill: React.FC<{
-  active: boolean; label: string; value?: number;
+  active: boolean; label: React.ReactNode; value?: number;
   okColor: string; warnColor: string; critColor: string;
   thresholds: [number, number]; // [warn, crit]
   onToggle: (v: boolean) => void;
@@ -265,7 +271,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
                 )}
                 <ChallengePill
                   active={invasiveThreatEnabled}
-                  label="🦠"
+                  label={<Shield className="w-2.5 h-2.5" />}
                   value={bio}
                   okColor="bg-[#5A7247]/15 text-[#2C3322]"
                   warnColor="bg-amber-100 text-amber-900"
@@ -310,7 +316,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
                 )}
                 <ChallengePill
                   active={energyChallengeEnabled}
-                  label="⚡"
+                  label={<Zap className="w-2.5 h-2.5" />}
                   value={energy}
                   okColor="bg-emerald-100 text-emerald-900"
                   warnColor="bg-amber-100 text-amber-900"
@@ -362,7 +368,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
 
           {/* ── Budget header ── */}
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide">🏗️ Baubare Projekte</span>
+            <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide flex items-center gap-1.5"><Hammer className="w-3.5 h-3.5 text-amber-700" /> Baubare Projekte</span>
             <span className="text-[10px] text-[#6B6356]">
               Budget: <strong className="text-[#2C3322]">{stats.budget} €</strong>
               {discount > 0 && <span className="text-brand-green font-bold ml-1">−{discount} € Rabatt</span>}
@@ -431,9 +437,9 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
 
               {/* Quick source breakdown */}
               <div className="flex items-center gap-2 mt-1.5 text-[8px] text-[#6B6356] font-mono">
-                <span>💧 {ec.hydroCount}×+12%</span>
-                <span>☀️ {ec.solarCount}×+10%</span>
-                <span>💨 {ec.windCount}×+15%</span>
+                <span className="flex items-center gap-0.5"><Droplets className="w-2.5 h-2.5 text-blue-500" />{ec.hydroCount}×+12%</span>
+                <span className="flex items-center gap-0.5"><Sun className="w-2.5 h-2.5 text-yellow-500" />{ec.solarCount}×+10%</span>
+                <span className="flex items-center gap-0.5"><Wind className="w-2.5 h-2.5 text-sky-500" />{ec.windCount}×+15%</span>
                 <span className="ml-auto text-[#8B8273]">
                   <button onClick={onShowEnergyRules} className="underline cursor-pointer hover:text-[#2C3322] transition-colors">Regeln</button>
                 </span>
@@ -461,8 +467,8 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
                     className="text-left p-2.5 rounded-lg bg-white border border-[#D4CCBA] hover:border-amber-400/70 hover:bg-amber-50/40 transition-all duration-150 cursor-pointer group"
                   >
                     <div className="flex items-start justify-between gap-1 mb-1">
-                      <span className="text-[10px] font-black text-[#2C3322] leading-tight group-hover:text-amber-900">
-                        {CAT_ICON[b.category] ?? '🏗️'} {b.name}
+                      <span className="text-[10px] font-black text-[#2C3322] leading-tight group-hover:text-amber-900 flex items-center gap-1 flex-wrap">
+                        {CAT_ICON[b.category] ?? <Hammer className="w-3 h-3 text-amber-700" />}{b.name}
                       </span>
                       <span className="text-[10px] font-mono font-black text-amber-700 shrink-0">
                         {discount > 0
@@ -502,7 +508,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
       return (
         <div className="flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide">🔬 Forschungen & Innovationen</span>
+            <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide flex items-center gap-1.5"><Microscope className="w-3.5 h-3.5 text-purple-600" /> Forschungen & Innovationen</span>
             <span className="text-[10px] text-[#6B6356]">
               Punkte: <strong className="text-purple-700">{stats.researchPoints} 🧪</strong>
             </span>
@@ -564,8 +570,8 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
                     <div className="flex items-start justify-between gap-1.5 mb-1">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] font-black text-[#2C3322] leading-tight group-hover:text-purple-900">
-                            {cfg.icon} {r.name}
+                          <span className="text-[10px] font-black text-[#2C3322] leading-tight group-hover:text-purple-900 inline-flex items-center gap-1 flex-wrap">
+                            <span className="shrink-0">{cfg.icon}</span>{r.name}
                           </span>
                           <span
                             className="text-[7.5px] font-mono font-black px-1.5 py-0.5 rounded uppercase border whitespace-nowrap"
@@ -606,8 +612,8 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
                     <div className="flex items-start justify-between gap-1.5 mb-1">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] font-bold text-[#8B8273] leading-tight">
-                            {cfg.icon} {r.name}
+                          <span className="text-[10px] font-bold text-[#8B8273] leading-tight inline-flex items-center gap-1 flex-wrap">
+                            <span className="shrink-0">{cfg.icon}</span>{r.name}
                           </span>
                           <span
                             className="text-[7.5px] font-mono font-medium px-1.5 py-0.5 rounded uppercase border whitespace-nowrap"
@@ -704,7 +710,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
             </div>
           )}
 
-          <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide">🌱 Bepflanzungs-Vorschau</span>
+          <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide flex items-center gap-1.5"><Leaf className="w-3.5 h-3.5 text-[#5A7247]" /> Bepflanzungs-Vorschau</span>
           <div className="rounded-xl bg-brand-green/6 border border-brand-green/18 p-4">
             <div className="grid grid-cols-3 gap-3 text-center mb-2">
               <div>
@@ -720,7 +726,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
               <div>
                 <div className="text-[8px] text-[#8B8273] font-bold uppercase tracking-wide">Naturpunkte</div>
                 <div className="text-2xl font-black text-[#5A7247]">+{actual * 2}</div>
-                <div className="text-[8px] text-[#6B6356]">🌿</div>
+                <div className="text-[8px] text-[#6B6356] flex justify-center"><Leaf className="w-3 h-3 text-[#5A7247]" /></div>
               </div>
             </div>
             {strength >= 3 && (
@@ -755,7 +761,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
 
       return (
         <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide">🌊 Hydrologische Vorschau</span>
+          <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide flex items-center gap-1.5"><Waves className="w-3.5 h-3.5 text-[#2A6F7E]" /> Hydrologische Vorschau</span>
           <div className="rounded-xl bg-sky-50/60 border border-sky-200/50 p-4">
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
@@ -813,7 +819,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
 
       return (
         <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide">💶 Förderungs-Vorschau</span>
+          <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide flex items-center gap-1.5"><Coins className="w-3.5 h-3.5 text-amber-600" /> Förderungs-Vorschau</span>
           <div className="rounded-xl bg-amber-50/60 border border-amber-200/50 p-4">
             <div className="grid grid-cols-2 gap-4 text-center">
               <div>
@@ -879,7 +885,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
     /* ── RURTALBAHN ── */
     if (card.id === 'rurtalbahn_card') return (
       <div className="flex flex-col gap-3">
-        <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide">🚇 Rurtalbahn-Aktion</span>
+        <span className="text-[10px] font-bold text-[#2C3322] uppercase tracking-wide flex items-center gap-1.5"><Train className="w-3.5 h-3.5 text-[#2A6F7E]" /> Rurtalbahn-Aktion</span>
         <div className="p-3 rounded-lg bg-sky-50/60 border border-sky-200/50 text-xs text-[#6B6356] leading-relaxed">
           {card.strengthEffects[strength]}
         </div>
@@ -907,7 +913,7 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-[#D4CCBA]">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-[#2C3322]">🎴 Aktions-Slot-System</span>
+          <span className="text-sm font-bold text-[#2C3322] flex items-center gap-1.5"><LayoutGrid className="w-3.5 h-3.5 text-[#5A7247]" /> Aktions-Slot-System</span>
           <span className="text-[9px] bg-[#5A7247]/10 text-[#5A7247] px-2 py-0.5 rounded-full border border-[#5A7247]/22 font-bold uppercase tracking-wide">
             {selectedIdx === null ? 'Slot wählen' : `Slot 0${strength} aktiv`}
           </span>
@@ -953,21 +959,21 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
         <div className="flex items-center gap-2">
           {/* Challenge status chips in header */}
           {invasiveThreatEnabled && (
-            <span className={`text-[8.5px] font-mono font-black px-1.5 py-0.5 rounded-md ${
+            <span className={`text-[8.5px] font-mono font-black px-1.5 py-0.5 rounded-md inline-flex items-center gap-0.5 ${
               (stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]/15 text-[#2C3322]'
               : (stats.biosecurity ?? 100) >= 30 ? 'bg-amber-100 text-amber-900'
               : 'bg-rose-100 text-rose-900 animate-pulse'
             }`}>
-              🦠 {stats.biosecurity}%
+              <Shield className="w-2.5 h-2.5" />{stats.biosecurity}%
             </span>
           )}
           {energyChallengeEnabled && (
-            <span className={`text-[8.5px] font-mono font-black px-1.5 py-0.5 rounded-md ${
+            <span className={`text-[8.5px] font-mono font-black px-1.5 py-0.5 rounded-md inline-flex items-center gap-0.5 ${
               (stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-100 text-emerald-900'
               : (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-100 text-amber-900'
               : 'bg-rose-100 text-rose-900 animate-pulse'
             }`}>
-              ⚡ {stats.renewableEnergy}%
+              <Zap className="w-2.5 h-2.5" />{stats.renewableEnergy}%
             </span>
           )}
 
@@ -1045,8 +1051,8 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
               </div>
 
               {/* Lvl badge */}
-              <span className={`self-start text-[8px] font-mono font-black px-1.5 py-0.5 rounded border ${p.badge}`}>
-                ⚡{str}
+              <span className={`self-start text-[8px] font-mono font-black px-1.5 py-0.5 rounded border inline-flex items-center gap-0.5 ${p.badge}`}>
+                <Zap className="w-2 h-2" />{str}
               </span>
 
               {/* Urgent indicator dot */}
@@ -1089,12 +1095,13 @@ export const ActionSlotSystem: React.FC<ActionSlotSystemProps> = ({
                                'border-l-[#5A7247]  bg-[#F0F7EC]'
             }`}>
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-[8.5px] font-mono font-black px-1.5 py-0.5 rounded border ${pal(strength).badge}`}>
-                  ⚡ Lvl {strength}
+                <span className={`text-[8.5px] font-mono font-black px-1.5 py-0.5 rounded border inline-flex items-center gap-0.5 ${pal(strength).badge}`}>
+                  <Zap className="w-2.5 h-2.5" /> Lvl {strength}
                 </span>
                 <button onClick={() => setSelectedIdx(null)}
                   className="text-[#8B8273] hover:text-[#2C3322] transition-colors cursor-pointer"
                   title="Schließen"
+                  aria-label="Karte schließen"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
