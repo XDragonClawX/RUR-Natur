@@ -81,6 +81,14 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   // Throttle counter for syncing inertia pan back to React state
   const inertiaSyncFrameRef = useRef<number>(0);
 
+  // ── Gradient cache refs ───────────────────────────────────────────────────
+  // Edge vignette: recreated only when canvas dimensions change
+  const edgeVigRef    = useRef<CanvasGradient | null>(null);
+  const edgeVigKeyRef = useRef<string>('');
+  // Water shimmer: one reusable gradient object; translate is cheaper than
+  // calling createLinearGradient per tile per frame
+  const shimmerGradRef = useRef<CanvasGradient | null>(null);
+
   // Hexagonal dimensions
   const r = 52;
   const w = r * Math.sqrt(3) / 2; // ~45
@@ -1596,6 +1604,12 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       const cw2 = canvas.width / dpr;
       const ch2 = canvas.height / dpr;
 
+      // Invalidate shimmer gradient cache on canvas resize (same key as vignette: CSS px)
+      const sizeKey = `${cw2}|${ch2}`;
+      if (edgeVigKeyRef.current !== sizeKey) {
+        shimmerGradRef.current = null; // force rebuild on next water tile
+      }
+
       const sizeY = currentGrid.length;
       const sizeX = currentGrid[0]?.length || 0;
 
@@ -1941,16 +1955,26 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           const isHovered = currentHovered && currentHovered.x === x && currentHovered.y === y;
           const isSelected = currentSelected && currentSelected.x === x && currentSelected.y === y;
 
-          // Water shimmer (animated layer)
+          // Water shimmer (animated layer) — cached gradient + translate
           if (tile.terrain === 'Water') {
+            // Build the shimmer gradient once (coords: -15..+15 in local space).
+            // A save/translate is cheaper than createLinearGradient per tile/frame.
+            if (!shimmerGradRef.current) {
+              const sg = ctx.createLinearGradient(-15, 0, 15, 0);
+              sg.addColorStop(0,   'rgba(255,255,255,0)');
+              sg.addColorStop(0.5, 'rgba(255,255,255,0.18)');
+              sg.addColorStop(1,   'rgba(255,255,255,0)');
+              shimmerGradRef.current = sg;
+            }
             const shimmerX = Math.sin(tick * 0.04 + x * 0.5 + y * 0.3) * (w * 0.7);
-            const shimmerGrad = ctx.createLinearGradient(screenX + shimmerX - 15, topY, screenX + shimmerX + 15, topY);
-            shimmerGrad.addColorStop(0, 'rgba(255,255,255,0)');
-            shimmerGrad.addColorStop(0.5, 'rgba(255,255,255,0.18)');
-            shimmerGrad.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = shimmerGrad;
-            pathHexagon(ctx, screenX, topY);
+            ctx.save();
+            // Translate so the gradient's (0,0) sits at (screenX + shimmerX, topY).
+            // Draw the hexagon offset by -shimmerX so it stays centred on the tile.
+            ctx.translate(screenX + shimmerX, topY);
+            ctx.fillStyle = shimmerGradRef.current;
+            pathHexagon(ctx, -shimmerX, 0);
             ctx.fill();
+            ctx.restore();
           }
 
           // Animated water bubbles
@@ -2052,10 +2076,19 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
 
       ctx.save();
       ctx.scale(dpr, dpr);
-      const edgeVig = ctx.createRadialGradient(cw2 / 2, ch2 / 2, Math.min(cw2, ch2) * 0.3, cw2 / 2, ch2 / 2, Math.max(cw2, ch2) * 0.75);
-      edgeVig.addColorStop(0, 'rgba(0,0,0,0)');
-      edgeVig.addColorStop(1, 'rgba(26,21,16,0.45)');
-      ctx.fillStyle = edgeVig;
+      // Cache: only recreate gradient when canvas dimensions change
+      const vigKey = `${cw2}|${ch2}`;
+      if (edgeVigKeyRef.current !== vigKey || !edgeVigRef.current) {
+        edgeVigKeyRef.current = vigKey;
+        const g = ctx.createRadialGradient(
+          cw2 / 2, ch2 / 2, Math.min(cw2, ch2) * 0.3,
+          cw2 / 2, ch2 / 2, Math.max(cw2, ch2) * 0.75
+        );
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(1, 'rgba(26,21,16,0.45)');
+        edgeVigRef.current = g;
+      }
+      ctx.fillStyle = edgeVigRef.current;
       ctx.fillRect(0, 0, cw2, ch2);
       ctx.restore();
 
