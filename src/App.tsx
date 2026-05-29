@@ -889,23 +889,6 @@ export default function App() {
       setSeenTips(prev => [...prev, 'actionCard']);
     }
 
-    // Pay lease toll duration ticker if active
-    if (rurtalbahnLeased) {
-      const nextRemaining = rurtalbahnTimeRemaining - 1;
-      setRurtalbahnTimeRemaining(nextRemaining);
-      if (nextRemaining <= 0) {
-        setRurtalbahnLeased(false);
-        // Recover previous card back to Slot 1 position
-        if (preLeaseCard) {
-          setCards(prev => {
-            const nextList = prev.filter(c => c.id !== 'rurtalbahn_card');
-            return [preLeaseCard, ...nextList];
-          });
-          addLog('Rurtalbahn Charterverkehr beendet. Standard-Aktionskarte wieder bereit.', 'info');
-        }
-      }
-    }
-
     if (card.id === 'rurtalbahn_card') {
       // Specialized Rurtalbahn trigger
       executeRurtalbahnAction(strength);
@@ -1489,6 +1472,21 @@ export default function App() {
     // Clear history on new round to avoid cross-round rollbacks
     setHistory([]);
     setActionsUsed(0);
+
+    // Rurtalbahn lease countdown — tick down once per round
+    if (rurtalbahnLeased) {
+      const nextRemaining = rurtalbahnTimeRemaining - 1;
+      if (nextRemaining <= 0) {
+        setRurtalbahnLeased(false);
+        setRurtalbahnTimeRemaining(0);
+        if (preLeaseCard) {
+          setCards(prev => [preLeaseCard, ...prev.filter(c => c.id !== 'rurtalbahn_card')]);
+        }
+        addLog('🚇 Rurtalbahn Charterverkehr beendet. Standard-Aktionskarte wieder bereit.', 'info');
+      } else {
+        setRurtalbahnTimeRemaining(nextRemaining);
+      }
+    }
 
     // 1. Calculate and advance seasons
     const nextRound = stats.round + 1;
