@@ -2885,59 +2885,6 @@ export default function App() {
             )}
           </div>
 
-        </div>
-
-        {/* RIGHT COLUMN: Sidebar Companion Manual & Historical Logs Journal */}
-        <div className="w-full lg:w-[36%] shrink-0 flex flex-col gap-6">
-          
-          {/* COCKPIT NAVIGATION DECK */}
-          <ActiveSimulationPanel
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            stats={stats}
-            grid={grid}
-            researchTree={researchTree}
-            speciesList={speciesList}
-            selectedBuilding={selectedBuilding}
-            onSelectBuilding={setSelectedBuilding}
-            checkRurtalbahnDiscountActiveOnMap={checkRurtalbahnDiscountActiveOnMap}
-            onDemolishModeToggle={() => {
-              setSelectedBuilding(null);
-              setIsDemolishMode(!isDemolishMode);
-            }}
-            isDemolishMode={isDemolishMode}
-            selectedTileInfo={selectedTileInfo}
-            handleUpgradeBuilding={handleUpgradeBuilding}
-            handleChangePaperFactoryMode={handleChangePaperFactoryMode}
-            handleUnlockResearch={handleUnlockResearch}
-            handleTriggerPdfSim={handleTriggerPdfSim}
-            pdfSimulated={pdfSimulated}
-            logs={logs}
-            invasiveThreatEnabled={invasiveThreatEnabled}
-            energyChallengeEnabled={energyChallengeEnabled}
-            onToggleInvasive={(enabled) => {
-              setInvasiveThreatEnabled(enabled);
-              if (enabled) {
-                setShowInvasiveRules(true);
-                addLog('🚨 BIOLOGISCHER STRESSOR-MODUS AKTIVIERT: Biologische Sicherheit sinkt nun und bricht bei Vernachlässigung zusammen!', 'warning');
-              } else {
-                addLog('🛡️ Biologischer Stressor-Modus deaktiviert. Biologische Sicherheit stabilisiert.', 'success');
-              }
-            }}
-            onToggleEnergy={(enabled) => {
-              setEnergyChallengeEnabled(enabled);
-              if (enabled) {
-                setShowEnergyRules(true);
-                addLog('⚡ ENERGIEWENDE GELADEN: Dürens Industrie gerät unter Dekarbonisierungsdruck! Baue grüne Kraftwerke zur Versorgung.', 'warning');
-              } else {
-                addLog('🛡️ Energiewende-Szenario deaktiviert. Ökostromversorgung stabilisiert.', 'success');
-              }
-            }}
-            onShowInvasiveRules={() => setShowInvasiveRules(true)}
-            onShowEnergyRules={() => setShowEnergyRules(true)}
-            roundInvested={roundInvested}
-          />
-
           {/* Bottom logs HUD */}
           <div className={`bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl overflow-hidden flex flex-col transition-all duration-300 shadow-inner shrink-0 ${
             logsCollapsed ? 'h-[40px]' : 'h-[200px]'
@@ -3017,6 +2964,59 @@ export default function App() {
               </div>
             )}
           </div>
+
+        </div>
+
+        {/* RIGHT COLUMN: Sidebar Companion Manual & Historical Logs Journal */}
+        <div className="w-full lg:w-[36%] shrink-0 flex flex-col gap-6">
+          
+          {/* COCKPIT NAVIGATION DECK */}
+          <ActiveSimulationPanel
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            stats={stats}
+            grid={grid}
+            researchTree={researchTree}
+            speciesList={speciesList}
+            selectedBuilding={selectedBuilding}
+            onSelectBuilding={setSelectedBuilding}
+            checkRurtalbahnDiscountActiveOnMap={checkRurtalbahnDiscountActiveOnMap}
+            onDemolishModeToggle={() => {
+              setSelectedBuilding(null);
+              setIsDemolishMode(!isDemolishMode);
+            }}
+            isDemolishMode={isDemolishMode}
+            selectedTileInfo={selectedTileInfo}
+            handleUpgradeBuilding={handleUpgradeBuilding}
+            handleChangePaperFactoryMode={handleChangePaperFactoryMode}
+            handleUnlockResearch={handleUnlockResearch}
+            handleTriggerPdfSim={handleTriggerPdfSim}
+            pdfSimulated={pdfSimulated}
+            logs={logs}
+            invasiveThreatEnabled={invasiveThreatEnabled}
+            energyChallengeEnabled={energyChallengeEnabled}
+            onToggleInvasive={(enabled) => {
+              setInvasiveThreatEnabled(enabled);
+              if (enabled) {
+                setShowInvasiveRules(true);
+                addLog('🚨 BIOLOGISCHER STRESSOR-MODUS AKTIVIERT: Biologische Sicherheit sinkt nun und bricht bei Vernachlässigung zusammen!', 'warning');
+              } else {
+                addLog('🛡️ Biologischer Stressor-Modus deaktiviert. Biologische Sicherheit stabilisiert.', 'success');
+              }
+            }}
+            onToggleEnergy={(enabled) => {
+              setEnergyChallengeEnabled(enabled);
+              if (enabled) {
+                setShowEnergyRules(true);
+                addLog('⚡ ENERGIEWENDE GELADEN: Dürens Industrie gerät unter Dekarbonisierungsdruck! Baue grüne Kraftwerke zur Versorgung.', 'warning');
+              } else {
+                addLog('🛡️ Energiewende-Szenario deaktiviert. Ökostromversorgung stabilisiert.', 'success');
+              }
+            }}
+            onShowInvasiveRules={() => setShowInvasiveRules(true)}
+            onShowEnergyRules={() => setShowEnergyRules(true)}
+            roundInvested={roundInvested}
+          />
 
         </div>
       </main>

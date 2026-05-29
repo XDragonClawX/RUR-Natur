@@ -155,7 +155,133 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [buildingCategoryFilter, setBuildingCategoryFilter] = useState<string>('all');
+  const [filterOnlyBebaubar, setFilterOnlyBebaubar] = useState<boolean>(false);
   const [hoveredBuilding, setHoveredBuilding] = useState<BuildingType | null>(null);
+
+  const getPrognosisValues = (bId: string): {
+    wrrl?: number;
+    ffh?: number;
+    flood?: number;
+    moisture?: number;
+  } => {
+    switch (bId) {
+      case 'altarm':
+        return {
+          wrrl: Math.max(1.0, tile.wrrl_quality - 0.5),
+          ffh: Math.min(100, tile.ffh_value + 25),
+          flood: Math.max(0, tile.flood_risk - 15)
+        };
+      case 'auenwald':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 30),
+          moisture: Math.min(100, tile.moisture + 20)
+        };
+      case 'totholz':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 10)
+        };
+      case 'ufer_entfesselung':
+        return {
+          wrrl: Math.max(1.0, tile.wrrl_quality - 1.0),
+          ffh: Math.min(100, tile.ffh_value + 15)
+        };
+      case 'kiesbett':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 15)
+        };
+      case 'fischpass':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 10)
+        };
+      case 'deichrueck':
+        return {
+          flood: Math.max(0, tile.flood_risk - 25),
+          moisture: Math.min(100, tile.moisture + 20)
+        };
+      case 'polder':
+        return {
+          flood: Math.max(0, tile.flood_risk - 30),
+          moisture: Math.min(100, tile.moisture + 25)
+        };
+      case 'sohlgleite':
+        return {
+          wrrl: Math.max(1.0, tile.wrrl_quality - 0.5),
+          ffh: Math.min(100, tile.ffh_value + 10)
+        };
+      case 'regenbecken':
+        return {
+          wrrl: Math.max(1.0, tile.wrrl_quality - 1.0)
+        };
+      case 'biber_station':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 15)
+        };
+      case 'lachs_zucht':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 10)
+        };
+      case 'eisvogel_nist':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 10)
+        };
+      case 'insektenhotel':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 12)
+        };
+      case 'natura_zentrum':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 15)
+        };
+      case 'oeko_tourismus':
+        return {
+          ffh: Math.max(0, tile.ffh_value - 5)
+        };
+      case 'wasserkraft':
+        return {
+          wrrl: Math.min(5.0, tile.wrrl_quality + 0.5),
+          ffh: Math.max(0, tile.ffh_value - 10),
+          flood: Math.min(100, tile.flood_risk + 5)
+        };
+      case 'solarpark':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 5)
+        };
+      case 'windkraft':
+        return {
+          ffh: Math.max(0, tile.ffh_value - 2)
+        };
+      case 'intensiv_farm':
+        return {
+          wrrl: Math.min(5.0, tile.wrrl_quality + 1.0),
+          ffh: Math.max(0, tile.ffh_value - 15),
+          flood: Math.min(100, tile.flood_risk + 10)
+        };
+      case 'extensive_weide':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 5)
+        };
+      case 'klaerwerk_upgrade':
+        return {
+          wrrl: Math.max(1.0, tile.wrrl_quality - 1.5)
+        };
+      case 'besucherzentrum':
+        return {
+          ffh: Math.min(100, tile.ffh_value + 10)
+        };
+      case 'campingplatz':
+        return {
+          ffh: Math.max(0, tile.ffh_value - 5)
+        };
+      case 'kanuverleih':
+        return {
+          wrrl: Math.min(5.0, tile.wrrl_quality + 0.1)
+        };
+      default:
+        return {};
+    }
+  };
+
+  const prog = hoveredBuilding ? getPrognosisValues(hoveredBuilding.id) : {};
 
   const actionsLeft = Math.max(0, maxActionsPerRound - actionsUsed);
   const budgetExhausted = actionsUsed >= maxActionsPerRound;
@@ -280,53 +406,113 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                 Sektor-Zustandsbericht
               </span>
               <div className="grid grid-cols-2 gap-2 mt-2">
-                <div className="bg-white p-2.5 rounded-xl border border-[#E8E2D6] shadow-xs">
-                  <span className="text-[9px] text-[#8B8273]">WRRL Qualität</span>
+                <div className={`p-2.5 rounded-xl border transition-all duration-300 ${prog.wrrl !== undefined ? 'bg-blue-50/50 border-blue-400 shadow-sm scale-[1.02]' : 'bg-white border-[#E8E2D6] shadow-xs'}`}>
+                  <span className="text-[9px] text-[#8B8273] flex items-center justify-between">
+                    <span>WRRL Qualität</span>
+                    {prog.wrrl !== undefined && (
+                      <span className={`text-[7px] font-black uppercase px-1 rounded-sm ${prog.wrrl < tile.wrrl_quality ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                        {prog.wrrl < tile.wrrl_quality ? 'Besser ▲' : 'Schlechter ▼'}
+                      </span>
+                    )}
+                  </span>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <strong className="text-base font-black text-blue-700">
-                      {tile.wrrl_quality.toFixed(1)}
+                    <strong className={`text-base font-black ${prog.wrrl !== undefined ? (prog.wrrl < tile.wrrl_quality ? 'text-emerald-700 font-extrabold' : 'text-rose-700 font-extrabold') : 'text-blue-700'}`}>
+                      {prog.wrrl !== undefined ? prog.wrrl.toFixed(1) : tile.wrrl_quality.toFixed(1)}
                     </strong>
+                    {prog.wrrl !== undefined && (
+                      <span className="text-[8.5px] font-mono font-bold text-stone-400 line-through">
+                        ({tile.wrrl_quality.toFixed(1)})
+                      </span>
+                    )}
                     <span className="text-[8px] font-mono text-stone-400 font-bold uppercase">Zustand</span>
                   </div>
-                  <div className="w-full bg-[#E8E2D6] h-1 rounded-full overflow-hidden mt-1.5">
-                    <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${(6 - tile.wrrl_quality) * 20}%` }} />
+                  <div className="w-full bg-[#E8E2D6] h-1 rounded-full overflow-hidden mt-1.5 font-sans">
+                    <div 
+                      className={`h-full transition-all duration-300 ${prog.wrrl !== undefined ? (prog.wrrl < tile.wrrl_quality ? 'bg-[#5A7247]' : 'bg-rose-500') : 'bg-blue-500'}`} 
+                      style={{ width: `${(6 - (prog.wrrl !== undefined ? prog.wrrl : tile.wrrl_quality)) * 20}%` }} 
+                    />
                   </div>
                 </div>
 
-                <div className="bg-white p-2.5 rounded-xl border border-[#E8E2D6] shadow-xs">
-                  <span className="text-[9px] text-[#8B8273]">FFH Wert</span>
+                <div className={`p-2.5 rounded-xl border transition-all duration-300 ${prog.ffh !== undefined ? 'bg-emerald-50/55 border-emerald-400 shadow-sm scale-[1.02]' : 'bg-white border-[#E8E2D6] shadow-xs'}`}>
+                  <span className="text-[9px] text-[#8B8273] flex items-center justify-between">
+                    <span>FFH Wert</span>
+                    {prog.ffh !== undefined && (
+                      <span className={`text-[7px] font-black uppercase px-1 rounded-sm ${prog.ffh > tile.ffh_value ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                        {prog.ffh > tile.ffh_value ? `+${(prog.ffh - tile.ffh_value).toFixed(0)}% ▲` : `${(prog.ffh - tile.ffh_value).toFixed(0)}% ▼`}
+                      </span>
+                    )}
+                  </span>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <strong className="text-base font-black text-emerald-700">
-                      {tile.ffh_value}%
+                    <strong className={`text-base font-black ${prog.ffh !== undefined ? (prog.ffh > tile.ffh_value ? 'text-emerald-700 font-extrabold' : 'text-rose-700 font-extrabold') : 'text-emerald-700'}`}>
+                      {prog.ffh !== undefined ? `${prog.ffh}%` : `${tile.ffh_value}%`}
                     </strong>
-                    <span className="text-[8px] font-mono text-stone-400 font-bold uppercase">Flora-Fauna</span>
+                    {prog.ffh !== undefined && (
+                      <span className="text-[8.5px] font-mono font-bold text-stone-400 line-through">
+                        ({tile.ffh_value}%)
+                      </span>
+                    )}
+                    <span className="text-[8px] font-mono text-stone-400 font-bold uppercase">Biom</span>
                   </div>
-                  <div className="w-full bg-[#E8E2D6] h-1 rounded-full overflow-hidden mt-1.5">
-                    <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${tile.ffh_value}%` }} />
+                  <div className="w-full bg-[#E8E2D6] h-1 rounded-full overflow-hidden mt-1.5 font-sans">
+                    <div 
+                      className={`h-full transition-all duration-300 ${prog.ffh !== undefined ? (prog.ffh > tile.ffh_value ? 'bg-emerald-500' : 'bg-rose-500') : 'bg-emerald-500'}`} 
+                      style={{ width: `${prog.ffh !== undefined ? prog.ffh : tile.ffh_value}%` }} 
+                    />
                   </div>
                 </div>
 
-                <div className="bg-white p-2.5 rounded-xl border border-[#E8E2D6] shadow-xs">
-                  <span className="text-[9px] text-[#8B8273]">Hochwasserrisiko</span>
+                <div className={`p-2.5 rounded-xl border transition-all duration-300 ${prog.flood !== undefined ? 'bg-orange-50/50 border-orange-400 shadow-sm scale-[1.02]' : 'bg-white border-[#E8E2D6] shadow-xs'}`}>
+                  <span className="text-[9px] text-[#8B8273] flex items-center justify-between">
+                    <span>Hochwasserrisiko</span>
+                    {prog.flood !== undefined && (
+                      <span className={`text-[7px] font-black uppercase px-1 rounded-sm ${prog.flood < tile.flood_risk ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                        {prog.flood < tile.flood_risk ? `-${(tile.flood_risk - prog.flood).toFixed(0)}% ▲` : `+${(prog.flood - tile.flood_risk).toFixed(0)}% ▼`}
+                      </span>
+                    )}
+                  </span>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <strong className="text-sm font-black text-orange-700">
-                      {tile.flood_risk}%
+                    <strong className={`text-sm font-black ${prog.flood !== undefined ? (prog.flood < tile.flood_risk ? 'text-emerald-700 font-extrabold' : 'text-rose-700 font-extrabold') : 'text-orange-700'}`}>
+                      {prog.flood !== undefined ? `${prog.flood}%` : `${tile.flood_risk}%`}
                     </strong>
+                    {prog.flood !== undefined && (
+                      <span className="text-[8.5px] font-mono font-bold text-stone-400 line-through">
+                        ({tile.flood_risk}%)
+                      </span>
+                    )}
                   </div>
                   <div className="w-full bg-[#E8E2D6] h-1 rounded-full overflow-hidden mt-1.5">
-                    <div className="bg-orange-500 h-full transition-all duration-300" style={{ width: `${tile.flood_risk}%` }} />
+                    <div 
+                      className={`h-full transition-all duration-300 ${prog.flood !== undefined ? (prog.flood < tile.flood_risk ? 'bg-[#5A7247]' : 'bg-rose-500') : 'bg-orange-500'}`} 
+                      style={{ width: `${prog.flood !== undefined ? prog.flood : tile.flood_risk}%` }} 
+                    />
                   </div>
                 </div>
 
-                <div className="bg-white p-2.5 rounded-xl border border-[#E8E2D6] shadow-xs">
-                  <span className="text-[9px] text-[#8B8273]">Bodenfeuchte</span>
+                <div className={`p-2.5 rounded-xl border transition-all duration-300 ${prog.moisture !== undefined ? 'bg-cyan-50/50 border-cyan-400 shadow-sm scale-[1.02]' : 'bg-white border-[#E8E2D6] shadow-xs'}`}>
+                  <span className="text-[9px] text-[#8B8273] flex items-center justify-between">
+                    <span>Bodenfeuchte</span>
+                    {prog.moisture !== undefined && (
+                      <span className={`text-[7px] font-black uppercase px-1 rounded-sm ${prog.moisture > tile.moisture ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                        {prog.moisture > tile.moisture ? `+${(prog.moisture - tile.moisture).toFixed(0)}% ▲` : `${(prog.moisture - tile.moisture).toFixed(0)}% ▼`}
+                      </span>
+                    )}
+                  </span>
                   <div className="flex items-baseline gap-1 mt-0.5">
-                    <strong className="text-sm font-black text-cyan-700">
-                      {tile.moisture}%
+                    <strong className={`text-sm font-black ${prog.moisture !== undefined ? (prog.moisture > tile.moisture ? 'text-emerald-700 font-extrabold' : 'text-rose-700 font-extrabold') : 'text-cyan-700'}`}>
+                      {prog.moisture !== undefined ? `${prog.moisture}%` : `${tile.moisture}%`}
                     </strong>
+                    {prog.moisture !== undefined && (
+                      <span className="text-[8.5px] font-mono font-bold text-stone-400 line-through">
+                        ({tile.moisture}%)
+                      </span>
+                    )}
                   </div>
                   <div className="w-full bg-[#E8E2D6] h-1 rounded-full overflow-hidden mt-1.5">
-                    <div className="bg-cyan-500 h-full transition-all duration-300" style={{ width: `${tile.moisture}%` }} />
+                    <div 
+                      className={`h-full transition-all duration-300 ${prog.moisture !== undefined ? (prog.moisture > tile.moisture ? 'bg-emerald-500' : 'bg-rose-500') : 'bg-cyan-500'}`} 
+                      style={{ width: `${prog.moisture !== undefined ? prog.moisture : tile.moisture}%` }} 
+                    />
                   </div>
                 </div>
               </div>
@@ -506,10 +692,17 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                         isSelected
                           ? `${theme.bg} ${theme.borderActive} -translate-y-2 shadow-lg`
                           : cardLocked
-                          ? 'bg-stone-50 border-stone-200 opacity-40 cursor-not-allowed'
+                          ? 'bg-stone-100 border-stone-200 opacity-30 grayscale cursor-not-allowed contrast-75'
                           : `${theme.bg} cursor-pointer hover:border-[#D4CCBA] hover:-translate-y-1 hover:shadow-md`
                       }`}
                     >
+                      {/* Unplayable Overlay / Locked state text indicator */}
+                      {cardLocked && (
+                        <div className="absolute top-1.5 right-1.5 bg-rose-600 text-white text-[7px] font-extrabold uppercase px-1.5 py-0.5 rounded-md z-30 tracking-wider shadow-3xs flex items-center gap-0.5">
+                          <span>🔒 Gesperrt</span>
+                        </div>
+                      )}
+
                       {/* Subdued Background Logo Watermark */}
                       <span className="absolute inset-0 flex items-center justify-center text-7xl select-none pointer-events-none opacity-[0.06] font-black z-0">
                         {theme.illustration}
@@ -613,7 +806,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                     {card.type === 'BUILD' && (
                       <div className="flex flex-col gap-2">
                         {/* Catalog Filtering UI - Elegant Single Line */}
-                        <div className="flex items-center justify-between gap-2 bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#D4CCBA]/35">
+                        <div className="flex items-center justify-between gap-1.5 bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#D4CCBA]/35">
                           <span className="text-[8.5px] font-black uppercase tracking-wider text-[#A09787] font-mono">Baukatalog</span>
                           <div className="flex items-center gap-1.5">
                             <input
@@ -622,12 +815,12 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                               onClick={(e) => e.stopPropagation()}
                               onChange={e => setSearchTerm(e.target.value)}
                               placeholder="🔍 Suchen..."
-                              className="px-1.5 py-0.5 text-[9px] font-medium rounded border border-stone-300 bg-white w-24 sm:w-32 placeholder:text-stone-400 focus:outline-none focus:border-amber-400"
+                              className="px-1.5 py-0.5 text-[9px] font-medium rounded border border-stone-300 bg-white w-20 sm:w-28 placeholder:text-stone-400 focus:outline-none focus:border-amber-400"
                             />
                             <select
                               value={buildingCategoryFilter}
                               onChange={e => setBuildingCategoryFilter(e.target.value)}
-                              className="px-1.5 py-0.5 text-[9px] font-bold rounded border border-stone-300 bg-white text-stone-700 cursor-pointer focus:outline-none focus:border-amber-400"
+                              className="px-1 py-0.5 text-[9px] font-medium rounded border border-stone-300 bg-white text-stone-700 cursor-pointer focus:outline-none focus:border-amber-400"
                             >
                               <option value="all">Alle Arten</option>
                               <option value="ecology">Natur</option>
@@ -635,6 +828,22 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                               <option value="fauna">Wildnis</option>
                               <option value="tourism">Tourismus</option>
                             </select>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFilterOnlyBebaubar(prev => !prev);
+                              }}
+                              className={`px-1.5 py-0.5 text-[9px] font-black rounded border cursor-pointer transition-all ${
+                                filterOnlyBebaubar
+                                  ? 'bg-[#5A7247] text-white border-[#5A7247] shadow-3xs'
+                                  : 'bg-white text-stone-700 border-stone-300 hover:border-amber-400 hover:bg-stone-50'
+                              }`}
+                              title="Zeige nur Bauwerke, die mit der aktuellen Kartenstärke auf diesem Sektor bebaubar sind"
+                            >
+                              {filterOnlyBebaubar ? '✅ Nur passende' : '🌱 Nur passende?'}
+                            </button>
                           </div>
                         </div>
 
@@ -644,6 +853,30 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                             .filter(b => b.id !== 'schoellershammer')
                             .filter(b => buildingCategoryFilter === 'all' || b.category === buildingCategoryFilter)
                             .filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()) || b.description.toLowerCase().includes(searchTerm.toLowerCase()))
+                            .filter(b => {
+                              if (!filterOnlyBebaubar) return true;
+                              const allowedTerrain = b.allowedTerrains.includes(tile.terrain);
+                              const isRiverCheck = !b.isRiverOnly || tile.terrain === 'Water';
+                              const isRiverAdjacentCheck = !b.isRiverAdjacentOnly || hasWaterAdjacent(x, y);
+                              const isEligible = allowedTerrain && isRiverCheck && isRiverAdjacentCheck;
+                              let costLimit = 4;
+                              if (strength === 2) costLimit = 6;
+                              else if (strength === 3) costLimit = 8;
+                              else if (strength === 4) costLimit = 10;
+                              else if (strength === 5) costLimit = 100;
+                              const strengthFits = b.cost <= costLimit;
+                              let constructRebate = 0;
+                              if (strength === 3 || strength === 4) constructRebate = 1;
+                              else if (strength === 5) constructRebate = 2;
+                              const discountValue = constructRebate + (activeRailwayBonus ? 1 : 0);
+                              let acceptanceSurcharge = 0;
+                              if (stats.year > 2026 && stats.citizenAcceptance < 40) {
+                                acceptanceSurcharge = 2;
+                              }
+                              const finalCost = Math.max(1, b.cost - discountValue + acceptanceSurcharge);
+                              const canAfford = stats.budget >= finalCost;
+                              return isEligible && strengthFits && canAfford && !tile.buildingId && actionsLeft > 0;
+                            })
                             .map(b => {
                               // Adjacency and placement allowance validations
                               const allowedTerrain = b.allowedTerrains.includes(tile.terrain);
@@ -693,17 +926,25 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                   key={b.id}
                                   onMouseEnter={() => setHoveredBuilding(b)}
                                   onMouseLeave={() => setHoveredBuilding(null)}
-                                  className={`p-2 rounded-lg border text-left flex flex-col justify-between gap-1 transition-all duration-200 cursor-help ${
+                                  className={`p-2 rounded-lg border text-left flex flex-col justify-between gap-1 transition-all duration-200 cursor-help relative overflow-hidden ${
                                     hoveredBuilding?.id === b.id
                                       ? 'bg-[#FAF8F5] border-amber-500 scale-[1.01] shadow-2xs'
                                       : allowedToConstruct
-                                      ? 'bg-white border-[#D4CCBA] hover:border-amber-400 font-medium'
+                                      ? 'bg-emerald-50/10 border-emerald-500 hover:border-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20 shadow-emerald-500/5 hover:-translate-y-0.5'
                                       : 'bg-stone-50 border-stone-200 opacity-65'
                                   }`}
                                 >
+                                  {/* Green indicator ping for constructible buildings */}
+                                  {allowedToConstruct && (
+                                    <>
+                                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    </>
+                                  )}
+
                                   <div>
                                     <div className="flex items-center justify-between gap-1">
-                                      <span className="text-[10px] font-black text-stone-800 truncate">
+                                      <span className="text-[10px] font-black text-stone-800 truncate pr-3">
                                         {b.name}
                                       </span>
                                       <span className="text-[9px] font-black text-amber-700 shrink-0">
