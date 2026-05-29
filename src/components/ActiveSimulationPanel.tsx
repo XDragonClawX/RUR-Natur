@@ -190,7 +190,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   rurtalbahnTimeRemaining,
   onLeaseRurtalbahn,
 }) => {
-  const [infoPanelOpen, setInfoPanelOpen] = useState(true);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
+  const [scenariosOpen, setScenariosOpen] = useState(false);
 
   const energyCalc = useMemo(() => {
     const isGreenEnergyTechUnlocked = researchTree.find(r => r.id === 'green_energy_tech')?.unlocked || false;
@@ -459,245 +460,177 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
         {infoPanelOpen && (
           <div
             id="cockpit-info-body"
-            className={`px-4 py-4 ${p.bodyBg} border-t ${p.divider}`}
+            className={`px-4 py-3 ${p.bodyBg} border-t ${p.divider}`}
           >
-            {/* Row 1: Description + live status badge */}
-            <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-4">
-              <p className="text-[10px] text-[#6B6356] leading-relaxed font-sans flex-1">
+            {/* Description + badge in one compact row */}
+            <div className="flex items-center gap-3 mb-3">
+              <p className="text-[9.5px] text-[#6B6356] leading-snug font-sans flex-1 line-clamp-2">
                 {m.desc}
               </p>
-              <div className={`text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg border text-center whitespace-nowrap shrink-0 ${activeBadge.color}`}>
+              <div className={`text-[8.5px] font-mono font-bold px-2 py-1 rounded-md border text-center whitespace-nowrap shrink-0 ${activeBadge.color}`}>
                 {activeBadge.text}
               </div>
             </div>
 
-            {/* Row 2: 4 metric cards in a responsive grid */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
+            {/* Metric strip — single compact row instead of 4-card grid */}
+            <div className="flex gap-2">
               {metrics.map(({ Icon, label, unit, value, suffix, barWidth, barColor, valueColor }) => (
                 <div
                   key={label}
-                  className="bg-white rounded-xl border border-[#E8E2D6] px-3 py-2.5 shadow-xs flex flex-col justify-between min-w-0"
+                  className="flex-1 bg-white rounded-lg border border-[#E8E2D6] px-2 py-1.5 min-w-0"
+                  title={`${label} — ${unit}`}
                 >
-                  {/* Icon + label + value */}
-                  <div className="flex items-center justify-between gap-1.5 mb-2 min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <Icon className="w-3.5 h-3.5 text-[#8B8273] shrink-0" aria-hidden="true" />
-                      <span className="text-[9px] font-semibold text-[#5C564C] leading-none truncate" title={label}>
-                        {label}
-                      </span>
-                    </div>
-                    <span className={`font-mono font-black text-[11px] tabular-nums leading-none shrink-0 ${valueColor}`}>
+                  <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
+                    <Icon className="w-3 h-3 text-[#B0A898] shrink-0" aria-hidden="true" />
+                    <span className={`font-mono font-black text-[10px] tabular-nums leading-none ${valueColor}`}>
                       {value}{suffix}
                     </span>
                   </div>
-                  {/* Progress bar */}
-                  <div className="w-full bg-[#EAE4D7] rounded-full h-1.5 overflow-hidden">
+                  <div className="w-full bg-[#EAE4D7] rounded-full h-1 overflow-hidden">
                     <div
                       style={{ width: barWidth }}
                       className={`h-full rounded-full transition-all duration-500 ease-out ${barColor}`}
                     />
                   </div>
-                  {/* Unit label */}
-                  <div className="text-[7.5px] text-[#B0A898] font-mono uppercase tracking-wide mt-1.5 leading-none truncate" title={unit}>
-                    {unit}
+                  <div className="text-[7px] text-[#B0A898] font-mono uppercase tracking-wide mt-1 leading-none truncate">
+                    {label}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* ── ADDITIONAL SCENARIOS ───────────────────────────────────────── */}
-            <div className="mt-4 border-t border-[#D4CCBA]/50 pt-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[9px] font-bold text-[#8B8273] uppercase tracking-wider">
-                  ⚠️ Zusatz-Szenarien / Schwierigkeit
-                </span>
-                <span className="text-[8px] font-mono text-stone-400">
-                  Schalte diese Herausforderungen ein, um die Simulation zu vertiefen
-                </span>
-              </div>
+          </div>
+        )}
+      </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* 1. Biosecurity Challenge Card */}
-                <div className={`p-3 rounded-xl border transition-all ${
-                  invasiveThreatEnabled
-                    ? (stats.biosecurity ?? 100) < 30 ? 'bg-rose-50/80 border-rose-300'
-                    : (stats.biosecurity ?? 100) < 70 ? 'bg-amber-50/80 border-amber-200'
-                    : 'bg-[#5A7247]/5 border-[#5A7247]/20'
-                    : 'bg-stone-50 border-stone-200/60 opacity-75'
-                }`}>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Shield className={`w-4 h-4 shrink-0 ${invasiveThreatEnabled ? 'text-[#5A7247]' : 'text-stone-400'}`} />
-                      <div className="truncate">
-                        <div className={`text-[10px] font-black leading-tight ${invasiveThreatEnabled ? 'text-stone-800' : 'text-stone-500'}`}>
-                          Biologische Sicherheit
-                        </div>
-                        <div className="text-[7.5px] font-bold uppercase tracking-wide text-[#8B8273] font-sans">
-                          Invasive Bedrohung
-                        </div>
-                      </div>
-                    </div>
+      {/* ── SZENARIEN — compact collapsible strip, always accessible ─────── */}
+      <div className="border-b border-[#D4CCBA]">
+        <button
+          onClick={() => setScenariosOpen(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-2 bg-stone-50/80 hover:bg-stone-100/60 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-3 h-3 text-[#8B8273]" aria-hidden="true" />
+            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#8B8273]">
+              Zusatz-Szenarien / Schwierigkeit
+            </span>
+            {/* Active indicators */}
+            {invasiveThreatEnabled && (
+              <span className="text-[7.5px] font-mono font-black px-1.5 py-0.5 rounded bg-[#5A7247]/10 text-[#5A7247] border border-[#5A7247]/20">
+                Bio: {stats.biosecurity ?? 100}%
+              </span>
+            )}
+            {energyChallengeEnabled && (
+              <span className="text-[7.5px] font-mono font-black px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                Energie: {stats.renewableEnergy ?? 25}%
+              </span>
+            )}
+          </div>
+          {scenariosOpen
+            ? <ChevronUp className="w-3.5 h-3.5 text-[#8B8273]" />
+            : <ChevronDown className="w-3.5 h-3.5 text-[#8B8273]" />
+          }
+        </button>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {invasiveThreatEnabled && (
-                        <button 
-                          onClick={onShowInvasiveRules}
-                          className="w-4 h-4 rounded-full bg-[#FAF8F5] border border-[#D4CCBA] hover:bg-white flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors shadow-3xs"
-                          title="Regeln anzeigen"
-                        >
-                          ?
-                        </button>
-                      )}
-                      
-                      <label className="relative inline-flex items-center cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={invasiveThreatEnabled}
-                          onChange={e => onToggleInvasive(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5A7247]" />
-                      </label>
-                    </div>
+        {scenariosOpen && (
+          <div className="px-3 py-3 bg-stone-50/50 grid grid-cols-2 gap-2">
+            {/* Bio-Sicherheit */}
+            <div className={`p-2.5 rounded-lg border transition-all ${
+              invasiveThreatEnabled
+                ? (stats.biosecurity ?? 100) < 30 ? 'bg-rose-50 border-rose-200'
+                : (stats.biosecurity ?? 100) < 70 ? 'bg-amber-50 border-amber-200'
+                : 'bg-[#5A7247]/5 border-[#5A7247]/20'
+                : 'bg-white border-stone-200/60'
+            }`}>
+              <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Shield className={`w-3.5 h-3.5 shrink-0 ${invasiveThreatEnabled ? 'text-[#5A7247]' : 'text-stone-400'}`} />
+                  <div>
+                    <div className={`text-[9px] font-black leading-tight ${invasiveThreatEnabled ? 'text-stone-800' : 'text-stone-500'}`}>Bio-Sicherheit</div>
+                    <div className="text-[7px] font-bold uppercase tracking-wide text-[#8B8273]">Invasive Bedrohung</div>
                   </div>
-
-                  {invasiveThreatEnabled ? (
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-baseline text-[10px] font-mono">
-                        <span className="text-stone-500 text-[8.5px]">Stabilität:</span>
-                        <span className={`font-black ${
-                          (stats.biosecurity ?? 100) >= 70 ? 'text-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'text-amber-700' : 'text-rose-700 animate-pulse'
-                        }`}>
-                          {stats.biosecurity ?? 100}% {invasiveThreatEnabled && (
-                            <span className="text-[8px] font-bold">
-                              ({roundInvested ? '+15%' : '-25%'} /Rd)
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                      
-                      <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1.5 overflow-hidden">
-                        <div
-                          style={{ width: `${stats.biosecurity ?? 100}%` }}
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            (stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'
-                          }`}
-                        />
-                      </div>
-
-                      {(stats.biosecurity ?? 100) < 30 ? (
-                        <div className="flex items-center gap-1 text-[8px] text-rose-700 font-bold animate-pulse">
-                          <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
-                          Regionales Ökosystem droht an Riesenknöterich zu ersticken!
-                        </div>
-                      ) : (
-                        <div className="text-[7.5px] text-[#8B8273] font-medium leading-none">
-                          🌿 Bepflanze leere Acker- oder Wiesenflächen, um die Natur zu stärken.
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-[8.5px] text-stone-400 font-medium italic mt-1 bg-stone-100/30 p-1.5 rounded">
-                      Inaktives Szenario. Aktiviere, um den biologischen Verdrängungsdruck zu simulieren.
-                    </p>
-                  )}
                 </div>
-
-                {/* 2. Decarbonization/Energy Challenge Card */}
-                <div className={`p-3 rounded-xl border transition-all ${
-                  energyChallengeEnabled
-                    ? (stats.renewableEnergy ?? 25) < 35 ? 'bg-rose-50/80 border-rose-300'
-                    : (stats.renewableEnergy ?? 25) < 70 ? 'bg-amber-50/80 border-amber-200'
-                    : 'bg-emerald-50/50 border-emerald-200/50'
-                    : 'bg-stone-50 border-stone-200/60 opacity-75'
-                }`}>
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Zap className={`w-4 h-4 shrink-0 ${energyChallengeEnabled ? 'text-amber-500 animate-pulse' : 'text-stone-400'}`} />
-                      <div className="truncate">
-                        <div className={`text-[10px] font-black leading-tight ${energyChallengeEnabled ? 'text-stone-800' : 'text-stone-500'}`}>
-                          Klimafreundliche Energie
-                        </div>
-                        <div className="text-[7.5px] font-bold uppercase tracking-wide text-[#8B8273] font-sans">
-                          Dürener Energiewende
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {energyChallengeEnabled && (
-                        <button 
-                          onClick={onShowEnergyRules}
-                          className="w-4 h-4 rounded-full bg-[#FAF8F5] border border-[#D4CCBA] hover:bg-white flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors shadow-3xs"
-                          title="Regeln anzeigen"
-                        >
-                          ?
-                        </button>
-                      )}
-                      
-                      <label className="relative inline-flex items-center cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={energyChallengeEnabled}
-                          onChange={e => onToggleEnergy(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500" />
-                      </label>
-                    </div>
-                  </div>
-
-                  {energyChallengeEnabled ? (
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between items-baseline text-[10px] font-mono">
-                        <span className="text-stone-500 text-[8.5px]">Anteil Ökostrom:</span>
-                        <div className="flex items-center gap-1">
-                          <span className={`font-black ${
-                            (stats.renewableEnergy ?? 25) >= 70 ? 'text-emerald-700' : (stats.renewableEnergy ?? 25) >= 35 ? 'text-amber-700' : 'text-rose-700 animate-pulse'
-                          }`}>
-                            {stats.renewableEnergy ?? 25}%
-                          </span>
-                          <span className={`text-[8px] font-bold px-1 rounded ${
-                            energyCalc.netDelta >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                          }`}>
-                            {energyCalc.netDelta >= 0 ? '+' : ''}{energyCalc.netDelta}%/Rd
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1.5 overflow-hidden">
-                        <div
-                          style={{ width: `${stats.renewableEnergy ?? 25}%` }}
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            (stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-500' : (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'
-                          }`}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-[7px] text-[#8B8273] font-mono mt-0.5">
-                        <span>💧 {energyCalc.hydroCount}× Wasserkraft</span>
-                        <span>☀️ {energyCalc.solarCount}× Solar</span>
-                        <span>💨 {energyCalc.windCount}× Wind</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-[8.5px] text-stone-400 font-medium italic mt-1 bg-stone-100/30 p-1.5 rounded">
-                      Inaktives Szenario. Aktiviere, um steigenden Netz-Dekarbonisierungsdruck zu simulieren.
-                    </p>
+                <div className="flex items-center gap-1 shrink-0">
+                  {invasiveThreatEnabled && (
+                    <button onClick={onShowInvasiveRules} className="w-4 h-4 rounded-full bg-white border border-[#D4CCBA] hover:bg-[#FAF8F5] flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors" title="Regeln">?</button>
                   )}
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input type="checkbox" checked={invasiveThreatEnabled} onChange={e => onToggleInvasive(e.target.checked)} className="sr-only peer" />
+                    <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5A7247]" />
+                  </label>
                 </div>
               </div>
+              {invasiveThreatEnabled && (
+                <>
+                  <div className="flex justify-between text-[8.5px] font-mono mb-1">
+                    <span className="text-stone-400">Stabilität</span>
+                    <span className={`font-black ${(stats.biosecurity ?? 100) >= 70 ? 'text-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'text-amber-700' : 'text-rose-700 animate-pulse'}`}>
+                      {stats.biosecurity ?? 100}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1 overflow-hidden">
+                    <div style={{ width: `${stats.biosecurity ?? 100}%` }} className={`h-full rounded-full transition-all duration-500 ${(stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                  </div>
+                  {(stats.biosecurity ?? 100) < 30 && (
+                    <div className="flex items-center gap-1 text-[7.5px] text-rose-700 font-bold animate-pulse mt-1">
+                      <AlertTriangle className="w-2.5 h-2.5 shrink-0" />Kritisch!
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
-            {/* Climate alert — shown when critical */}
-            {stats.climateRisk >= 55 && (
-              <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-2.5 flex items-start gap-2">
-                <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
-                <p className="text-[9px] text-red-800 font-sans leading-snug">
-                  <strong>Klima-Alarm:</strong> Risikostufe bei {stats.climateRisk}% — Renaturierungsmaßnahmen sofort priorisieren!
-                </p>
+            {/* Energiewende */}
+            <div className={`p-2.5 rounded-lg border transition-all ${
+              energyChallengeEnabled
+                ? (stats.renewableEnergy ?? 25) < 35 ? 'bg-rose-50 border-rose-200'
+                : (stats.renewableEnergy ?? 25) < 70 ? 'bg-amber-50 border-amber-200'
+                : 'bg-emerald-50/50 border-emerald-200'
+                : 'bg-white border-stone-200/60'
+            }`}>
+              <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Zap className={`w-3.5 h-3.5 shrink-0 ${energyChallengeEnabled ? 'text-amber-500 animate-pulse' : 'text-stone-400'}`} />
+                  <div>
+                    <div className={`text-[9px] font-black leading-tight ${energyChallengeEnabled ? 'text-stone-800' : 'text-stone-500'}`}>Energiewende</div>
+                    <div className="text-[7px] font-bold uppercase tracking-wide text-[#8B8273]">Dürener Dekarbonisierung</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {energyChallengeEnabled && (
+                    <button onClick={onShowEnergyRules} className="w-4 h-4 rounded-full bg-white border border-[#D4CCBA] hover:bg-[#FAF8F5] flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors" title="Regeln">?</button>
+                  )}
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
+                    <input type="checkbox" checked={energyChallengeEnabled} onChange={e => onToggleEnergy(e.target.checked)} className="sr-only peer" />
+                    <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500" />
+                  </label>
+                </div>
               </div>
-            )}
+              {energyChallengeEnabled && (
+                <>
+                  <div className="flex justify-between text-[8.5px] font-mono mb-1">
+                    <span className="text-stone-400">Ökostrom</span>
+                    <span className={`font-black ${(stats.renewableEnergy ?? 25) >= 70 ? 'text-emerald-700' : (stats.renewableEnergy ?? 25) >= 35 ? 'text-amber-700' : 'text-rose-700 animate-pulse'}`}>
+                      {stats.renewableEnergy ?? 25}%
+                      <span className={`ml-1 text-[7px] px-1 rounded ${energyCalc.netDelta >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{energyCalc.netDelta >= 0 ? '+' : ''}{energyCalc.netDelta}%/Rd</span>
+                    </span>
+                  </div>
+                  <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1 overflow-hidden">
+                    <div style={{ width: `${stats.renewableEnergy ?? 25}%` }} className={`h-full rounded-full transition-all duration-500 ${(stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-500' : (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Climate alert — shown when critical, always visible */}
+        {stats.climateRisk >= 55 && (
+          <div className="mx-3 mb-2 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 flex items-center gap-2">
+            <ShieldAlert className="w-3 h-3 text-red-600 shrink-0" aria-hidden="true" />
+            <p className="text-[8.5px] text-red-800 font-sans leading-snug">
+              <strong>Klima-Alarm:</strong> Risikostufe {stats.climateRisk}% — Renaturierung priorisieren!
+            </p>
           </div>
         )}
       </div>
