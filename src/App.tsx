@@ -15,6 +15,7 @@ import { OekoZentraleHUD } from './components/OekoZentraleHUD';
 import { SystemControlDock } from './components/SystemControlDock';
 import { RegulatoryModals } from './components/RegulatoryModals';
 import { audio } from './utils/audio';
+import HistoricalChart from './components/HistoricalChart';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
@@ -110,6 +111,7 @@ export default function App() {
   // --- Game State Systems ---
   const [grid, setGrid] = useState<TileData[][]>([]);
   const [history, setHistory] = useState<GameStateSnapshot[]>([]);
+  const [statsHistory, setStatsHistory] = useState<GameStats[]>([]);
   const [stats, setStats] = useState<GameStats>({
     round: 1,
     year: 2026,
@@ -592,6 +594,7 @@ export default function App() {
       if (loadedState.hasOwnProperty('activeYearChallengeModal')) setActiveYearChallengeModal(loadedState.activeYearChallengeModal);
       
       setHistory([]);
+      setStatsHistory([]);
       addLog('📂 Spielstand erfolgreich geladen!', 'success');
     } catch (e) {
       addLog('❌ Fehler beim Laden des Spielstands. Daten korrupt?', 'error');
@@ -1480,6 +1483,9 @@ export default function App() {
 
   // --- ADVANCE NEXT ROUND/YEAR TURNS ---
   const handleNextRound = () => {
+    // Record current stats into statsHistory so the chart shows progression
+    setStatsHistory(prev => [...prev, JSON.parse(JSON.stringify(stats))].slice(-40));
+
     // Clear history on new round to avoid cross-round rollbacks
     setHistory([]);
     setActionsUsed(0);
@@ -2150,6 +2156,7 @@ export default function App() {
       setEnergyChallengeEnabled(false);
       setShowEnergyRules(false);
       setActiveYearChallengeModal(null);
+      setStatsHistory([]);
       addLog('Simulation zurückgesetzt.', 'info');
     }
   };
@@ -2964,6 +2971,13 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {/* Historical chart below simulation log */}
+          {!logsCollapsed && (
+            <div className="mt-3">
+              <HistoricalChart series={[...statsHistory, stats]} />
+            </div>
+          )}
 
         </div>
 
