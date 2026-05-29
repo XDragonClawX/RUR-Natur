@@ -89,7 +89,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
   const activeCfg = CATEGORY_CONFIG[activeCategory];
 
   return (
-    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
+    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col overflow-hidden">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3 border-b border-[#D4CCBA]/70 flex items-center gap-3 shrink-0">
@@ -201,7 +201,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
             placeholder="Name, Beschreibung oder Wirkung suchen…"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 bg-white/80 hover:bg-white focus:bg-white border border-[#D4CCBA] focus:border-[#5A7247] focus:ring-1 focus:ring-[#5A7247]/25 rounded-xl text-[10.5px] font-sans text-[#2C3322] placeholder-[#B0A898] outline-none transition-all"
+            className="w-full pl-9 pr-8 py-2 bg-white/80 hover:bg-white focus:bg-white border border-[#D4CCBA] focus:border-[#5A7247] focus:ring-1 focus:ring-[#5A7247]/25 rounded-xl text-[12px] font-sans text-[#2C3322] placeholder-[#B0A898] outline-none transition-all"
           />
           {searchTerm && (
             <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B0A898] hover:text-[#6B6356] cursor-pointer">
@@ -221,7 +221,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 key={id}
                 onClick={() => { setActiveCategory(id); onSelectBuilding(null); }}
                 className={[
-                  'flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[9.5px] font-bold transition-all cursor-pointer active:scale-95',
+                  'flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer active:scale-95',
                   isActive
                     ? `${cfg.activeBg} ${cfg.activeText} border-transparent shadow-sm`
                     : `${cfg.inactiveBg} ${cfg.inactiveText} ${cfg.border} hover:brightness-95`,
@@ -258,7 +258,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                   prev.includes(terrain.id) ? prev.filter(t => t !== terrain.id) : [...prev, terrain.id]
                 )}
                 className={[
-                  'flex items-center gap-1 px-2 py-1 rounded-full border text-[9px] font-semibold transition-all cursor-pointer',
+                  'flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-all cursor-pointer',
                   isSelected ? 'text-white border-transparent shadow-sm' : 'bg-white text-[#6B6356] border-[#D4CCBA] hover:bg-[#F2EDE4]',
                 ].join(' ')}
                 style={isSelected ? { backgroundColor: terrain.accentColor } : undefined}
@@ -272,7 +272,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
       </div>
 
       {/* ── Building List ─────────────────────────────────────────────────── */}
-      <div className="flex-grow overflow-y-auto custom-scrollbar px-4 pt-2 pb-3 space-y-2">
+      <div className="overflow-y-auto custom-scrollbar px-4 pt-2 pb-3 space-y-2 max-h-[320px]">
         {filteredBuildings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 space-y-2 bg-[#F7F3ED]/40 rounded-xl border border-dashed border-[#D4CCBA]">
             <Search className="w-8 h-8 text-[#D4CCBA]" />
@@ -298,7 +298,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 key={building.id}
                 onClick={() => { if (!lockStatus.locked && !isDemolishMode) onSelectBuilding(isSelected ? null : building); }}
                 className={[
-                  'border-l-4 border rounded-r-xl rounded-l-none p-3 transition-all duration-150',
+                  'border-l-4 border rounded-r-xl rounded-l-none p-3.5 transition-all duration-150',
                   lockStatus.locked ? 'opacity-50 cursor-not-allowed bg-[#E8E2D6]/40' : isSelected ? 'cursor-pointer shadow-sm' : 'cursor-pointer bg-white/70 hover:bg-white hover:shadow-sm',
                   isSelected ? 'bg-white ring-1' : '',
                 ].join(' ')}
@@ -311,27 +311,27 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 <div className="flex items-start justify-between gap-2 mb-1.5">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[11px] font-black text-[#2C3322] leading-tight">{building.name}</span>
+                      <span className="text-[13px] font-black text-[#2C3322] leading-tight">{building.name}</span>
                       <span
-                        className="text-[8px] font-mono font-black px-1.5 py-0.5 rounded uppercase border"
+                        className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded uppercase border"
                         style={{ color: accent, backgroundColor: `${accent}18`, borderColor: `${accent}30` }}
                       >
                         {CATEGORY_CONFIG[building.category as CategoryId]?.label ?? building.category}
                       </span>
                     </div>
-                    <p className={`text-[10px] text-[#6B6356] leading-snug mt-0.5 ${isSelected ? '' : 'line-clamp-1'}`}>{building.description}</p>
+                    <p className={`text-[12px] text-[#6B6356] leading-snug mt-0.5 ${isSelected ? '' : 'line-clamp-1'}`}>{building.description}</p>
                   </div>
                   {/* Cost */}
                   <div className="shrink-0 text-right">
-                    <div className="flex items-center justify-end gap-0.5 text-[12px] font-mono font-black text-[#2C3322]">
+                    <div className="flex items-center justify-end gap-0.5 text-[14px] font-mono font-black text-[#2C3322]">
                       {finalCost}
-                      <Euro className="w-3.5 h-3.5 text-[#5A7247]" />
+                      <Euro className="w-4 h-4 text-[#5A7247]" />
                     </div>
                     {building.maintenance > 0 && (
-                      <div className="text-[8.5px] text-[#8B8273] font-mono">-{building.maintenance} €/Rnd</div>
+                      <div className="text-[10px] text-[#8B8273] font-mono">-{building.maintenance} €/Rnd</div>
                     )}
                     {hasRurtalbahnStationNear && building.cost > 1 && (
-                      <div className="text-[8px] text-[#5A7247] font-bold bg-[#D4E0C1]/50 px-1 rounded mt-0.5">-1 Gleis</div>
+                      <div className="text-[10px] text-[#5A7247] font-bold bg-[#D4E0C1]/50 px-1 rounded mt-0.5">-1 Gleis</div>
                     )}
                   </div>
                 </div>
@@ -340,14 +340,14 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 {isSelected && (
                   <>
                     {/* Effect */}
-                    <div className="mt-2 bg-[#F7F3ED] border border-[#D4CCBA]/50 rounded-lg px-2 py-1.5 text-[10px]">
-                      <span className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-wider mr-1">Wirkung:</span>
+                    <div className="mt-2 bg-[#F7F3ED] border border-[#D4CCBA]/50 rounded-lg px-2.5 py-2 text-[12px]">
+                      <span className="text-[10px] font-mono font-black text-[#8B8273] uppercase tracking-wider mr-1">Wirkung:</span>
                       <span className="text-[#2C3322]">{building.detailEffect}</span>
                     </div>
 
                     {/* Terrain tags */}
-                    <div className="mt-1.5 flex flex-wrap gap-1 items-center">
-                      <span className="text-[8.5px] text-[#8B8273] font-mono">Boden:</span>
+                    <div className="mt-2 flex flex-wrap gap-1 items-center">
+                      <span className="text-[10.5px] text-[#8B8273] font-mono">Boden:</span>
                       {building.allowedTerrains.map(t => {
                         const tc = TERRAIN_CONFIG.find(x => x.id === t);
                         const isHighlighted = selectedTerrains.includes(t);
@@ -355,7 +355,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                           <span
                             key={t}
                             className={[
-                              'flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full border font-semibold transition-all',
+                              'flex items-center gap-0.5 text-[10.5px] px-2 py-0.5 rounded-full border font-semibold transition-all',
                               isHighlighted ? 'text-white border-transparent' : 'bg-[#F2EDE4] text-[#6B6356] border-[#D4CCBA]',
                             ].join(' ')}
                             style={isHighlighted && tc ? { backgroundColor: tc.accentColor } : undefined}
@@ -366,10 +366,10 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                         );
                       })}
                       {building.isRiverOnly && (
-                        <span className="text-[8.5px] bg-[#D4E0C1] text-[#2C3322] px-1.5 rounded-full font-bold border border-[#5A7247]/20">Im Fluss</span>
+                        <span className="text-[10.5px] bg-[#D4E0C1] text-[#2C3322] px-2 rounded-full font-bold border border-[#5A7247]/20">Im Fluss</span>
                       )}
                       {building.isRiverAdjacentOnly && (
-                        <span className="text-[8.5px] bg-[#D4E0C1] text-[#2C3322] px-1.5 rounded-full font-bold border border-[#5A7247]/20">Ufernah</span>
+                        <span className="text-[10.5px] bg-[#D4E0C1] text-[#2C3322] px-2 rounded-full font-bold border border-[#5A7247]/20">Ufernah</span>
                       )}
                     </div>
                   </>
@@ -377,8 +377,8 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
 
                 {/* Lock notice — always visible */}
                 {lockStatus.locked && (
-                  <div className="mt-1.5 flex items-center gap-1.5 text-[9px] bg-red-50 text-red-800 border border-red-200 p-1.5 rounded-lg">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                  <div className="mt-2 flex items-center gap-1.5 text-[11px] bg-red-50 text-red-800 border border-red-200 p-2 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                     {lockStatus.reason}
                   </div>
                 )}
@@ -395,12 +395,12 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
           style={{ borderLeftColor: CARD_ACCENT[selectedBuilding.category] ?? '#5A7247' }}
         >
           <div>
-            <div className="text-[8px] font-mono font-black text-[#5A7247] uppercase tracking-widest">Platzierung bereit</div>
-            <div className="text-[10.5px] font-black text-[#2C3322]">{selectedBuilding.name}</div>
+            <div className="text-[10px] font-mono font-black text-[#5A7247] uppercase tracking-widest">Platzierung bereit</div>
+            <div className="text-[12px] font-black text-[#2C3322]">{selectedBuilding.name}</div>
           </div>
           <button
             onClick={() => onSelectBuilding(null)}
-            className="flex items-center gap-1 text-[9px] font-bold text-[#6B6356] bg-white hover:bg-[#F2EDE4] px-2.5 py-1.5 rounded-lg border border-[#D4CCBA] cursor-pointer transition-colors"
+            className="flex items-center gap-1 text-[11px] font-bold text-[#6B6356] bg-white hover:bg-[#F2EDE4] px-2.5 py-1.5 rounded-lg border border-[#D4CCBA] cursor-pointer transition-colors"
           >
             <X className="w-3 h-3" />
             Abbrechen
