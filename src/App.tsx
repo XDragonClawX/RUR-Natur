@@ -2980,7 +2980,7 @@ export default function App() {
         </div>
 
         {/* RIGHT COLUMN: Sidebar Companion Manual & Historical Logs Journal */}
-        <div className="w-full lg:w-[36%] shrink-0 flex flex-col gap-6">
+        <div className="w-full lg:w-[36%] shrink-0 flex flex-col gap-6 lg:sticky lg:top-[60px] lg:self-start">
           
           {/* COCKPIT NAVIGATION DECK */}
           <ActiveSimulationPanel

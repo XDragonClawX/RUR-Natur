@@ -293,7 +293,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   ];
 
   return (
-    <div className="bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col">
+    <div className="bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col max-h-[calc(100vh-78px)]">
 
       {/* ── COCKPIT HEADER ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#D4CCBA] gap-3">
@@ -305,11 +305,11 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <Gauge className="w-3.5 h-3.5 text-[#5A7247] shrink-0" aria-hidden="true" />
-              <h2 className="text-[11px] font-black text-[#262A1F] uppercase tracking-wider font-sans leading-none truncate">
+              <h2 className="text-[13px] font-black text-[#262A1F] uppercase tracking-wider font-sans leading-none truncate">
                 Steuer-Cockpit &amp; System-Zentralen
               </h2>
             </div>
-            <p className="text-[8.5px] text-[#8B8273] font-mono uppercase leading-none mt-1 truncate">
+            <p className="text-[11px] text-[#8B8273] font-mono uppercase leading-none mt-1 truncate">
               Rur-Ökomodell · Simulation läuft · Jahr {stats.year} · Q{((stats.round - 1) % 4) + 1}
             </p>
           </div>
@@ -319,8 +319,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 shrink-0 select-none" title="Rurtalbahn-Karte ist aktiv">
             <span className="text-sm leading-none">🚇</span>
             <div className="text-left">
-              <div className="text-[8px] font-black uppercase tracking-wide text-indigo-700 leading-none">Rurtalbahn</div>
-              <div className="text-[9px] font-mono font-black text-indigo-900 leading-tight tabular-nums">
+              <div className="text-[10px] font-black uppercase tracking-wide text-indigo-700 leading-none">Rurtalbahn</div>
+              <div className="text-[11px] font-mono font-black text-indigo-900 leading-tight tabular-nums">
                 {rurtalbahnTimeRemaining} Rd. verbleibend
               </div>
             </div>
@@ -333,8 +333,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
           >
             <span className="text-sm leading-none">🚇</span>
             <div className="text-left">
-              <div className="text-[8px] font-black uppercase tracking-wide text-[#8B8273] group-hover:text-indigo-700 leading-none transition-colors">Rurtalbahn</div>
-              <div className="text-[9px] font-mono font-black text-[#5C564C] group-hover:text-indigo-900 leading-tight transition-colors">
+              <div className="text-[10px] font-black uppercase tracking-wide text-[#8B8273] group-hover:text-indigo-700 leading-none transition-colors">Rurtalbahn</div>
+              <div className="text-[11px] font-mono font-black text-[#5C564C] group-hover:text-indigo-900 leading-tight transition-colors">
                 Ticket mieten · 2 €
               </div>
             </div>
@@ -344,13 +344,13 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
         {/* Year / Round pill */}
         <div className="flex items-stretch gap-0 border border-[#D4CCBA] rounded-lg overflow-hidden shrink-0 bg-[#F3EDE2]">
           <div className="px-2.5 py-1.5 text-center">
-            <div className="text-[7.5px] font-mono text-[#8B8273] uppercase leading-none">Jahr</div>
-            <div className="text-[12px] font-black text-[#2C3322] font-mono tabular-nums leading-tight mt-0.5">{stats.year}</div>
+            <div className="text-[10px] font-mono text-[#8B8273] uppercase leading-none">Jahr</div>
+            <div className="text-[13px] font-black text-[#2C3322] font-mono tabular-nums leading-tight mt-0.5">{stats.year}</div>
           </div>
           <div className="w-px bg-[#D4CCBA]" />
           <div className="px-2.5 py-1.5 text-center">
-            <div className="text-[7.5px] font-mono text-[#8B8273] uppercase leading-none">Runde</div>
-            <div className={`text-[12px] font-black font-mono tabular-nums leading-tight mt-0.5 ${p.text}`}>R{stats.round}</div>
+            <div className="text-[10px] font-mono text-[#8B8273] uppercase leading-none">Runde</div>
+            <div className={`text-[13px] font-black font-mono tabular-nums leading-tight mt-0.5 ${p.text}`}>R{stats.round}</div>
           </div>
         </div>
       </div>
@@ -388,7 +388,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
               <div className={`p-1.5 rounded-lg transition-all duration-150 ${isActive ? `${tp.bg} ${tp.text}` : 'text-[#A29A8C]'}`}>
                 <TabIcon className="w-4 h-4" aria-hidden="true" />
               </div>
-              <span className={`text-[8.5px] font-bold uppercase tracking-wide leading-none transition-colors duration-150 ${isActive ? tp.text : 'text-[#8B8273]'}`}>
+              <span className={`text-[11px] font-bold uppercase tracking-wide leading-none transition-colors duration-150 ${isActive ? tp.text : 'text-[#8B8273]'}`}>
                 {tm.sublabel}
               </span>
               {!isActive && (
@@ -416,15 +416,15 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
         >
           {/* Left: zone badge + icon + title */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`hidden sm:inline-flex items-center gap-1.5 text-[7.5px] font-mono font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${p.badge}`}>
+            <div className={`hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${p.badge}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${p.led}`} aria-hidden="true" />
               Bereich {tabsArray.indexOf(activeTab) + 1} — {m.sublabel}
             </div>
             <div className="flex items-center gap-1.5 min-w-0">
               <span className={`shrink-0 ${p.text}`} aria-hidden="true">
-                {React.createElement(m.icon, { className: 'w-3.5 h-3.5' })}
+                {React.createElement(m.icon, { className: 'w-4 h-4' })}
               </span>
-              <span className="text-[10.5px] font-black text-[#2C3322] truncate font-sans">
+              <span className="text-[13px] font-black text-[#2C3322] truncate font-sans">
                 {m.title}
               </span>
             </div>
@@ -436,8 +436,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
             <div className="hidden md:flex items-center gap-3">
               {metrics.map(({ Icon, label, value, suffix, valueColor }) => (
                 <div key={label} className="flex items-center gap-1" title={label}>
-                  <Icon className="w-3 h-3 text-[#B0A898]" aria-hidden="true" />
-                  <span className={`text-[9px] font-mono font-bold tabular-nums ${valueColor}`}>
+                  <Icon className="w-3.5 h-3.5 text-[#B0A898]" aria-hidden="true" />
+                  <span className={`text-[11px] font-mono font-bold tabular-nums ${valueColor}`}>
                     {value}{suffix}
                   </span>
                 </div>
@@ -446,7 +446,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
             {/* Separator */}
             <div className="hidden md:block w-px h-4 bg-[#D4CCBA]" aria-hidden="true" />
             {/* Toggle button */}
-            <div className={`flex items-center gap-1 text-[8.5px] font-mono font-bold ${p.text} uppercase tracking-wide`}>
+            <div className={`flex items-center gap-1 text-[11px] font-mono font-bold ${p.text} uppercase tracking-wide`}>
               <span className="hidden sm:inline">{infoPanelOpen ? 'Ausblenden' : 'Einblenden'}</span>
               {infoPanelOpen
                 ? <ChevronUp   className="w-3.5 h-3.5" aria-hidden="true" />
@@ -510,18 +510,18 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
           className="w-full flex items-center justify-between px-4 py-2 bg-stone-50/80 hover:bg-stone-100/60 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-3 h-3 text-[#8B8273]" aria-hidden="true" />
-            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#8B8273]">
+            <TrendingUp className="w-3.5 h-3.5 text-[#8B8273]" aria-hidden="true" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#8B8273]">
               Zusatz-Szenarien / Schwierigkeit
             </span>
             {/* Active indicators */}
             {invasiveThreatEnabled && (
-              <span className="text-[7.5px] font-mono font-black px-1.5 py-0.5 rounded bg-[#5A7247]/10 text-[#5A7247] border border-[#5A7247]/20">
+              <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded bg-[#5A7247]/10 text-[#5A7247] border border-[#5A7247]/20">
                 Bio: {stats.biosecurity ?? 100}%
               </span>
             )}
             {energyChallengeEnabled && (
-              <span className="text-[7.5px] font-mono font-black px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
                 Energie: {stats.renewableEnergy ?? 25}%
               </span>
             )}
@@ -546,8 +546,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Shield className={`w-3.5 h-3.5 shrink-0 ${invasiveThreatEnabled ? 'text-[#5A7247]' : 'text-stone-400'}`} />
                   <div>
-                    <div className={`text-[9px] font-black leading-tight ${invasiveThreatEnabled ? 'text-stone-800' : 'text-stone-500'}`}>Bio-Sicherheit</div>
-                    <div className="text-[7px] font-bold uppercase tracking-wide text-[#8B8273]">Invasive Bedrohung</div>
+                    <div className={`text-[11px] font-black leading-tight ${invasiveThreatEnabled ? 'text-stone-800' : 'text-stone-500'}`}>Bio-Sicherheit</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#8B8273]">Invasive Bedrohung</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -562,7 +562,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
               </div>
               {invasiveThreatEnabled && (
                 <>
-                  <div className="flex justify-between text-[8.5px] font-mono mb-1">
+                  <div className="flex justify-between text-[11px] font-mono mb-1">
                     <span className="text-stone-400">Stabilität</span>
                     <span className={`font-black ${(stats.biosecurity ?? 100) >= 70 ? 'text-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'text-amber-700' : 'text-rose-700 animate-pulse'}`}>
                       {stats.biosecurity ?? 100}%
@@ -572,8 +572,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
                     <div style={{ width: `${stats.biosecurity ?? 100}%` }} className={`h-full rounded-full transition-all duration-500 ${(stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'bg-amber-500' : 'bg-rose-500'}`} />
                   </div>
                   {(stats.biosecurity ?? 100) < 30 && (
-                    <div className="flex items-center gap-1 text-[7.5px] text-rose-700 font-bold animate-pulse mt-1">
-                      <AlertTriangle className="w-2.5 h-2.5 shrink-0" />Kritisch!
+                    <div className="flex items-center gap-1 text-[11px] text-rose-700 font-bold animate-pulse mt-1">
+                      <AlertTriangle className="w-3 h-3 shrink-0" />Kritisch!
                     </div>
                   )}
                 </>
@@ -592,8 +592,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Zap className={`w-3.5 h-3.5 shrink-0 ${energyChallengeEnabled ? 'text-amber-500 animate-pulse' : 'text-stone-400'}`} />
                   <div>
-                    <div className={`text-[9px] font-black leading-tight ${energyChallengeEnabled ? 'text-stone-800' : 'text-stone-500'}`}>Energiewende</div>
-                    <div className="text-[7px] font-bold uppercase tracking-wide text-[#8B8273]">Dürener Dekarbonisierung</div>
+                    <div className={`text-[11px] font-black leading-tight ${energyChallengeEnabled ? 'text-stone-800' : 'text-stone-500'}`}>Energiewende</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#8B8273]">Dürener Dekarbonisierung</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -608,11 +608,11 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
               </div>
               {energyChallengeEnabled && (
                 <>
-                  <div className="flex justify-between text-[8.5px] font-mono mb-1">
+                  <div className="flex justify-between text-[11px] font-mono mb-1">
                     <span className="text-stone-400">Ökostrom</span>
                     <span className={`font-black ${(stats.renewableEnergy ?? 25) >= 70 ? 'text-emerald-700' : (stats.renewableEnergy ?? 25) >= 35 ? 'text-amber-700' : 'text-rose-700 animate-pulse'}`}>
                       {stats.renewableEnergy ?? 25}%
-                      <span className={`ml-1 text-[7px] px-1 rounded ${energyCalc.netDelta >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{energyCalc.netDelta >= 0 ? '+' : ''}{energyCalc.netDelta}%/Rd</span>
+                      <span className={`ml-1 text-[10px] px-1 rounded ${energyCalc.netDelta >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{energyCalc.netDelta >= 0 ? '+' : ''}{energyCalc.netDelta}%/Rd</span>
                     </span>
                   </div>
                   <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1 overflow-hidden">
@@ -628,7 +628,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
         {stats.climateRisk >= 55 && (
           <div className="mx-3 mb-2 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 flex items-center gap-2">
             <ShieldAlert className="w-3 h-3 text-red-600 shrink-0" aria-hidden="true" />
-            <p className="text-[8.5px] text-red-800 font-sans leading-snug">
+            <p className="text-xs text-red-800 font-sans leading-snug">
               <strong>Klima-Alarm:</strong> Risikostufe {stats.climateRisk}% — Renaturierung priorisieren!
             </p>
           </div>
@@ -639,7 +639,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
       <div
         id="cockpit-workspace"
         role="tabpanel"
-        className="flex flex-col overflow-hidden bg-[#FAF8F5]"
+        className="flex flex-col flex-1 min-h-0 overflow-hidden bg-[#FAF8F5]"
       >
         {/* Workspace breadcrumb bar — visually anchors the submenu below the tab strip */}
         <div className="bg-white border-b border-[#D4CCBA] px-3.5 py-3 flex items-center justify-between shrink-0 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
@@ -654,8 +654,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
           </div>
         </div>
 
-        {/* Scrollable content */}
-        <div className="overflow-hidden">
+        {/* Scrollable content — flex-1 min-h-0 ensures tabs above stay always visible */}
+        <div className="flex-1 min-h-0 overflow-hidden">
           {activeTab === 'map' && (
             <BuildingCatalog
               stats={stats}

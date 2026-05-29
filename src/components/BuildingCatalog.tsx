@@ -89,7 +89,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
   const activeCfg = CATEGORY_CONFIG[activeCategory];
 
   return (
-    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col overflow-hidden">
+    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3 border-b border-[#D4CCBA]/70 flex items-center gap-3 shrink-0">
@@ -271,8 +271,8 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
         </div>
       </div>
 
-      {/* ── Building List ─────────────────────────────────────────────────── */}
-      <div className="overflow-y-auto custom-scrollbar px-4 pt-2 pb-3 space-y-2 max-h-[320px]">
+      {/* ── Building List — flex-1 fills remaining height within panel ───── */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pt-2 pb-3 space-y-2">
         {filteredBuildings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 space-y-2 bg-[#F7F3ED]/40 rounded-xl border border-dashed border-[#D4CCBA]">
             <Search className="w-8 h-8 text-[#D4CCBA]" />
