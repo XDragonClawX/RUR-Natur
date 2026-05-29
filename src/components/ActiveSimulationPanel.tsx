@@ -424,30 +424,28 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
               <span className={`shrink-0 ${p.text}`} aria-hidden="true">
                 {React.createElement(m.icon, { className: 'w-4 h-4' })}
               </span>
-              <span className="text-[13px] font-black text-[#2C3322] truncate font-sans">
+              <span className="text-[11px] font-black text-[#2C3322] truncate font-sans">
                 {m.title}
               </span>
             </div>
           </div>
 
-          {/* Right: 4 mini metric chips + chevron */}
-          <div className="flex items-center gap-3 shrink-0 ml-4">
-            {/* Compact metric values — visible even when collapsed */}
-            <div className="hidden md:flex items-center gap-3">
-              {metrics.map(({ Icon, label, value, suffix, valueColor }) => (
-                <div key={label} className="flex items-center gap-1" title={label}>
-                  <Icon className="w-3.5 h-3.5 text-[#B0A898]" aria-hidden="true" />
-                  <span className={`text-[11px] font-mono font-bold tabular-nums ${valueColor}`}>
+          {/* Right: metric chips + chevron — kept compact to not crowd left title */}
+          <div className="flex items-center gap-2 shrink-0 ml-2">
+            {/* Only 2 key metrics to prevent overflow in narrow column */}
+            <div className="hidden lg:flex items-center gap-2">
+              {metrics.slice(0, 2).map(({ Icon, label, value, suffix, valueColor }) => (
+                <div key={label} className="flex items-center gap-0.5" title={label}>
+                  <Icon className="w-3 h-3 text-[#B0A898]" aria-hidden="true" />
+                  <span className={`text-[9px] font-mono font-bold tabular-nums ${valueColor}`}>
                     {value}{suffix}
                   </span>
                 </div>
               ))}
+              <div className="w-px h-3 bg-[#D4CCBA]" aria-hidden="true" />
             </div>
-            {/* Separator */}
-            <div className="hidden md:block w-px h-4 bg-[#D4CCBA]" aria-hidden="true" />
-            {/* Toggle button */}
-            <div className={`flex items-center gap-1 text-[11px] font-mono font-bold ${p.text} uppercase tracking-wide`}>
-              <span className="hidden sm:inline">{infoPanelOpen ? 'Ausblenden' : 'Einblenden'}</span>
+            {/* Toggle chevron only — text label removed to save space */}
+            <div className={`flex items-center gap-0.5 text-[9px] font-mono font-bold ${p.text} uppercase tracking-wide`}>
               {infoPanelOpen
                 ? <ChevronUp   className="w-3.5 h-3.5" aria-hidden="true" />
                 : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
@@ -651,8 +649,8 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" aria-hidden="true" />
         </div>
 
-        {/* Scrollable content — flex-1 min-h-0 ensures tabs above stay always visible */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        {/* Scrollable content — flex flex-col propagates height to BuildingCatalog h-full chain */}
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           {activeTab === 'map' && (
             <BuildingCatalog
               stats={stats}

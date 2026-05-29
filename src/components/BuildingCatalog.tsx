@@ -66,6 +66,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
   const [activeCategory, setActiveCategory] = useState<CategoryId>('all');
   const [selectedTerrains, setSelectedTerrains] = useState<TerrainType[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showTerrainFilter, setShowTerrainFilter] = useState<boolean>(false);
 
   const isLocked = (buildingId: string): { locked: boolean; reason?: string } => {
     if (buildingId === 'lachs_zucht') {
@@ -89,7 +90,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
   const activeCfg = CATEGORY_CONFIG[activeCategory];
 
   return (
-    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
+    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3 border-b border-[#D4CCBA]/70 flex items-center gap-3 shrink-0">
@@ -211,9 +212,9 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
         </div>
       </div>
 
-      {/* ── Category chips ────────────────────────────────────────────────── */}
-      <div className="px-4 mt-2.5 shrink-0">
-        <div className="flex flex-wrap gap-1.5">
+      {/* ── Category chips — single scrollable row, no wrap ──────────────── */}
+      <div className="px-4 mt-2 shrink-0">
+        <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {(Object.entries(CATEGORY_CONFIG) as [CategoryId, typeof CATEGORY_CONFIG[CategoryId]][]).map(([id, cfg]) => {
             const isActive = activeCategory === id;
             return (
@@ -221,7 +222,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 key={id}
                 onClick={() => { setActiveCategory(id); onSelectBuilding(null); }}
                 className={[
-                  'flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer active:scale-95',
+                  'flex items-center gap-1 px-2 py-1 rounded-xl border text-[11px] font-bold transition-all cursor-pointer active:scale-95 shrink-0',
                   isActive
                     ? `${cfg.activeBg} ${cfg.activeText} border-transparent shadow-sm`
                     : `${cfg.inactiveBg} ${cfg.inactiveText} ${cfg.border} hover:brightness-95`,
@@ -235,40 +236,52 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
         </div>
       </div>
 
-      {/* ── Terrain filter ────────────────────────────────────────────────── */}
-      <div className="px-4 mt-2.5 mb-1 shrink-0">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest flex items-center gap-1.5">
-            <Filter className="w-2.5 h-2.5" />
-            Geländetyp-Filter
-          </span>
+      {/* ── Terrain filter — collapsed by default to maximise list space ──── */}
+      <div className="px-4 mt-1.5 mb-1 shrink-0">
+        {/* Toggle row */}
+        <button
+          onClick={() => setShowTerrainFilter(v => !v)}
+          className="flex items-center gap-1.5 text-[9px] font-mono font-black text-[#8B8273] uppercase tracking-widest cursor-pointer hover:text-[#5A7247] transition-colors"
+        >
+          <Filter className="w-2.5 h-2.5" />
+          Geländefilter
           {selectedTerrains.length > 0 && (
-            <button onClick={() => setSelectedTerrains([])} className="text-[8.5px] font-bold text-[#5A7247] hover:underline cursor-pointer">
-              Zurücksetzen
-            </button>
+            <span className="ml-1 bg-[#5A7247] text-white rounded-full px-1.5 py-0.5 text-[8px] font-black leading-none">
+              {selectedTerrains.length}
+            </span>
           )}
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {TERRAIN_CONFIG.map(terrain => {
-            const isSelected = selectedTerrains.includes(terrain.id);
-            return (
-              <button
-                key={terrain.id}
-                onClick={() => setSelectedTerrains(prev =>
-                  prev.includes(terrain.id) ? prev.filter(t => t !== terrain.id) : [...prev, terrain.id]
-                )}
-                className={[
-                  'flex items-center gap-1 px-2.5 py-1 rounded-full border text-[11px] font-semibold transition-all cursor-pointer',
-                  isSelected ? 'text-white border-transparent shadow-sm' : 'bg-white text-[#6B6356] border-[#D4CCBA] hover:bg-[#F2EDE4]',
-                ].join(' ')}
-                style={isSelected ? { backgroundColor: terrain.accentColor } : undefined}
-              >
-                {terrain.icon}
-                {terrain.label}
+          <span className="ml-auto text-[8px]">{showTerrainFilter ? '▲' : '▼'}</span>
+        </button>
+
+        {/* Collapsible terrain chips */}
+        {showTerrainFilter && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {TERRAIN_CONFIG.map(terrain => {
+              const isSelected = selectedTerrains.includes(terrain.id);
+              return (
+                <button
+                  key={terrain.id}
+                  onClick={() => setSelectedTerrains(prev =>
+                    prev.includes(terrain.id) ? prev.filter(t => t !== terrain.id) : [...prev, terrain.id]
+                  )}
+                  className={[
+                    'flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all cursor-pointer',
+                    isSelected ? 'text-white border-transparent shadow-sm' : 'bg-white text-[#6B6356] border-[#D4CCBA] hover:bg-[#F2EDE4]',
+                  ].join(' ')}
+                  style={isSelected ? { backgroundColor: terrain.accentColor } : undefined}
+                >
+                  {terrain.icon}
+                  {terrain.label}
+                </button>
+              );
+            })}
+            {selectedTerrains.length > 0 && (
+              <button onClick={() => setSelectedTerrains([])} className="text-[9px] font-bold text-[#5A7247] hover:underline cursor-pointer ml-1">
+                Zurücksetzen
               </button>
-            );
-          })}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Building List — flex-1 fills remaining height within panel ───── */}
