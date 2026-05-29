@@ -319,7 +319,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                         {CATEGORY_CONFIG[building.category as CategoryId]?.label ?? building.category}
                       </span>
                     </div>
-                    <p className="text-[10px] text-[#6B6356] leading-snug mt-0.5">{building.description}</p>
+                    <p className={`text-[10px] text-[#6B6356] leading-snug mt-0.5 ${isSelected ? '' : 'line-clamp-1'}`}>{building.description}</p>
                   </div>
                   {/* Cost */}
                   <div className="shrink-0 text-right">
@@ -336,43 +336,48 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                   </div>
                 </div>
 
-                {/* Effect */}
-                <div className="bg-[#F7F3ED] border border-[#D4CCBA]/50 rounded-lg px-2 py-1.5 text-[10px]">
-                  <span className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-wider mr-1">Wirkung:</span>
-                  <span className="text-[#2C3322]">{building.detailEffect}</span>
-                </div>
+                {/* Expanded details — only when this card is selected */}
+                {isSelected && (
+                  <>
+                    {/* Effect */}
+                    <div className="mt-2 bg-[#F7F3ED] border border-[#D4CCBA]/50 rounded-lg px-2 py-1.5 text-[10px]">
+                      <span className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-wider mr-1">Wirkung:</span>
+                      <span className="text-[#2C3322]">{building.detailEffect}</span>
+                    </div>
 
-                {/* Terrain tags */}
-                <div className="mt-1.5 flex flex-wrap gap-1 items-center">
-                  <span className="text-[8.5px] text-[#8B8273] font-mono">Boden:</span>
-                  {building.allowedTerrains.map(t => {
-                    const tc = TERRAIN_CONFIG.find(x => x.id === t);
-                    const isHighlighted = selectedTerrains.includes(t);
-                    return (
-                      <span
-                        key={t}
-                        className={[
-                          'flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full border font-semibold transition-all',
-                          isHighlighted ? 'text-white border-transparent' : 'bg-[#F2EDE4] text-[#6B6356] border-[#D4CCBA]',
-                        ].join(' ')}
-                        style={isHighlighted && tc ? { backgroundColor: tc.accentColor } : undefined}
-                      >
-                        {tc?.icon}
-                        {tc?.label ?? t}
-                      </span>
-                    );
-                  })}
-                  {building.isRiverOnly && (
-                    <span className="text-[8.5px] bg-[#D4E0C1] text-[#2C3322] px-1.5 rounded-full font-bold border border-[#5A7247]/20">Im Fluss</span>
-                  )}
-                  {building.isRiverAdjacentOnly && (
-                    <span className="text-[8.5px] bg-[#D4E0C1] text-[#2C3322] px-1.5 rounded-full font-bold border border-[#5A7247]/20">Ufernah</span>
-                  )}
-                </div>
+                    {/* Terrain tags */}
+                    <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+                      <span className="text-[8.5px] text-[#8B8273] font-mono">Boden:</span>
+                      {building.allowedTerrains.map(t => {
+                        const tc = TERRAIN_CONFIG.find(x => x.id === t);
+                        const isHighlighted = selectedTerrains.includes(t);
+                        return (
+                          <span
+                            key={t}
+                            className={[
+                              'flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full border font-semibold transition-all',
+                              isHighlighted ? 'text-white border-transparent' : 'bg-[#F2EDE4] text-[#6B6356] border-[#D4CCBA]',
+                            ].join(' ')}
+                            style={isHighlighted && tc ? { backgroundColor: tc.accentColor } : undefined}
+                          >
+                            {tc?.icon}
+                            {tc?.label ?? t}
+                          </span>
+                        );
+                      })}
+                      {building.isRiverOnly && (
+                        <span className="text-[8.5px] bg-[#D4E0C1] text-[#2C3322] px-1.5 rounded-full font-bold border border-[#5A7247]/20">Im Fluss</span>
+                      )}
+                      {building.isRiverAdjacentOnly && (
+                        <span className="text-[8.5px] bg-[#D4E0C1] text-[#2C3322] px-1.5 rounded-full font-bold border border-[#5A7247]/20">Ufernah</span>
+                      )}
+                    </div>
+                  </>
+                )}
 
-                {/* Lock notice */}
+                {/* Lock notice — always visible */}
                 {lockStatus.locked && (
-                  <div className="mt-2 flex items-center gap-1.5 text-[9px] bg-red-50 text-red-800 border border-red-200 p-1.5 rounded-lg">
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[9px] bg-red-50 text-red-800 border border-red-200 p-1.5 rounded-lg">
                     <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
                     {lockStatus.reason}
                   </div>
