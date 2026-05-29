@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   TileData, BuildingType, ResearchNode, Species, PaperFactoryMode, GameLog, GameStats
 } from '../types';
 import {
   Hammer, Factory, Microscope, Leaf, FileText, ChevronRight,
   Droplets, ShieldAlert, Footprints, Users,
-  Gauge, Activity, ChevronDown, ChevronUp
+  Gauge, Activity, ChevronDown, ChevronUp,
+  Shield, Zap, AlertTriangle, TrendingUp
 } from 'lucide-react';
 import { BuildingCatalog } from './BuildingCatalog';
 import { SchoellershammerConsole } from './SchoellershammerConsole';
@@ -32,6 +33,13 @@ interface ActiveSimulationPanelProps {
   handleTriggerPdfSim: () => void;
   pdfSimulated: boolean;
   logs: GameLog[];
+  invasiveThreatEnabled: boolean;
+  energyChallengeEnabled: boolean;
+  onToggleInvasive: (enabled: boolean) => void;
+  onToggleEnergy: (enabled: boolean) => void;
+  onShowInvasiveRules: () => void;
+  onShowEnergyRules: () => void;
+  roundInvested: boolean;
 }
 
 // ── Tab colour tokens ─────────────────────────────────────────────────────────
@@ -168,8 +176,29 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   handleTriggerPdfSim: onTriggerPdfSim,
   pdfSimulated,
   logs,
+  invasiveThreatEnabled,
+  energyChallengeEnabled,
+  onToggleInvasive,
+  onToggleEnergy,
+  onShowInvasiveRules,
+  onShowEnergyRules,
+  roundInvested,
 }) => {
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
+
+  const energyCalc = useMemo(() => {
+    const isGreenEnergyTechUnlocked = researchTree.find(r => r.id === 'green_energy_tech')?.unlocked || false;
+    const flatGrid = grid.flat();
+    const hydroCount  = flatGrid.filter(t => t.buildingId === 'wasserkraft').length;
+    const solarCount  = flatGrid.filter(t => t.buildingId === 'solarpark').length;
+    const windCount   = flatGrid.filter(t => t.buildingId === 'windkraft').length;
+    const decay = isGreenEnergyTechUnlocked ? -5 : -10;
+    const generation  = (hydroCount * 12) + (solarCount * 10) + (windCount * 15);
+    const investBonus = roundInvested ? 10 : 0;
+    const netDelta    = decay + generation + investBonus;
+    const projected   = Math.max(0, Math.min(100, (stats.renewableEnergy ?? 25) + netDelta));
+    return { hydroCount, solarCount, windCount, decay, generation, investBonus, netDelta, projected };
+  }, [researchTree, grid, roundInvested, stats.renewableEnergy]);
 
   const tabsArray = ['map', 'schoeller', 'research', 'species', 'reports'] as const;
   const p  = TAB_PALETTE[activeTab];
@@ -441,6 +470,190 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* ── ADDITIONAL SCENARIOS ───────────────────────────────────────── */}
+            <div className="mt-4 border-t border-[#D4CCBA]/50 pt-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[9px] font-bold text-[#8B8273] uppercase tracking-wider">
+                  ⚠️ Zusatz-Szenarien / Schwierigkeit
+                </span>
+                <span className="text-[8px] font-mono text-stone-400">
+                  Schalte diese Herausforderungen ein, um die Simulation zu vertiefen
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* 1. Biosecurity Challenge Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  invasiveThreatEnabled
+                    ? (stats.biosecurity ?? 100) < 30 ? 'bg-rose-50/80 border-rose-300'
+                    : (stats.biosecurity ?? 100) < 70 ? 'bg-amber-50/80 border-amber-200'
+                    : 'bg-[#5A7247]/5 border-[#5A7247]/20'
+                    : 'bg-stone-50 border-stone-200/60 opacity-75'
+                }`}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Shield className={`w-4 h-4 shrink-0 ${invasiveThreatEnabled ? 'text-[#5A7247]' : 'text-stone-400'}`} />
+                      <div className="truncate">
+                        <div className={`text-[10px] font-black leading-tight ${invasiveThreatEnabled ? 'text-stone-800' : 'text-stone-500'}`}>
+                          Biologische Sicherheit
+                        </div>
+                        <div className="text-[7.5px] font-bold uppercase tracking-wide text-[#8B8273] font-sans">
+                          Invasive Bedrohung
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {invasiveThreatEnabled && (
+                        <button 
+                          onClick={onShowInvasiveRules}
+                          className="w-4 h-4 rounded-full bg-[#FAF8F5] border border-[#D4CCBA] hover:bg-white flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors shadow-3xs"
+                          title="Regeln anzeigen"
+                        >
+                          ?
+                        </button>
+                      )}
+                      
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={invasiveThreatEnabled}
+                          onChange={e => onToggleInvasive(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5A7247]" />
+                      </label>
+                    </div>
+                  </div>
+
+                  {invasiveThreatEnabled ? (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-baseline text-[10px] font-mono">
+                        <span className="text-stone-500 text-[8.5px]">Stabilität:</span>
+                        <span className={`font-black ${
+                          (stats.biosecurity ?? 100) >= 70 ? 'text-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'text-amber-700' : 'text-rose-700 animate-pulse'
+                        }`}>
+                          {stats.biosecurity ?? 100}% {invasiveThreatEnabled && (
+                            <span className="text-[8px] font-bold">
+                              ({roundInvested ? '+15%' : '-25%'} /Rd)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      
+                      <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          style={{ width: `${stats.biosecurity ?? 100}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            (stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'
+                          }`}
+                        />
+                      </div>
+
+                      {(stats.biosecurity ?? 100) < 30 ? (
+                        <div className="flex items-center gap-1 text-[8px] text-rose-700 font-bold animate-pulse">
+                          <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                          Regionales Ökosystem droht an Riesenknöterich zu ersticken!
+                        </div>
+                      ) : (
+                        <div className="text-[7.5px] text-[#8B8273] font-medium leading-none">
+                          🌿 Bepflanze leere Acker- oder Wiesenflächen, um die Natur zu stärken.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[8.5px] text-stone-400 font-medium italic mt-1 bg-stone-100/30 p-1.5 rounded">
+                      Inaktives Szenario. Aktiviere, um den biologischen Verdrängungsdruck zu simulieren.
+                    </p>
+                  )}
+                </div>
+
+                {/* 2. Decarbonization/Energy Challenge Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  energyChallengeEnabled
+                    ? (stats.renewableEnergy ?? 25) < 35 ? 'bg-rose-50/80 border-rose-300'
+                    : (stats.renewableEnergy ?? 25) < 70 ? 'bg-amber-50/80 border-amber-200'
+                    : 'bg-emerald-50/50 border-emerald-200/50'
+                    : 'bg-stone-50 border-stone-200/60 opacity-75'
+                }`}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Zap className={`w-4 h-4 shrink-0 ${energyChallengeEnabled ? 'text-amber-500 animate-pulse' : 'text-stone-400'}`} />
+                      <div className="truncate">
+                        <div className={`text-[10px] font-black leading-tight ${energyChallengeEnabled ? 'text-stone-800' : 'text-stone-500'}`}>
+                          Klimafreundliche Energie
+                        </div>
+                        <div className="text-[7.5px] font-bold uppercase tracking-wide text-[#8B8273] font-sans">
+                          Dürener Energiewende
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {energyChallengeEnabled && (
+                        <button 
+                          onClick={onShowEnergyRules}
+                          className="w-4 h-4 rounded-full bg-[#FAF8F5] border border-[#D4CCBA] hover:bg-white flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors shadow-3xs"
+                          title="Regeln anzeigen"
+                        >
+                          ?
+                        </button>
+                      )}
+                      
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={energyChallengeEnabled}
+                          onChange={e => onToggleEnergy(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500" />
+                      </label>
+                    </div>
+                  </div>
+
+                  {energyChallengeEnabled ? (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-baseline text-[10px] font-mono">
+                        <span className="text-stone-500 text-[8.5px]">Anteil Ökostrom:</span>
+                        <div className="flex items-center gap-1">
+                          <span className={`font-black ${
+                            (stats.renewableEnergy ?? 25) >= 70 ? 'text-emerald-700' : (stats.renewableEnergy ?? 25) >= 35 ? 'text-amber-700' : 'text-rose-700 animate-pulse'
+                          }`}>
+                            {stats.renewableEnergy ?? 25}%
+                          </span>
+                          <span className={`text-[8px] font-bold px-1 rounded ${
+                            energyCalc.netDelta >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {energyCalc.netDelta >= 0 ? '+' : ''}{energyCalc.netDelta}%/Rd
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          style={{ width: `${stats.renewableEnergy ?? 25}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            (stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-500' : (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'
+                          }`}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-[7px] text-[#8B8273] font-mono mt-0.5">
+                        <span>💧 {energyCalc.hydroCount}× Wasserkraft</span>
+                        <span>☀️ {energyCalc.solarCount}× Solar</span>
+                        <span>💨 {energyCalc.windCount}× Wind</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[8.5px] text-stone-400 font-medium italic mt-1 bg-stone-100/30 p-1.5 rounded">
+                      Inaktives Szenario. Aktiviere, um steigenden Netz-Dekarbonisierungsdruck zu simulieren.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Climate alert — shown when critical */}

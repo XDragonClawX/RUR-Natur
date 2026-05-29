@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { TileData, BuildingType, TerrainType } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
-import { ZoomIn, ZoomOut, Layers, HelpCircle, Eye, Locate, Map, Droplets, Leaf, Waves } from 'lucide-react';
+import { ZoomIn, ZoomOut, Layers, HelpCircle, Eye, Locate } from 'lucide-react';
 
 interface IsometricMapProps {
   grid: TileData[][];
@@ -2237,17 +2237,15 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
               }`}
             >
               {/* Responsive Abbreviation to prevent overflow on mobile grids */}
-              <span className="inline-flex items-center gap-0.5 sm:hidden">
-                {layer === 'normal' ? <><Map      className="w-3 h-3" /> Satellit</>
-                : layer === 'wrrl'  ? <><Droplets className="w-3 h-3" /> WRRL</>
-                : layer === 'ffh'   ? <><Leaf     className="w-3 h-3" /> FFH</>
-                :                     <><Waves    className="w-3 h-3" /> Schutz</>}
+              <span className="inline sm:hidden">
+                {layer === 'normal' ? '🗺️ Satellit' :
+                 layer === 'wrrl' ? '💧 WRRL' :
+                 layer === 'ffh' ? '🌿 FFH' : '🌊 Schutz'}
               </span>
-              <span className="hidden sm:inline-flex items-center gap-0.5">
-                {layer === 'normal' ? <><Map      className="w-3 h-3" /> Satellit</>
-                : layer === 'wrrl'  ? <><Droplets className="w-3 h-3" /> WRRL Wasser</>
-                : layer === 'ffh'   ? <><Leaf     className="w-3 h-3" /> FFH-Flora</>
-                :                     <><Waves    className="w-3 h-3" /> HWRM Hochwasser</>}
+              <span className="hidden sm:inline">
+                {layer === 'normal' ? '🗺️ Satellit' :
+                 layer === 'wrrl' ? '💧 WRRL Wasser' :
+                 layer === 'ffh' ? '🌿 FFH-Flora' : '🌊 HWRM Hochwasser'}
               </span>
             </button>
           ))}

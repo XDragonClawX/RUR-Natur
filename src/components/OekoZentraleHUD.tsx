@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { GameStats, TileData, BuildingType, StakeholderQuest, ResearchNode } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
-import { Award, Droplets, ShieldAlert, Sparkles, Check, Zap, Cpu, Activity, ShieldCheck, TrendingUp, Users, Leaf, Waves, Shield, Handshake, Lock, Fish, PawPrint, Home, FlaskConical, Coins, Hammer, Factory, Wrench, BarChart2 } from 'lucide-react';
+import { Award, Droplets, ShieldAlert, Sparkles, Check, Zap, Cpu, Activity, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 
 interface OekoZentraleHUDProps {
   stats: GameStats;
@@ -402,7 +402,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
             
             {/* Factor 1: Schoellershammer Paper Factory mode */}
             <div className="space-y-1">
-              <span className="text-white/40 flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider"><Factory className="w-2.5 h-2.5" /> Industrie (Schoellershammer)</span>
+              <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">🏭 Industrie (Schoellershammer)</span>
               <div className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${
                   stats.paperFactoryMode === 'PRODUCTION' ? 'bg-rose-500' :
@@ -419,7 +419,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
 
             {/* Factor 2: Renewables Decking */}
             <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
-              <span className="text-white/40 flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider font-semibold"><Zap className="w-2.5 h-2.5" /> Erneuerbare Energie</span>
+              <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider font-semibold">⚡ Erneuerbare Energie</span>
               <div className="font-bold text-emerald-400">
                 {(() => {
                   let wind = 0, solar = 0, hydro = 0;
@@ -436,7 +436,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
 
             {/* Factor 3: Infrastructure (Klärwerk & Rurtalbahn) */}
             <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
-              <span className="text-white/40 flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider"><Droplets className="w-2.5 h-2.5" /> Infrastruktur & Bahn</span>
+              <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">💧 Infrastruktur & Bahn</span>
               <div className="font-bold text-emerald-400">
                 {(() => {
                   let klaer = 0, bahn = 0;
@@ -452,7 +452,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
 
             {/* Factor 4: Carbon Sinks (Auwald forests) & Agriculture */}
             <div className="space-y-1 sm:border-l sm:border-white/5 sm:pl-2.5">
-              <span className="text-white/40 flex items-center gap-1 font-mono text-[8px] uppercase tracking-wider"><Leaf className="w-2.5 h-2.5" /> Senken (Auwald) & Farm</span>
+              <span className="text-white/40 block font-mono text-[8px] uppercase tracking-wider">🌳 Senken (Auwald) & Farm</span>
               <div className="font-bold text-[#D4E0C1] truncate">
                 {(() => {
                   let auwald = 0, farm = 0;
@@ -631,7 +631,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                   {reqs.researchPoints !== undefined && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-white/70 font-mono flex items-center gap-1"><FlaskConical className="w-3 h-3" /> Forschungspunkte:</span>
+                        <span className="text-white/70 font-mono flex items-center gap-1">🧪 Forschungspunkte:</span>
                         <span className={`font-bold font-mono text-[9px] ${hasResearchPoints ? 'text-emerald-400 font-extrabold' : 'text-rose-400'}`}>
                           {stats.researchPoints} / {reqs.researchPoints} ({rpPercent}%)
                         </span>
@@ -649,7 +649,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                   {reqs.budget !== undefined && reqs.budget > 0 && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-white/70 font-mono flex items-center gap-1"><Coins className="w-3 h-3" /> Budget-Zuschuss:</span>
+                        <span className="text-white/70 font-mono flex items-center gap-1">🪙 Budget-Zuschuss:</span>
                         <span className={`font-bold font-mono text-[9px] ${hasBudget ? 'text-emerald-400 font-extrabold' : 'text-rose-400'}`}>
                           {stats.budget} € / {reqs.budget} € ({budgetPercent}%)
                         </span>
@@ -667,7 +667,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                   {reqs.buildingId && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-white/70 font-mono flex items-center gap-1"><Hammer className="w-3 h-3" /> Errichtetes Bauwerk:</span>
+                        <span className="text-white/70 font-mono flex items-center gap-1">🏗️ Errichtetes Bauwerk:</span>
                         <span className={`font-bold text-[9px] ${hasBuilding ? 'text-emerald-400 font-extrabold' : 'text-rose-450'}`}>
                           {reqs.buildingId === 'klaerwerk_upgrade' ? 'Klärwerk-Upgrade' : 'Rurtalbahn-Halt'} {hasBuilding ? '✓ (100%)' : '✗ (0%)'}
                         </span>
@@ -685,7 +685,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                   {reqs.paperFactoryMode && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="text-white/70 font-mono flex items-center gap-1"><Factory className="w-3 h-3" /> Fabrik-Betrieb:</span>
+                        <span className="text-white/70 font-mono flex items-center gap-1">🏭 Fabrik-Betrieb:</span>
                         <span className={`font-bold text-[9px] ${hasPaperMode ? 'text-emerald-400 font-extrabold' : 'text-rose-450'}`}>
                           {reqs.paperFactoryMode} {hasPaperMode ? '✓ (100%)' : '✗ (0%)'}
                         </span>
@@ -722,16 +722,13 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                     <button
                       onClick={() => completeStakeholderQuest && completeStakeholderQuest(q.id)}
                       disabled={!areAllRequirementsMet}
-                      className={`w-full py-2.5 rounded-lg font-extrabold text-[10.5px] uppercase tracking-wide font-mono transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
-                        areAllRequirementsMet
-                          ? 'bg-brand-green hover:bg-brand-green/90 text-white shadow-md shadow-emerald-500/20 active:scale-95'
+                      className={`w-full py-2.5 rounded-lg text-center font-extrabold text-[10.5px] uppercase tracking-wide font-mono transition-all duration-200 cursor-pointer ${
+                        areAllRequirementsMet 
+                          ? 'bg-brand-green hover:bg-brand-green/90 text-white shadow-md shadow-emerald-500/20 active:scale-95' 
                           : 'bg-white/5 border border-white/10 text-white/40 cursor-not-allowed'
                       }`}
                     >
-                      {areAllRequirementsMet
-                        ? <><Handshake className="w-3.5 h-3.5" /> BÜNDNIS BESIEGELN</>
-                        : <><Lock className="w-3.5 h-3.5" /> AUFLAGEN ERFÜLLEN</>
-                      }
+                      {areAllRequirementsMet ? '🤝 BÜNDNIS BEGIEGELN' : '🔒 AUFLAGEN ERFÜLLEN'}
                     </button>
                   )}
                 </div>
@@ -901,8 +898,8 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
         {/* SECTION 2: MAP QUICK MEASURES (MASSNAHMEN) */}
         <div className="md:col-span-2 flex flex-col justify-between border-r border-white/5 pr-3">
           <div>
-            <span className="text-[10px] font-mono font-bold tracking-widest text-white/60 uppercase flex items-center gap-1.5 mb-2">
-              <Wrench className="w-3 h-3" /> MASSNAHMEN (BAUWERK)
+            <span className="text-[10px] font-mono font-bold tracking-widest text-white/60 uppercase block mb-2">
+              🔧 MASSNAHMEN (BAUWERK)
             </span>
             <div className="grid grid-cols-1 gap-1.5">
               {measuresList.map(measure => {
@@ -921,12 +918,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-1.5 overflow-hidden">
-                      <span className="shrink-0">
-                        {measure.id === 'fischpass'         ? <Fish     className="w-3.5 h-3.5" />
-                        : measure.id === 'biber_station'    ? <PawPrint className="w-3.5 h-3.5" />
-                        : measure.id === 'ufer_entfesselung'? <Leaf     className="w-3.5 h-3.5" />
-                        : <Home className="w-3.5 h-3.5" />}
-                      </span>
+                      <span className="text-xs shrink-0">{measure.id === 'fischpass' ? '🐟' : measure.id === 'biber_station' ? '🦫' : measure.id === 'ufer_entfesselung' ? '🌿' : '🏠'}</span>
                       <span className="truncate leading-none">{measure.name}</span>
                     </div>
                     {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-white" />}
@@ -951,8 +943,8 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
         {/* SECTION 3: MONITORING RIVER LEVEL */}
         <div className="md:col-span-2 flex flex-col justify-between border-r border-white/5 pr-3">
           <div>
-            <span className="text-[10px] font-mono font-bold tracking-widest text-white/60 uppercase flex items-center gap-1.5 mb-2.5">
-              <Activity className="w-3 h-3" /> MONITORING PEGLING
+            <span className="text-[10px] font-mono font-bold tracking-widest text-white/60 uppercase block mb-2.5">
+              💧 MONITORING PEGLING
             </span>
             
             {/* Horizontal or vertical tiny bar display */}
@@ -992,8 +984,8 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
 
         {/* SECTION 4: ÖKOLOGISCHE INDIZES (DYNAMIC SPIDER WEB RADAR CHART) */}
         <div className="md:col-span-2 flex flex-col items-center justify-center">
-          <span className="text-[10px] font-mono font-bold tracking-widest text-white/60 uppercase text-center flex items-center justify-center gap-1.5 mb-1">
-            <Activity className="w-3 h-3" /> ÖKOLOGISCHE INDIZES
+          <span className="text-[10px] font-mono font-bold tracking-widest text-white/60 uppercase text-center block mb-1">
+            🕸️ ÖKOLOGISCHE INDIZES
           </span>
 
           <div className="relative w-28 h-28 flex items-center justify-center">
@@ -1064,7 +1056,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
         <div className="flex items-center gap-2 mb-3">
           <Cpu className="w-4 h-4 text-emerald-400" />
           <span className="text-[10px] font-mono font-bold tracking-widest text-[#7FA8B5] uppercase">
-            HQ-ZENTRALEN CONTROL PANEL &amp; INTERAKTIVES UPGRADE-ARTEN-SYSTEM
+            ⚡ HQ-ZENTRALEN CONTROL PANEL &amp; INTERAKTIVES UPGRADE-ARTEN-SYSTEM
           </span>
         </div>
 
@@ -1145,7 +1137,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                       : 'bg-[#40454c] text-white/60 border-transparent hover:bg-slate-700/30'
                   }`}
                 >
-                  <BarChart2 className="w-4 h-4" />
+                  <span className="text-xs">📊</span>
                   <span className="mt-0.5">Basis-Messung</span>
                   <span className="text-[8px] opacity-70 mt-0.5">Keine Boni/Kosten</span>
                 </button>
@@ -1158,7 +1150,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                       : 'bg-[#40454c] text-white/60 border-transparent hover:bg-sky-950/20'
                   }`}
                 >
-                  <Waves className="w-4 h-4" />
+                  <span className="text-xs">🌊</span>
                   <span className="mt-0.5">Rursanierung</span>
                   <span className="text-[8px] text-sky-300/80 mt-0.5">-1 € • +0.1 Rurgüte</span>
                 </button>
@@ -1171,7 +1163,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                       : 'bg-[#40454c] text-white/60 border-transparent hover:bg-emerald-950/20'
                   }`}
                 >
-                  <PawPrint className="w-4 h-4" />
+                  <span className="text-xs">🐾</span>
                   <span className="mt-0.5">Artenschutz</span>
                   <span className="text-[8px] text-emerald-300/85 mt-0.5">-1 🧪 • +8% Arten</span>
                 </button>
@@ -1184,7 +1176,7 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                       : 'bg-[#40454c] text-white/60 border-transparent hover:bg-amber-950/20'
                   }`}
                 >
-                  <Shield className="w-4 h-4" />
+                  <span className="text-xs">🛡️</span>
                   <span className="mt-0.5">Klimaresilienz</span>
                   <span className="text-[8px] text-amber-300/85 mt-0.5">-1 € • -2% Risiko</span>
                 </button>

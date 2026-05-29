@@ -8,18 +8,18 @@ import {
   BUILDIONS_CATALOG, INITIAL_ACTION_CARDS, RESEARCH_TECH_TREE, 
   BIOTOP_SPECIES, CLIMATE_EVENTS_DATA, STAKEHOLDER_QUESTS_DATA
 } from './gameData';
-import { ActionSlotSystem } from './components/ActionSlotSystem';
+import { TileActionModal } from './components/TileActionModal';
 import { ActiveSimulationPanel } from './components/ActiveSimulationPanel';
 import { IsometricMap } from './components/IsometricMap';
 import { OekoZentraleHUD } from './components/OekoZentraleHUD';
 import { SystemControlDock } from './components/SystemControlDock';
 import { RegulatoryModals } from './components/RegulatoryModals';
+import { audio } from './utils/audio';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
   X, Save, FolderOpen, MessageSquare, ScrollText, RefreshCw,
-  Hammer, Factory, Microscope, Leaf, FileText, ChevronDown, ChevronUp,
-  Droplets, FlaskConical
+  Hammer, Factory, Microscope, Leaf, FileText, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -154,6 +154,7 @@ export default function App() {
   const [selectedLayer, setSelectedLayer] = useState<'normal' | 'wrrl' | 'ffh' | 'flood'>('normal');
   const [isDemolishMode, setIsDemolishMode] = useState<boolean>(false);
   const [selectedTileInfo, setSelectedTileInfo] = useState<{ x: number, y: number, building: BuildingType, tile: TileData } | null>(null);
+  const [activeActionTile, setActiveActionTile] = useState<{ x: number, y: number } | null>(null);
   const [placementConfirmation, setPlacementConfirmation] = useState<{
     x: number;
     y: number;
@@ -490,6 +491,14 @@ export default function App() {
     };
     setLogs(prev => [newLog, ...prev.slice(0, 50)]);
     setLogToasts(prev => [newLog, ...prev].slice(0, 4));
+
+    // Play procedural/synthesized success or alert sounds contextually
+    if (type === 'success' || type === 'event') {
+      audio.playSuccess();
+    } else if (type === 'warning' || type === 'error') {
+      audio.playAlert();
+    }
+
     setTimeout(() => {
       setLogToasts(prev => prev.filter(t => t.id !== newLog.id));
     }, 4800);
@@ -1248,107 +1257,16 @@ export default function App() {
       return;
     }
 
-    if (!selectedBuilding) {
-      if (targetTile.buildingId) {
-        const matchedBuilding = BUILDIONS_CATALOG.find(b => b.id === targetTile.buildingId);
-        if (matchedBuilding) {
-          setSelectedTileInfo({ x, y, building: matchedBuilding, tile: targetTile });
-          addLog(`Gebäudeinspektion: '${matchedBuilding.name}' auf Feld (${x}, ${y}) ausgewählt.`, 'info');
-          return;
-        }
-      }
-      setSelectedTileInfo(null);
-      addLog(`Feld Details (${x}, ${y}): Boden: ${targetTile.terrain}, WRRL Flussqualität: ${targetTile.wrrl_quality.toFixed(1)}, FFH Potential: ${targetTile.ffh_value}%`, 'info');
-      return;
-    }
-
-    // Attempt building construction
-    const building = selectedBuilding;
-
-    // 1. Terrain compliance checks
-    if (!building.allowedTerrains.includes(targetTile.terrain)) {
-      addLog(`❌ BAUFEHLER: '${building.name}' kann nicht auf Untergrund '${targetTile.terrain}' errichtet werden.`, 'error');
-      return;
-    }
-
-    if (building.isRiverOnly && targetTile.terrain !== 'Water') {
-      addLog(`❌ BAUFEHLER: '${building.name}' kann nur direkt IM Flussbett platziert werden.`, 'error');
-      return;
-    }
-
-    if (building.isRiverAdjacentOnly) {
-      // check neighboring tile is water
-      let isAdjacent = false;
-      const dirs = [[-1,0], [1,0], [0,-1], [0,1]];
-      for (const [dx, dy] of dirs) {
-        const tx = x + dx;
-        const ty = y + dy;
-        if (tx >= 0 && tx < GRID_SIZE && ty >= 0 && ty < GRID_SIZE) {
-          if (grid[ty][tx]?.terrain === 'Water') {
-            isAdjacent = true;
-            break;
-          }
-        }
-      }
-      if (!isAdjacent) {
-        addLog(`❌ BAUFEHLER: '${building.name}' verlangt eine direkte Angrenzung an den Rur-Flusslauf.`, 'error');
-        return;
-      }
-    }
-
+    // Default flow: click any tile to open Action-Cockpit (the premium overlay round system options)
+    setActiveActionTile({ x, y });
     if (targetTile.buildingId) {
-      addLog('❌ BAUFEHLER: Dieses Flurstück ist bereits bebaut.', 'error');
-      return;
+      const matchedBuilding = BUILDIONS_CATALOG.find(b => b.id === targetTile.buildingId);
+      if (matchedBuilding) {
+        setSelectedTileInfo({ x, y, building: matchedBuilding, tile: targetTile });
+      }
+    } else {
+      setSelectedTileInfo(null);
     }
-
-    // 2. Budget cost calculations (Rurtalbahn station rebate & active cards rebates)
-    const activeBuildCardIdx = cards.findIndex(c => c.type === 'BUILD');
-    // strength of active card acts as budget discounts
-    const buildStrength = activeBuildCardIdx !== -1 ? activeBuildCardIdx + 1 : 1;
-
-    let costLimit = 4;
-    if (buildStrength === 2) costLimit = 6;
-    else if (buildStrength === 3) costLimit = 8;
-    else if (buildStrength === 4) costLimit = 10;
-    else if (buildStrength === 5) costLimit = 100; // unlimited cost
-
-    if (building.cost > costLimit) {
-      addLog(`❌ BAUFEHLER: Deine 'Bauen'-Karte liegt auf einer zu geringen Stärke (${buildStrength}) für dieses Gebäude (benötigt eine Baukostenfreigabe von mindestens ${building.cost} €).`, 'error');
-      return;
-    }
-
-    let constructRebate = 0;
-    if (buildStrength === 3 || buildStrength === 4) constructRebate = 1;
-    else if (buildStrength === 5) constructRebate = 2;
-
-    const railwayDiscount = hasRurtalbahnStationNearby(x, y);
-    const finalRebate = constructRebate + (railwayDiscount ? 1 : 0);
-    
-    // Protest-Aufschlag if citizen acceptance is critically low (<40%)
-    let acceptanceSurcharge = 0;
-    if (stats.year > 2026 && stats.citizenAcceptance !== undefined && stats.citizenAcceptance < 40) {
-      acceptanceSurcharge = 2;
-    }
-    const finalCost = Math.max(1, building.cost - finalRebate + acceptanceSurcharge);
-
-    if (stats.budget < finalCost) {
-      addLog(`❌ BAUFEHLER: Unzureichendes Guthaben. Erfordert ${finalCost} € (Rabatt und evtl. Protest-Aufschlag eingerechnet).`, 'error');
-      return;
-    }
-
-    if (acceptanceSurcharge > 0) {
-      addLog(`⚠️ PROTEST-AUFSCHLAG: Wegen geringer Bürgerakzeptanz (<40%) verzögern Verwaltungs-Eilklagen den Bau! +2 € zusätzliche Erschließungskosten geladen.`, 'warning');
-    }
-
-    // Set confirmation context instead of immediate placement
-    setPlacementConfirmation({
-      x,
-      y,
-      building,
-      finalCost,
-      finalRebate,
-      acceptanceSurcharge
-    });
   };
 
   const executePendingPlacement = () => {
@@ -2391,7 +2309,7 @@ export default function App() {
   }, [grid]);
 
   return (
-    <div className="min-h-screen bg-brand-bg text-[#2C3322] flex flex-col font-sans select-none overflow-x-hidden antialiased app-root">
+    <div className="min-h-screen bg-brand-bg text-[#2C3322] flex flex-col font-sans select-none overflow-x-hidden antialiased">
 
       {/* ── Top Logo & Project Branding (Decoupled, Static) ────────────────── */}
       <div className="max-w-[1600px] w-full mx-auto px-4 pt-3 pb-1 flex flex-col md:flex-row md:items-center justify-between gap-2.5">
@@ -2504,7 +2422,7 @@ export default function App() {
                 <Zap className="w-3.5 h-3.5 text-brand-teal shrink-0" />
                 <div className="text-left">
                   <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">Forschung</div>
-                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight flex items-center gap-0.5">{stats.researchPoints} <FlaskConical className="w-3 h-3 text-purple-600" /></div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.researchPoints} 🧪</div>
                 </div>
               </button>
 
@@ -2524,7 +2442,7 @@ export default function App() {
                 <Award className="w-3.5 h-3.5 text-brand-green shrink-0" />
                 <div className="text-left">
                   <div className="text-[8px] text-brand-green/65 font-bold uppercase tracking-wide leading-none">Naturpunkte</div>
-                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight flex items-center gap-0.5">{stats.naturePoints} <Leaf className="w-3 h-3 text-brand-green" /></div>
+                  <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">{stats.naturePoints} 🌿</div>
                 </div>
               </button>
 
@@ -2541,7 +2459,7 @@ export default function App() {
                     : 'bg-sky-50/60 border-sky-200/50 hover:bg-sky-100/60 hover:border-sky-300/50'
                 }`}
               >
-                <Droplets className="w-3.5 h-3.5 text-brand-teal shrink-0" />
+                <span className="text-sm leading-none shrink-0">💧</span>
                 <div className="text-left">
                   <div className="text-[8px] text-brand-teal/65 font-bold uppercase tracking-wide leading-none">WRRL</div>
                   <div className="text-[11px] font-black text-brand-dark font-mono leading-tight">
@@ -2569,7 +2487,7 @@ export default function App() {
                     : 'bg-red-50/60 border-red-200/50 hover:bg-red-100/50'
                 }`}
               >
-                <Leaf className="w-3.5 h-3.5 shrink-0 text-brand-green" />
+                <span className="text-sm leading-none shrink-0">🌱</span>
                 <div className="text-left">
                   <div className="text-[8px] text-[#8B8273] font-bold uppercase tracking-wide leading-none">CO₂</div>
                   <div className={`text-[11px] font-black font-mono leading-tight ${
@@ -2594,8 +2512,8 @@ export default function App() {
                 onClick={handleNextRound}
                 className="px-4 py-2 rounded-xl bg-brand-green hover:bg-[#3d6830] text-white font-bold text-[11px] uppercase tracking-wide border border-brand-green/40 hover:border-[#5a9248] shadow-sm hover:shadow-md transition-all duration-150 active:scale-[0.97] cursor-pointer flex items-center gap-2 whitespace-nowrap"
               >
-                <RotateCcw className="w-3.5 h-3.5 opacity-90" />
                 <span>Runde beenden</span>
+                <span className="opacity-75 text-xs">↩</span>
               </button>
             </div>
 
@@ -2967,46 +2885,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Action slots System - Docked right below the tabletop grid, acting as the player hand */}
-          <ActionSlotSystem
-            cards={cards}
-            onExecuteCard={handleExecuteCard}
-            rurtalbahnLeased={rurtalbahnLeased}
-            leaseRurtalbahn={handleLeaseRurtalbahn}
-            rurtalbahnTimeRemaining={rurtalbahnTimeRemaining}
-            stats={stats}
-            buildingsCatalog={BUILDIONS_CATALOG}
-            researchTree={researchTree}
-            grid={grid}
-            onSelectBuilding={setSelectedBuilding}
-            onUnlockResearch={handleUnlockResearch}
-            invasiveThreatEnabled={invasiveThreatEnabled}
-            energyChallengeEnabled={energyChallengeEnabled}
-            roundInvested={roundInvested}
-            onToggleInvasive={(enabled) => {
-              setInvasiveThreatEnabled(enabled);
-              if (enabled) {
-                setShowInvasiveRules(true);
-                addLog('🚨 BIOLOGISCHER STRESSOR-MODUS AKTIVIERT: Biologische Sicherheit sinkt nun und bricht bei Vernachlässigung zusammen!', 'warning');
-              } else {
-                addLog('🛡️ Biologischer Stressor-Modus deaktiviert. Biologische Sicherheit stabilisiert.', 'success');
-              }
-            }}
-            onToggleEnergy={(enabled) => {
-              setEnergyChallengeEnabled(enabled);
-              if (enabled) {
-                setShowEnergyRules(true);
-                addLog('⚡ ENERGIEWENDE GELADEN: Dürens Industrie gerät unter Dekarbonisierungsdruck! Baue grüne Kraftwerke zur Versorgung.', 'warning');
-              } else {
-                addLog('🛡️ Energiewende-Szenario deaktiviert. Ökostromversorgung stabilisiert.', 'success');
-              }
-            }}
-            onShowInvasiveRules={() => setShowInvasiveRules(true)}
-            onShowEnergyRules={() => setShowEnergyRules(true)}
-            actionsUsed={actionsUsed}
-            maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
-          />
-
         </div>
 
         {/* RIGHT COLUMN: Sidebar Companion Manual & Historical Logs Journal */}
@@ -3035,6 +2913,29 @@ export default function App() {
             handleTriggerPdfSim={handleTriggerPdfSim}
             pdfSimulated={pdfSimulated}
             logs={logs}
+            invasiveThreatEnabled={invasiveThreatEnabled}
+            energyChallengeEnabled={energyChallengeEnabled}
+            onToggleInvasive={(enabled) => {
+              setInvasiveThreatEnabled(enabled);
+              if (enabled) {
+                setShowInvasiveRules(true);
+                addLog('🚨 BIOLOGISCHER STRESSOR-MODUS AKTIVIERT: Biologische Sicherheit sinkt nun und bricht bei Vernachlässigung zusammen!', 'warning');
+              } else {
+                addLog('🛡️ Biologischer Stressor-Modus deaktiviert. Biologische Sicherheit stabilisiert.', 'success');
+              }
+            }}
+            onToggleEnergy={(enabled) => {
+              setEnergyChallengeEnabled(enabled);
+              if (enabled) {
+                setShowEnergyRules(true);
+                addLog('⚡ ENERGIEWENDE GELADEN: Dürens Industrie gerät unter Dekarbonisierungsdruck! Baue grüne Kraftwerke zur Versorgung.', 'warning');
+              } else {
+                addLog('🛡️ Energiewende-Szenario deaktiviert. Ökostromversorgung stabilisiert.', 'success');
+              }
+            }}
+            onShowInvasiveRules={() => setShowInvasiveRules(true)}
+            onShowEnergyRules={() => setShowEnergyRules(true)}
+            roundInvested={roundInvested}
           />
 
           {/* Bottom logs HUD */}
@@ -3554,6 +3455,304 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TILE OPTION COCKPIT MODAL */}
+      {activeActionTile && grid[activeActionTile.y]?.[activeActionTile.x] && (
+        <TileActionModal
+          x={activeActionTile.x}
+          y={activeActionTile.y}
+          tile={grid[activeActionTile.y][activeActionTile.x]}
+          cards={cards}
+          stats={stats}
+          buildingsCatalog={BUILDIONS_CATALOG}
+          researchTree={researchTree}
+          grid={grid}
+          actionsUsed={actionsUsed}
+          maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
+          rurtalbahnLeased={rurtalbahnLeased}
+          onClose={() => setActiveActionTile(null)}
+          onDemolish={() => {
+            const tx = activeActionTile.x;
+            const ty = activeActionTile.y;
+            const targetTile = grid[ty]?.[tx];
+            if (!targetTile || !targetTile.buildingId) return;
+
+            const prevBuilding = BUILDIONS_CATALOG.find(b => b.id === targetTile.buildingId);
+            pushHistoryState(`Rückbau: ${prevBuilding ? prevBuilding.name : 'Unbekanntes Gebäude'} (${tx}, ${ty})`);
+
+            setGrid(prev => {
+              const nextGrid = prev.map((row, ry) => 
+                row.map((tile, rx) => {
+                  if (rx === tx && ry === ty) {
+                    return {
+                      ...tile,
+                      buildingId: null,
+                      terrain: tile.baseTerrain
+                    };
+                  }
+                  return tile;
+                })
+              );
+              updateGlobalMetrics(nextGrid, stats.paperFactoryMode, researchTree);
+              return nextGrid;
+            });
+
+            addLog(`Rückbau-Erfolg auf Feld (${tx}, ${ty}) abgeschlossen. Terrain regeneriert.`, 'info');
+            audio.playSuccess();
+            setActiveActionTile(null);
+          }}
+          onUpgrade={(researchCost) => {
+            const tx = activeActionTile.x;
+            const ty = activeActionTile.y;
+            handleUpgradeBuilding(tx, ty, researchCost);
+            // Re-focus coordinate info
+            setActiveActionTile({ x: tx, y: ty });
+          }}
+          onBuild={(building, finalCost) => {
+            const tx = activeActionTile.x;
+            const ty = activeActionTile.y;
+            const targetTile = grid[ty]?.[tx];
+            if (!targetTile) return;
+
+            if (actionsUsed >= MAX_ACTIONS_PER_ROUND) {
+              addLog(`🚫 AKTIONSLIMIT: Pro Runde ist nur eine Aktion erlaubt (Arche-Nova-Prinzip).`, 'warning');
+              audio.playAlert();
+              return;
+            }
+
+            pushHistoryState(`Bau von ${building.name}`);
+
+            setGrid(prev => {
+              const nextGrid = prev.map((row, ry) => 
+                row.map((tile, rx) => {
+                  if (rx === tx && ry === ty) {
+                    let updatedFfh = tile.ffh_value;
+                    let updatedWrrl = tile.wrrl_quality;
+
+                    if (building.id === 'altarm') {
+                      updatedFfh = Math.min(100, updatedFfh + 25);
+                      updatedWrrl = Math.max(1.0, updatedWrrl - 0.5);
+                    }
+                    if (building.id === 'auenwald') {
+                      updatedFfh = Math.min(100, updatedFfh + 30);
+                    }
+                    if (building.id === 'besucherzentrum') {
+                      updatedFfh = Math.min(100, updatedFfh + 10);
+                    }
+                    if (building.id === 'campingplatz') {
+                      updatedFfh = Math.max(0, updatedFfh - 5);
+                    }
+                    if (building.id === 'kanuverleih') {
+                      updatedWrrl = Math.min(5.0, updatedWrrl + 0.1);
+                    }
+
+                    return {
+                      ...tile,
+                      buildingId: building.id,
+                      ffh_value: updatedFfh,
+                      wrrl_quality: updatedWrrl
+                    };
+                  }
+                  return tile;
+                })
+              );
+              updateGlobalMetrics(nextGrid, stats.paperFactoryMode, researchTree);
+              return nextGrid;
+            });
+
+            // Akzeptanzänderung verbuchen
+            let acceptanceDelta = 0;
+            if (building.category === 'tourism') acceptanceDelta = 10;
+            else if (building.category === 'ecology') acceptanceDelta = 5;
+            else if (building.category === 'economy') acceptanceDelta = -10;
+
+            if (building.id === 'windkraft') {
+              let nextToSiedlung = false;
+              const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+              for (const [dx, dy] of dirs) {
+                const nx = tx + dx;
+                const ny = ty + dy;
+                if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                  if (grid[ny][nx]?.terrain === 'Siedlung') {
+                    nextToSiedlung = true;
+                    break;
+                  }
+                }
+              }
+              if (nextToSiedlung && stats.year >= 2027) {
+                acceptanceDelta -= 20;
+                addLog('⚠️ WIDERSTAND DER BEVÖLKERUNG: Windturbine liegt direkt neben Wohngebiet! Bürgerakzeptanz bricht ein (-20%).', 'warning');
+                audio.playAlert();
+              }
+            }
+
+            setStats(prev => ({
+              ...prev,
+              budget: prev.budget - finalCost,
+              citizenAcceptance: Math.max(0, Math.min(100, (prev.citizenAcceptance ?? 50) + acceptanceDelta)),
+              investedThisYear: true,
+              co2Footprint: Math.max(0, (prev.co2Footprint ?? 100) - (building.id === 'windkraft' || building.id === 'solarpark' ? 15 : 0))
+            }));
+
+            addLog(`Erfolg: '${building.name}' an Position (${tx}, ${ty}) errichtet. Baukosten: ${finalCost} € finanziert.`, 'success');
+            audio.playSuccess();
+
+            // Rotate Slot
+            const buildCard = cards.find(c => c.type === 'BUILD');
+            if (buildCard) {
+              rotateActionSlots(buildCard.id);
+            }
+
+            setActiveActionTile(null);
+          }}
+          onExecutePlant={(local, bulkCount) => {
+            const tx = activeActionTile.x;
+            const ty = activeActionTile.y;
+            const targetTile = grid[ty]?.[tx];
+            const plantCard = cards.find(c => c.type === 'PLANT');
+            if (!plantCard) return;
+            const pStrength = cards.indexOf(plantCard) + 1;
+
+            if (actionsUsed >= MAX_ACTIONS_PER_ROUND) {
+              addLog(`🚫 AKTIONSLIMIT: Pro Runde ist nur eine Aktion erlaubt (Arche-Nova-Prinzip).`, 'warning');
+              audio.playAlert();
+              return;
+            }
+
+            if (local && targetTile) {
+              pushHistoryState(`Lokale Pflanzaktion: ${targetTile.terrain}`);
+              setGrid(prev => {
+                const nextGrid = prev.map((row, ry) => 
+                  row.map((tile, rx) => {
+                    if (rx === tx && ry === ty) {
+                      if (tile.terrain === 'Acker') {
+                        return {
+                          ...tile,
+                          terrain: 'Wiese',
+                          ffh_value: Math.min(100, tile.ffh_value + 20),
+                          wrrl_quality: Math.max(1.0, tile.wrrl_quality - 0.5)
+                        };
+                      }
+                      if (tile.terrain === 'Wiese' && pStrength >= 3) {
+                        return {
+                          ...tile,
+                          terrain: 'Auwald',
+                          ffh_value: Math.min(100, tile.ffh_value + 35),
+                          moisture: Math.min(100, tile.moisture + 30),
+                          flood_risk: Math.max(0, tile.flood_risk - 15)
+                        };
+                      }
+                    }
+                    return tile;
+                  })
+                );
+                updateGlobalMetrics(nextGrid, stats.paperFactoryMode, researchTree);
+                return nextGrid;
+              });
+
+              setStats(prev => ({
+                ...prev,
+                naturePoints: prev.naturePoints + 3,
+                climateRisk: Math.max(0, prev.climateRisk - 4),
+                investedThisYear: true
+              }));
+              addLog(`🌱 LOKALER ERFOLG: Sektor (${tx}, ${ty}) erfolgreich renaturiert & bepflanzt (FFH-Zuwachs, Klimaschutz erhöht).`, 'success');
+              audio.playSuccess();
+              rotateActionSlots(plantCard.id);
+              setActiveActionTile(null);
+            } else {
+              // Execute standard broad scale plant
+              executePlantAction(pStrength);
+              rotateActionSlots(plantCard.id);
+              setActiveActionTile(null);
+            }
+          }}
+          onExecuteHydrology={(local, sStrength) => {
+            const tx = activeActionTile.x;
+            const ty = activeActionTile.y;
+            const targetTile = grid[ty]?.[tx];
+            const hydroCard = cards.find(c => c.type === 'HYDROLOGY');
+            if (!hydroCard) return;
+            const hStrength = cards.indexOf(hydroCard) + 1;
+
+            if (actionsUsed >= MAX_ACTIONS_PER_ROUND) {
+              addLog(`🚫 AKTIONSLIMIT: Pro Runde ist nur eine Aktion erlaubt (Arche-Nova-Prinzip).`, 'warning');
+              audio.playAlert();
+              return;
+            }
+
+            if (local && targetTile && targetTile.terrain === 'Water') {
+              pushHistoryState(`Lokale Gewässeraufwertung (${tx}, ${ty})`);
+              setGrid(prev => {
+                const nextGrid = prev.map((row, ry) => 
+                  row.map((tile, rx) => {
+                    if (rx === tx && ry === ty) {
+                      return {
+                        ...tile,
+                        wrrl_quality: Math.max(1.0, tile.wrrl_quality - 0.4),
+                        ffh_value: Math.min(100, tile.ffh_value + 15)
+                      };
+                    }
+                    return tile;
+                  })
+                );
+                updateGlobalMetrics(nextGrid, stats.paperFactoryMode, researchTree);
+                return nextGrid;
+              });
+
+              setStats(prev => ({
+                ...prev,
+                naturePoints: prev.naturePoints + 3,
+                climateRisk: Math.max(0, prev.climateRisk - 3),
+                investedThisYear: true
+              }));
+              addLog(`🌊 LOKALER ERFOLG: Gewässeraufwertung im Sektor (${tx}, ${ty}) vollendet (WRRL +0.4 Qualität, FFH +15%).`, 'success');
+              audio.playSuccess();
+              rotateActionSlots(hydroCard.id);
+              setActiveActionTile(null);
+            } else {
+              executeHydrologyAction(hStrength);
+              rotateActionSlots(hydroCard.id);
+              setActiveActionTile(null);
+            }
+          }}
+          onExecuteFunding={(card, strength) => {
+            if (actionsUsed >= MAX_ACTIONS_PER_ROUND) {
+              addLog(`🚫 AKTIONSLIMIT: Pro Runde ist nur eine Aktion erlaubt.`, 'warning');
+              audio.playAlert();
+              return;
+            }
+            executeFundingAction(strength);
+            rotateActionSlots(card.id);
+            setActiveActionTile(null);
+          }}
+          onExecuteResearch={(card, strength) => {
+            if (actionsUsed >= MAX_ACTIONS_PER_ROUND) {
+              addLog(`🚫 AKTIONSLIMIT: Pro Runde ist nur eine Aktion erlaubt.`, 'warning');
+              audio.playAlert();
+              return;
+            }
+            executeResearchAction(strength);
+            rotateActionSlots(card.id);
+            setActiveActionTile(null);
+          }}
+          onUnlockResearch={(nodeId) => {
+            handleUnlockResearch(nodeId);
+            // Refresh coordinates inside modal
+            setActiveActionTile({ x: activeActionTile.x, y: activeActionTile.y });
+          }}
+          onExecuteRurtalbahn={(card, strength) => {
+            if (actionsUsed >= MAX_ACTIONS_PER_ROUND) {
+              addLog(`🚫 AKTIONSLIMIT: Pro Runde ist nur eine Aktion erlaubt.`, 'warning');
+              audio.playAlert();
+              return;
+            }
+            executeRurtalbahnAction(strength);
+            rotateActionSlots(card.id);
+            setActiveActionTile(null);
+          }}
+        />
       )}
 
       {/* PROGRESSION CHALLENGE MODAL: ANNOUNCING DYNAMIC NEW DIFFICULTY LEVEL AFTER EACH YEAR */}
