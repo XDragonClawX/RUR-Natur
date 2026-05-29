@@ -40,6 +40,9 @@ interface ActiveSimulationPanelProps {
   onShowInvasiveRules: () => void;
   onShowEnergyRules: () => void;
   roundInvested: boolean;
+  rurtalbahnLeased: boolean;
+  rurtalbahnTimeRemaining: number;
+  onLeaseRurtalbahn: () => void;
 }
 
 // ── Tab colour tokens ─────────────────────────────────────────────────────────
@@ -183,6 +186,9 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   onShowInvasiveRules,
   onShowEnergyRules,
   roundInvested,
+  rurtalbahnLeased,
+  rurtalbahnTimeRemaining,
+  onLeaseRurtalbahn,
 }) => {
   const [infoPanelOpen, setInfoPanelOpen] = useState(true);
 
@@ -307,6 +313,33 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
             </p>
           </div>
         </div>
+        {/* ── Rurtalbahn Ticket action button ───────────────────────── */}
+        {rurtalbahnLeased ? (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 shrink-0 select-none" title="Rurtalbahn-Karte ist aktiv">
+            <span className="text-sm leading-none">🚇</span>
+            <div className="text-left">
+              <div className="text-[8px] font-black uppercase tracking-wide text-indigo-700 leading-none">Rurtalbahn</div>
+              <div className="text-[9px] font-mono font-black text-indigo-900 leading-tight tabular-nums">
+                {rurtalbahnTimeRemaining} Rd. verbleibend
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={onLeaseRurtalbahn}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#F3EDE2] border border-[#D4CCBA] hover:bg-indigo-50 hover:border-indigo-300 transition-all active:scale-95 cursor-pointer shrink-0 group"
+            title="Rurtalbahn Sonderticket mieten — ersetzt Aktionsslot 1 für 3 Runden (Kosten: 2 €)"
+          >
+            <span className="text-sm leading-none">🚇</span>
+            <div className="text-left">
+              <div className="text-[8px] font-black uppercase tracking-wide text-[#8B8273] group-hover:text-indigo-700 leading-none transition-colors">Rurtalbahn</div>
+              <div className="text-[9px] font-mono font-black text-[#5C564C] group-hover:text-indigo-900 leading-tight transition-colors">
+                Ticket mieten · 2 €
+              </div>
+            </div>
+          </button>
+        )}
+
         {/* Year / Round pill */}
         <div className="flex items-stretch gap-0 border border-[#D4CCBA] rounded-lg overflow-hidden shrink-0 bg-[#F3EDE2]">
           <div className="px-2.5 py-1.5 text-center">

@@ -3030,6 +3030,9 @@ export default function App() {
             onShowInvasiveRules={() => setShowInvasiveRules(true)}
             onShowEnergyRules={() => setShowEnergyRules(true)}
             roundInvested={roundInvested}
+            rurtalbahnLeased={rurtalbahnLeased}
+            rurtalbahnTimeRemaining={rurtalbahnTimeRemaining}
+            onLeaseRurtalbahn={handleLeaseRurtalbahn}
           />
 
         </div>
