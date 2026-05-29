@@ -293,7 +293,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   ];
 
   return (
-    <div className="bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col max-h-[calc(100vh-78px)]">
+    <div className="bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col h-[calc(100vh-80px)]">
 
       {/* ── COCKPIT HEADER ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#D4CCBA] gap-3">
@@ -641,17 +641,14 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
         role="tabpanel"
         className="flex flex-col flex-1 min-h-0 overflow-hidden bg-[#FAF8F5]"
       >
-        {/* Workspace breadcrumb bar — visually anchors the submenu below the tab strip */}
-        <div className="bg-white border-b border-[#D4CCBA] px-3.5 py-3 flex items-center justify-between shrink-0 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
+        {/* Workspace breadcrumb bar */}
+        <div className="bg-white border-b border-[#D4CCBA] px-3.5 py-2 flex items-center justify-between shrink-0">
           <nav className="flex items-center gap-1.5 text-[10px] font-mono" aria-label="Bereichspfad">
             <span className="font-bold text-[#5C564C] uppercase tracking-wider">Cockpit</span>
             <ChevronRight className="w-3 h-3 text-[#B0A898]" aria-hidden="true" />
             <span className={`font-black uppercase tracking-wider ${p.text}`}>{m.label}</span>
           </nav>
-          <div className="flex items-center gap-1.5" aria-label="Verbindungsstatus: Aktiv">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
-            <span className="text-[8px] font-mono font-bold text-emerald-700 uppercase tracking-wide">Live</span>
-          </div>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" aria-hidden="true" />
         </div>
 
         {/* Scrollable content — flex-1 min-h-0 ensures tabs above stay always visible */}
