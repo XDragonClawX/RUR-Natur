@@ -89,6 +89,14 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
   // calling createLinearGradient per tile per frame
   const shimmerGradRef = useRef<CanvasGradient | null>(null);
 
+  // ── Screen-space background cache (Option B) ──────────────────────────────
+  // Background gradient + dot-grid texture + vignette are screen-fixed: they
+  // depend only on canvas size, never on pan/zoom. Cache them in a dedicated
+  // offscreen canvas so the 1600-arc dot loop + 3 gradients are NOT regenerated
+  // on every pan/zoom frame (the static canvas rebuilds whenever pan/zoom changes).
+  const bgCanvasRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
+  const bgKeyRef = useRef<string>('');
+
   // Hexagonal dimensions
   const r = 52;
   const w = r * Math.sqrt(3) / 2; // ~45
@@ -1585,7 +1593,10 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
       const currentBuilding = selectedBuildingRef.current;
 
       const parent = containerRef.current;
-      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      // Option C: cap DPR at 2. On dpr 3 displays this fills 9× pixels vs 4×;
+      // the visual gain above 2 is negligible on this stylised iso map but the
+      // fill-rate cost is large, so clamp to protect FPS on high-density screens.
+      const dpr = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
 
       if (parent) {
         const rect = parent.getBoundingClientRect();
@@ -1624,27 +1635,46 @@ export const IsometricMap: React.FC<IsometricMapProps> = ({
           sctx.save();
           sctx.scale(dpr, dpr);
 
-          // Background
-          const bgGrad = sctx.createRadialGradient(cw2 / 2, ch2 / 2, 100, cw2 / 2, ch2 / 2, cw2 * 0.95);
-          bgGrad.addColorStop(0, '#F5EFE2');
-          bgGrad.addColorStop(1, '#D8CFB9');
-          sctx.fillStyle = bgGrad;
-          sctx.fillRect(0, 0, cw2, ch2);
+          // ── Screen-space background (Option B): build cache once per size, then blit ──
+          // The gradient + 1600-arc dot grid + vignette are screen-fixed and were
+          // previously regenerated on every pan/zoom frame. Now they are rendered
+          // into bgCanvasRef only when the canvas size (or dpr) changes.
+          const bgKey = `${cw2}|${ch2}|${dpr}`;
+          if (bgKeyRef.current !== bgKey) {
+            bgKeyRef.current = bgKey;
+            const bg = bgCanvasRef.current;
+            bg.width = canvas.width;
+            bg.height = canvas.height;
+            const bgctx = bg.getContext('2d');
+            if (bgctx) {
+              bgctx.setTransform(1, 0, 0, 1, 0, 0);
+              bgctx.scale(dpr, dpr);
 
-          // Dot-grid texture
-          sctx.fillStyle = 'rgba(62,42,18,0.06)';
-          for (let gx = 0; gx < cw2; gx += 20) {
-            for (let gy = 0; gy < ch2; gy += 20) {
-              sctx.beginPath(); sctx.arc(gx, gy, 0.75, 0, Math.PI * 2); sctx.fill();
+              // Background gradient
+              const bgGrad = bgctx.createRadialGradient(cw2 / 2, ch2 / 2, 100, cw2 / 2, ch2 / 2, cw2 * 0.95);
+              bgGrad.addColorStop(0, '#F5EFE2');
+              bgGrad.addColorStop(1, '#D8CFB9');
+              bgctx.fillStyle = bgGrad;
+              bgctx.fillRect(0, 0, cw2, ch2);
+
+              // Dot-grid texture
+              bgctx.fillStyle = 'rgba(62,42,18,0.06)';
+              for (let gx = 0; gx < cw2; gx += 20) {
+                for (let gy = 0; gy < ch2; gy += 20) {
+                  bgctx.beginPath(); bgctx.arc(gx, gy, 0.75, 0, Math.PI * 2); bgctx.fill();
+                }
+              }
+
+              // Soft vignette
+              const vignette = bgctx.createRadialGradient(cw2 / 2, ch2 / 2, cw2 * 0.25, cw2 / 2, ch2 / 2, cw2 * 0.85);
+              vignette.addColorStop(0, 'rgba(0,0,0,0)');
+              vignette.addColorStop(1, 'rgba(44, 33, 17, 0.22)');
+              bgctx.fillStyle = vignette;
+              bgctx.fillRect(0, 0, cw2, ch2);
             }
           }
-
-          // Soft vignette
-          const vignette = sctx.createRadialGradient(cw2 / 2, ch2 / 2, cw2 * 0.25, cw2 / 2, ch2 / 2, cw2 * 0.85);
-          vignette.addColorStop(0, 'rgba(0,0,0,0)');
-          vignette.addColorStop(1, 'rgba(44, 33, 17, 0.22)');
-          sctx.fillStyle = vignette;
-          sctx.fillRect(0, 0, cw2, ch2);
+          // Blit cached background (cheap single drawImage instead of gradients + 1600 arcs)
+          sctx.drawImage(bgCanvasRef.current, 0, 0, cw2, ch2);
 
           // Apply pan and zoom
           sctx.translate(currentPanX, currentPanY);
