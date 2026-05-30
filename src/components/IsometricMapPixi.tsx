@@ -236,28 +236,37 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
         worldRef.current = world;
 
         // ── Load textures, then (re)build with water sprites ──────────────────
-        Assets.load([waterRiverUrl, waterDeepUrl, waterShallowUrl, valleyBgUrl, wieseUrl])
-          .then((loaded) => {
-            if (disposed) return;
-            // tile_wiese.png (1190×1322) is a full iso tile: meadow top face +
-            // 3D soil base. Crop just the grassy top-face band so it maps cleanly
-            // onto our pointy-top hex (the soil/sides come from our own geometry).
-            const wieseTex = loaded[wieseUrl] as Texture;
-            const meadowCrop = new Texture({
-              source: wieseTex.source,
-              frame: new Rectangle(210, 250, 770, 410),
-            });
-            texturesRef.current = {
-              river: loaded[waterRiverUrl],
-              deep: loaded[waterDeepUrl],
-              shallow: loaded[waterShallowUrl],
-              meadow: meadowCrop,
-            };
-            valleyBg.texture = loaded[valleyBgUrl];
-            placeValleyBg();
-            rebuildTiles();
-          })
-          .catch(() => {/* fall back to procedural water */});
+        // Load each texture independently so one undecodable file (some of the
+        // source PNGs fail Pixi's image decoder) can't break all the others.
+        const loadTex = (url: string): Promise<Texture | null> =>
+          Assets.load(url).then((t) => t as Texture).catch((e) => {
+            console.warn('[tex] failed:', url, e?.message || e);
+            return null;
+          });
+        Promise.all([
+          loadTex(waterRiverUrl), loadTex(waterDeepUrl), loadTex(waterShallowUrl),
+          loadTex(valleyBgUrl), loadTex(wieseUrl),
+        ]).then(([river, deep, shallow, valley, wiese]) => {
+          if (disposed) return;
+          // tile_wiese.png (1190×1322) is a full iso tile (meadow top + soil base).
+          // Crop the grassy top-face band so it maps onto our pointy-top hex.
+          let meadow: Texture | undefined;
+          if (wiese) {
+            try {
+              meadow = new Texture({ source: wiese.source, frame: new Rectangle(360, 330, 470, 300) });
+            } catch {
+              meadow = wiese;
+            }
+          }
+          texturesRef.current = {
+            river: river ?? undefined,
+            deep: deep ?? undefined,
+            shallow: shallow ?? undefined,
+            meadow,
+          };
+          if (valley) { valleyBg.texture = valley; placeValleyBg(); }
+          rebuildTiles();
+        });
 
         // Single ticker drives all animation (no React re-renders)
         app.ticker.add(() => {
@@ -748,14 +757,15 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
           layer.addChild(mask);
         }
 
-        // Lit top-left facet
+        // Lit top-left facet (kept faint on textured meadow so grass shows)
+        const litAlpha = tile.terrain === 'Water' ? 0.06 : (tile.terrain === 'Wiese' && tex.meadow) ? 0.05 : 0.13;
         gfx
           .poly([cx, top, cx, top - H, cx - W, top - H / 2, cx - W, top + H / 2])
-          .fill({ color: 0xffffff, alpha: tile.terrain === 'Water' ? 0.06 : 0.13 });
+          .fill({ color: 0xffffff, alpha: litAlpha });
         // Glancing top-right facet
         gfx
           .poly([cx, top, cx, top - H, cx + W, top - H / 2, cx + W, top + H / 2])
-          .fill({ color: 0xffffff, alpha: 0.04 });
+          .fill({ color: 0xffffff, alpha: tile.terrain === 'Wiese' && tex.meadow ? 0.015 : 0.04 });
 
         // ── Procedural land details (hybrid look) ────────────────────────────
         // Skip on meadow tiles that already show the sprite texture
