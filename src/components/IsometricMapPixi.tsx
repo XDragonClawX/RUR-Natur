@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Application, Container, Graphics, Assets, Texture, TilingSprite, Sprite, Text } from 'pixi.js';
+import { Application, Container, Graphics, Assets, Texture, TilingSprite, Sprite, Text, ColorMatrixFilter } from 'pixi.js';
 import { TileData, BuildingType, TerrainType } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
 import waterRiverUrl from '../assets/images/tile_river_middle_1779350583496.png';
@@ -150,6 +150,15 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
   const texturesRef = useRef<{ river?: Texture; deep?: Texture; shallow?: Texture }>({});
   const waterSpritesRef = useRef<TilingSprite[]>([]);
   const tickRef = useRef<number>(0);
+  const fxLayerRef = useRef<Container | null>(null);
+  const ambientLayerRef = useRef<Container | null>(null);
+  type Fx =
+    | { type: 'wind'; blades: Graphics; speed: number }
+    | { type: 'smoke'; cx: number; top: number; puffs: { g: Graphics; life: number; max: number; vy: number; sway: number }[] };
+  const fxNodesRef = useRef<Fx[]>([]);
+  const ambientRef = useRef<{ g: Graphics; baseX: number; baseY: number; phase: number; speed: number; amp: number }[]>([]);
+  const seasonRef = useRef<string>(season);
+  seasonRef.current = season;
 
   // Viewport (kept in refs to avoid React re-renders during pan/zoom)
   const zoomRef = useRef<number>(0.9);
@@ -240,13 +249,45 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
           })
           .catch(() => {/* fall back to procedural water */});
 
-        // Animate water shimmer via the Pixi ticker (no React re-renders)
+        // Single ticker drives all animation (no React re-renders)
         app.ticker.add(() => {
           tickRef.current += 1;
           const t = tickRef.current;
+
+          // Flowing water
           for (const s of waterSpritesRef.current) {
             s.tilePosition.y = (t * 0.35) % s.texture.height;
             s.tilePosition.x = Math.sin(t * 0.01) * 6;
+          }
+
+          // Building effects: rotating turbines + rising smoke
+          const fxLayerNow = fxLayerRef.current;
+          for (const fx of fxNodesRef.current) {
+            if (fx.type === 'wind') {
+              fx.blades.rotation += fx.speed;
+            } else if (fx.type === 'smoke' && fxLayerNow) {
+              for (const p of fx.puffs) {
+                p.life += 1;
+                if (p.life >= p.max) {
+                  p.life = 0;
+                  p.g.position.set(fx.cx, fx.top - 14);
+                  p.g.scale.set(0.5);
+                  p.g.alpha = 0.55;
+                }
+                p.g.y -= p.vy;
+                p.g.x = fx.cx + Math.sin((p.life + p.sway) * 0.08) * 5;
+                p.g.scale.set(0.5 + (p.life / p.max) * 1.1);
+                p.g.alpha = 0.5 * (1 - p.life / p.max);
+              }
+            }
+          }
+
+          // Ambient drifting particles
+          for (const a of ambientRef.current) {
+            a.phase += a.speed;
+            a.g.x = a.baseX + Math.sin(a.phase) * a.amp;
+            a.g.y = a.baseY + Math.cos(a.phase * 0.7) * a.amp * 0.5 + (a.phase * 2 % 60);
+            a.g.alpha = 0.35 + Math.sin(a.phase * 1.3) * 0.2;
           }
         });
 
@@ -259,8 +300,25 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
         world.addChild(highlight);
         highlightRef.current = highlight;
 
+        // Effect layer (smoke, turbines) above tiles
+        const fxLayer = new Container();
+        world.addChild(fxLayer);
+        fxLayerRef.current = fxLayer;
+
+        // Ambient drifting particles (pollen / leaves)
+        const ambientLayer = new Container();
+        world.addChild(ambientLayer);
+        ambientLayerRef.current = ambientLayer;
+
+        // Atmosphere colour grade (built-in, cheap) tinted by season
+        const grade = new ColorMatrixFilter();
+        applySeasonGrade(grade, seasonRef.current);
+        world.filters = [grade];
+        (world as any).__grade = grade;
+
         centerMap();
         rebuildTiles();
+        buildAmbient();
 
         // Resize handling: keep background full-bleed
         app.renderer.on('resize', drawBg);
@@ -335,6 +393,13 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
     drawHighlight();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoveredTile, selectedTile]);
+
+  // Re-grade the scene when the season changes
+  useEffect(() => {
+    const world = worldRef.current as any;
+    if (world?.__grade) applySeasonGrade(world.__grade, season);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [season]);
 
   // ── Helpers bound to the live Pixi scene ───────────────────────────────────
   const clientToWorld = (clientX: number, clientY: number) => {
@@ -494,6 +559,45 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
     }
   };
 
+  // Subtle seasonal colour grade
+  const applySeasonGrade = (grade: ColorMatrixFilter, s: string) => {
+    grade.reset();
+    if (s.includes('Winter')) {
+      grade.desaturate();
+      grade.brightness(1.08, true);
+    } else if (s.includes('Herbst')) {
+      grade.saturate(0.18, true);
+      grade.brightness(1.02, true);
+    } else if (s.includes('Sommer')) {
+      grade.brightness(1.06, true);
+    } else {
+      // Frühling
+      grade.saturate(0.1, true);
+      grade.brightness(1.04, true);
+    }
+  };
+
+  // Build ambient drifting particles across the board
+  const buildAmbient = () => {
+    const layer = ambientLayerRef.current;
+    const g = gridRef.current;
+    if (!layer || !g.length) return;
+    layer.removeChildren().forEach((c) => c.destroy());
+    ambientRef.current = [];
+    const worldW = g[0].length * SPACING_X;
+    const worldH = g.length * SPACING_Y;
+    for (let i = 0; i < 26; i++) {
+      const baseX = Math.random() * worldW;
+      const baseY = Math.random() * worldH;
+      const dot = new Graphics();
+      const warm = Math.random() > 0.5;
+      dot.circle(0, 0, 1.5 + Math.random()).fill(warm ? 0xf3e6a8 : 0xbfe39a);
+      dot.position.set(baseX, baseY);
+      layer.addChild(dot);
+      ambientRef.current.push({ g: dot, baseX, baseY, phase: Math.random() * 6.28, speed: 0.004 + Math.random() * 0.006, amp: 14 + Math.random() * 18 });
+    }
+  };
+
   // Isometric building body + category icon, returned as its own container
   const buildBuildingNode = (tile: TileData, cx: number, top: number): Container => {
     const node = new Container();
@@ -545,6 +649,9 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
     if (!layer || !g.length) return;
     layer.removeChildren().forEach((c) => c.destroy());
     waterSpritesRef.current = [];
+    const fxLayer = fxLayerRef.current;
+    if (fxLayer) fxLayer.removeChildren().forEach((c) => c.destroy());
+    fxNodesRef.current = [];
 
     const lay = layerRef.current;
     const tex = texturesRef.current;
@@ -643,6 +750,39 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
         // Building (isometric body + category icon)
         if (tile.buildingId) {
           layer.addChild(buildBuildingNode(tile, cx, top));
+
+          // ── Animated building effects ──────────────────────────────────────
+          if (fxLayer && lay === 'normal') {
+            if (tile.buildingId === 'windkraft') {
+              // Slim tower + rotating rotor
+              const tower = new Graphics();
+              tower.poly([cx - 1.5, top - 18, cx + 1.5, top - 18, cx + 1, top - 40, cx - 1, top - 40]).fill(0xeae6dd);
+              fxLayer.addChild(tower);
+              // Three blades at fixed angles in one graphics; rotate the whole node
+              const blades = new Graphics();
+              for (let b = 0; b < 3; b++) {
+                const ang = (b * 2 * Math.PI) / 3;
+                const bx = Math.cos(ang), by = Math.sin(ang);
+                blades.poly([0, 0, bx * 16 - by * 3, by * 16 + bx * 3, bx * 16 + by * 3, by * 16 - bx * 3]).fill(0xf6f3ec);
+              }
+              blades.circle(0, 0, 2).fill(0x8b8273);
+              blades.position.set(cx, top - 40);
+              fxLayer.addChild(blades);
+              fxNodesRef.current.push({ type: 'wind', blades, speed: 0.08 });
+            } else if (tile.buildingId === 'schoellershammer' || tile.buildingId === 'intensiv_farm') {
+              // Rising smoke puffs
+              const puffs = [];
+              for (let p = 0; p < 5; p++) {
+                const g0 = new Graphics();
+                g0.circle(0, 0, 6).fill({ color: 0xb8b2a6, alpha: 0.5 });
+                g0.position.set(cx, top - 14);
+                g0.alpha = 0;
+                fxLayer.addChild(g0);
+                puffs.push({ g: g0, life: p * 14, max: 70, vy: 0.6, sway: p * 7 });
+              }
+              fxNodesRef.current.push({ type: 'smoke', cx, top: top - 14, puffs });
+            }
+          }
         }
 
         // ── City / village name label ────────────────────────────────────────
