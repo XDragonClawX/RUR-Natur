@@ -7,6 +7,7 @@ import waterRiverUrl from '../assets/images/tile_river_middle_1779350583496.png'
 import waterDeepUrl from '../assets/images/tile_deep_water_1779350607495.png';
 import waterShallowUrl from '../assets/images/tile_shallow_water_1779350629775.png';
 import valleyBgUrl from '../assets/images/rur_valley_background_1779897494900.png';
+import wieseUrl from '../assets/tile_wiese.png';
 
 interface IsometricMapPixiProps {
   grid: TileData[][];
@@ -148,7 +149,7 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
   const worldRef = useRef<Container | null>(null);
   const tileLayerRef = useRef<Container | null>(null);
   const highlightRef = useRef<Graphics | null>(null);
-  const texturesRef = useRef<{ river?: Texture; deep?: Texture; shallow?: Texture }>({});
+  const texturesRef = useRef<{ river?: Texture; deep?: Texture; shallow?: Texture; meadow?: Texture }>({});
   const waterSpritesRef = useRef<TilingSprite[]>([]);
   const tickRef = useRef<number>(0);
   const fxLayerRef = useRef<Container | null>(null);
@@ -235,13 +236,14 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
         worldRef.current = world;
 
         // ── Load textures, then (re)build with water sprites ──────────────────
-        Assets.load([waterRiverUrl, waterDeepUrl, waterShallowUrl, valleyBgUrl])
+        Assets.load([waterRiverUrl, waterDeepUrl, waterShallowUrl, valleyBgUrl, wieseUrl])
           .then((loaded) => {
             if (disposed) return;
             texturesRef.current = {
               river: loaded[waterRiverUrl],
               deep: loaded[waterDeepUrl],
               shallow: loaded[waterShallowUrl],
+              meadow: loaded[wieseUrl],
             };
             valleyBg.texture = loaded[valleyBgUrl];
             placeValleyBg();
@@ -724,6 +726,20 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
           waterSpritesRef.current.push(sprite);
         }
 
+        // ── Meadow tiles: static sprite clipped to the hex top face ──────────
+        if (tile.terrain === 'Wiese' && lay === 'normal' && tex.meadow) {
+          const sprite = new Sprite(tex.meadow);
+          sprite.anchor.set(0.5);
+          sprite.position.set(cx, top);
+          // Fit the texture across the hex top-face diamond (slightly squashed)
+          sprite.width = 2 * W + 2;
+          sprite.height = 2.45 * H;
+          const mask = new Graphics().poly(hexPoints(cx, top)).fill(0xffffff);
+          sprite.mask = mask;
+          layer.addChild(sprite);
+          layer.addChild(mask);
+        }
+
         // Lit top-left facet
         gfx
           .poly([cx, top, cx, top - H, cx - W, top - H / 2, cx - W, top + H / 2])
@@ -734,7 +750,10 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
           .fill({ color: 0xffffff, alpha: 0.04 });
 
         // ── Procedural land details (hybrid look) ────────────────────────────
-        if (lay === 'normal') drawLandDetails(gfx, tile, cx, top);
+        // Skip on meadow tiles that already show the sprite texture
+        if (lay === 'normal' && !(tile.terrain === 'Wiese' && tex.meadow)) {
+          drawLandDetails(gfx, tile, cx, top);
+        }
 
         // ── Data-layer overlay (WRRL / FFH / Flood) ──────────────────────────
         if (lay !== 'normal') {
