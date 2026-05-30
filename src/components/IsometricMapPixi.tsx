@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Application, Container, Graphics, Assets, Texture, TilingSprite, Sprite, Text, ColorMatrixFilter } from 'pixi.js';
+import { AdvancedBloomFilter } from 'pixi-filters';
 import { TileData, BuildingType, TerrainType } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
 import waterRiverUrl from '../assets/images/tile_river_middle_1779350583496.png';
@@ -312,7 +313,16 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
         // Atmosphere colour grade (built-in, cheap) tinted by season
         const grade = new ColorMatrixFilter();
         applySeasonGrade(grade, seasonRef.current);
-        world.filters = [grade];
+        // Soft bloom — only the brightest areas (water sparkle, sunlit faces,
+        // labels) glow gently; tuned subtle so the art stays readable.
+        const bloom = new AdvancedBloomFilter({
+          threshold: 0.82,
+          bloomScale: 0.55,
+          brightness: 1.0,
+          blur: 5,
+          quality: 4,
+        });
+        world.filters = [grade, bloom];
         (world as any).__grade = grade;
 
         centerMap();
