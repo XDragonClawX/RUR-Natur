@@ -3031,6 +3031,7 @@ export default function App() {
             rurtalbahnLeased={rurtalbahnLeased}
             rurtalbahnTimeRemaining={rurtalbahnTimeRemaining}
             onLeaseRurtalbahn={handleLeaseRurtalbahn}
+            logsCollapsed={logsCollapsed}
           />
 
         </div>
