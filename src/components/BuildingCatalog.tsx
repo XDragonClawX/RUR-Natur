@@ -311,9 +311,8 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 key={building.id}
                 onClick={() => { if (!lockStatus.locked && !isDemolishMode) onSelectBuilding(isSelected ? null : building); }}
                 className={[
-                  'border-l-4 border rounded-r-xl rounded-l-none p-3.5 transition-all duration-150',
-                  lockStatus.locked ? 'opacity-50 cursor-not-allowed bg-[#E8E2D6]/40' : isSelected ? 'cursor-pointer shadow-sm' : 'cursor-pointer bg-white/70 hover:bg-white hover:shadow-sm',
-                  isSelected ? 'bg-white ring-1' : '',
+                  'border-l-4 border rounded-r-xl rounded-l-none p-3.5 transition-colors duration-150',
+                  lockStatus.locked ? 'opacity-50 cursor-not-allowed bg-[#E8E2D6]/40' : isSelected ? 'cursor-pointer bg-white shadow-sm ring-1' : 'cursor-pointer bg-white/70 hover:bg-white hover:border-[#C0B8A8]',
                 ].join(' ')}
                 style={{
                   borderLeftColor: accent,

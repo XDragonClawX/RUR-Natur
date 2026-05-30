@@ -332,7 +332,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
       {/* Container */}
-      <div className="bg-[#FAF8F5] border-2 border-[#D4CCBA] rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in duration-200">
+      <div className="bg-[#FAF8F5] border-2 border-[#D4CCBA] rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in duration-200">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-[#D4CCBA]">
@@ -390,10 +390,10 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
         </div>
 
         {/* Modal Workspace Body (Split layout: Detail Info Left / Card System Right) */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-[#D4CCBA]">
-          
+        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-[#D4CCBA]">
+
           {/* LEFT PANEL: Selected Tile Details & Existing Buildings */}
-          <div className="w-full md:w-1/3 p-5 overflow-y-auto bg-[#FAF8F5] flex flex-col gap-3">
+          <div className="w-full md:w-1/3 p-5 md:overflow-y-auto bg-[#FAF8F5] flex flex-col gap-3">
             <button
               onClick={onClose}
               className="w-full py-2 bg-amber-50/70 hover:bg-amber-100/80 border border-dashed border-amber-300 hover:border-amber-400 rounded-xl text-amber-900 font-extrabold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer shadow-3xs"
@@ -603,7 +603,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
           </div>
 
           {/* RIGHT PANEL: Expandable Action Cards for the Round */}
-          <div className="flex-1 p-5 overflow-y-auto flex flex-col gap-4">
+          <div className="flex-1 p-5 md:overflow-y-auto flex flex-col gap-4">
             <div>
               <span className="text-[9px] font-bold uppercase text-stone-400 tracking-wider">
                 Verfügbare Runden-Karten (Handdeck)
@@ -670,7 +670,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex sm:grid sm:grid-cols-5 gap-3.5 min-w-[620px] sm:min-w-full py-1.5 px-0.5">
+              <div className="flex sm:grid sm:grid-cols-5 gap-3.5 min-w-[520px] sm:min-w-full pt-3 pb-2 px-0.5">
                 {cards.map((card, idx) => {
                   const isSelected = expandedCardId === card.id;
                   const strength = idx + 1;
@@ -688,12 +688,12 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                     <div
                       key={card.id}
                       onClick={() => !cardLocked && setExpandedCardId(card.id)}
-                      className={`relative flex flex-col justify-between h-[235px] w-[115px] sm:w-full shrink-0 rounded-xl border-2 transition-all duration-300 ${
+                      className={`relative flex flex-col justify-between h-[190px] sm:h-[235px] w-[100px] sm:w-full shrink-0 rounded-xl border-2 transition-all duration-300 ${
                         isSelected
-                          ? `${theme.bg} ${theme.borderActive} -translate-y-2 shadow-lg`
+                          ? `${theme.bg} ${theme.borderActive} sm:-translate-y-2 shadow-xl`
                           : cardLocked
                           ? 'bg-stone-100 border-stone-200 opacity-30 grayscale cursor-not-allowed contrast-75'
-                          : `${theme.bg} cursor-pointer hover:border-[#D4CCBA] hover:-translate-y-1 hover:shadow-md`
+                          : `${theme.bg} cursor-pointer hover:border-[#D4CCBA] sm:hover:-translate-y-1 hover:shadow-md`
                       }`}
                     >
                       {/* Unplayable Overlay / Locked state text indicator */}
@@ -721,10 +721,10 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
 
                       {/* Middle text: Card Name & short info */}
                       <div className="px-2 text-center z-10 flex-1 flex flex-col justify-center gap-1">
-                        <h3 className="text-[10.5px] font-black tracking-tight text-stone-800 leading-tight line-clamp-2 uppercase">
+                        <h3 className="text-[11px] sm:text-[10.5px] font-black tracking-tight text-stone-800 leading-tight line-clamp-2 uppercase">
                           {cleanedName}
                         </h3>
-                        <p className="text-[8.5px] text-stone-500 leading-snug line-clamp-3 px-0.5">
+                        <p className="hidden sm:block text-[8.5px] text-stone-500 leading-snug line-clamp-3 px-0.5">
                           {card.description}
                         </p>
                       </div>
@@ -761,7 +761,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
               const card = cards.find(c => c.id === expandedCardId);
               if (!card) {
                 return (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#FAF8F5]/80 border-2 border-dashed border-[#D4CCBA]/60 rounded-xl mt-1 min-h-[220px]">
+                  <div className="flex flex-col items-center justify-center text-center p-8 bg-[#FAF8F5]/80 border-2 border-dashed border-[#D4CCBA]/60 rounded-xl mt-1 min-h-[220px]">
                     <div className="text-4xl opacity-50 animate-pulse mb-3">🎴</div>
                     <span className="text-xs font-black text-stone-600 uppercase tracking-wider">Wähle eine Spielkarte aus</span>
                     <p className="text-[10.5px] text-stone-500 mt-1.5 max-w-xs leading-relaxed">
@@ -779,7 +779,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
               const theme = CARD_THEME[key];
 
               return (
-                <div className="flex-1 mt-1 bg-white border border-[#D4CCBA] rounded-xl p-3 shadow-xs flex flex-col gap-2.5 animate-in fade-in duration-200">
+                <div className="mt-1 bg-white border border-[#D4CCBA] rounded-xl p-3 shadow-xs flex flex-col gap-2.5 animate-in fade-in duration-200">
                   {/* Card Title Details Line */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1.5 pb-1.5 border-b border-[#D4CCBA]/30">
                     <span className="text-[8.5px] font-black text-[#8B8273] tracking-wider uppercase font-mono sm:text-right">
