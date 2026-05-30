@@ -191,7 +191,6 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
         preference: 'webgl',
-        preserveDrawingBuffer: true,
       })
       .then(() => {
         if (disposed) {

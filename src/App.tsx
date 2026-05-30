@@ -10,13 +10,7 @@ import {
 } from './gameData';
 import { TileActionModal } from './components/TileActionModal';
 import { ActiveSimulationPanel } from './components/ActiveSimulationPanel';
-import { IsometricMap } from './components/IsometricMap';
 import { IsometricMapPixi } from './components/IsometricMapPixi';
-
-// Feature-Flag: neue WebGL-Map (PixiJS) vs. alte Canvas-2D-Map.
-// Per ?map=canvas in der URL temporär auf die alte Map zurückschalten.
-const USE_PIXI_MAP =
-  typeof window === 'undefined' || new URLSearchParams(window.location.search).get('map') !== 'canvas';
 import { OekoZentraleHUD } from './components/OekoZentraleHUD';
 import { SystemControlDock } from './components/SystemControlDock';
 import { RegulatoryModals } from './components/RegulatoryModals';
@@ -2940,25 +2934,20 @@ export default function App() {
           
           {/* Interactive map display - Taller, stable, and dominant gameplay canvas */}
           <div className="rounded-2xl relative h-[500px] lg:h-[650px] shadow-[0_12px_40px_rgba(0,0,0,0.18),0_1px_3px_rgba(0,0,0,0.06)] border border-[#D4E0C1]/60 bg-[#1a1510] shrink-0 overflow-hidden">
-            {(() => {
-              const MapComponent = USE_PIXI_MAP ? IsometricMapPixi : IsometricMap;
-              return (
-                <MapComponent
-                  grid={grid}
-                  onTileClick={handleTileClick}
-                  selectedBuilding={selectedBuilding}
-                  selectedLayer={selectedLayer}
-                  onLayerChange={setSelectedLayer}
-                  isDemolishMode={isDemolishMode}
-                  season={currentSeasonString}
-                  selectedTile={
-                    placementConfirmation
-                      ? { x: placementConfirmation.x, y: placementConfirmation.y }
-                      : (selectedTileInfo ? { x: selectedTileInfo.x, y: selectedTileInfo.y } : null)
-                  }
-                />
-              );
-            })()}
+            <IsometricMapPixi
+              grid={grid}
+              onTileClick={handleTileClick}
+              selectedBuilding={selectedBuilding}
+              selectedLayer={selectedLayer}
+              onLayerChange={setSelectedLayer}
+              isDemolishMode={isDemolishMode}
+              season={currentSeasonString}
+              selectedTile={
+                placementConfirmation
+                  ? { x: placementConfirmation.x, y: placementConfirmation.y }
+                  : (selectedTileInfo ? { x: selectedTileInfo.x, y: selectedTileInfo.y } : null)
+              }
+            />
 
             {/* RISING GREEN LEAVES (FOLIAGE PARTICLES) ON RENATURATION */}
             {foliageParticles.map((p) => (
