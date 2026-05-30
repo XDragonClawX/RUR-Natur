@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  TileData, BuildingType, ResearchNode, Species, PaperFactoryMode, GameLog, GameStats
+  TileData, BuildingType, ResearchNode, Species, PaperFactoryMode, GameLog, GameStats, ActionCard
 } from '../types';
 import {
   Hammer, Factory, Microscope, Leaf, FileText, ChevronRight,
@@ -40,11 +40,10 @@ interface ActiveSimulationPanelProps {
   onShowInvasiveRules: () => void;
   onShowEnergyRules: () => void;
   roundInvested: boolean;
-  rurtalbahnLeased: boolean;
-  rurtalbahnTimeRemaining: number;
-  onLeaseRurtalbahn: () => void;
-  /** Mirrors the Simulationsprotokoll collapse state so the cockpit bottom edge stays aligned with the log */
-  logsCollapsed?: boolean;
+  cards?: ActionCard[];
+  maxActionsPerRound?: number;
+  actionsUsed?: number;
+  roundHistory: any[];
 }
 
 // ── Tab colour tokens ─────────────────────────────────────────────────────────
@@ -188,13 +187,12 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   onShowInvasiveRules,
   onShowEnergyRules,
   roundInvested,
-  rurtalbahnLeased,
-  rurtalbahnTimeRemaining,
-  onLeaseRurtalbahn,
-  logsCollapsed = false,
+  cards,
+  maxActionsPerRound,
+  actionsUsed,
+  roundHistory
 }) => {
-  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
-  const [scenariosOpen, setScenariosOpen] = useState(false);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(true);
 
   const energyCalc = useMemo(() => {
     const isGreenEnergyTechUnlocked = researchTree.find(r => r.id === 'green_energy_tech')?.unlocked || false;
@@ -296,9 +294,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   ];
 
   return (
-    <div className={`bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col ${
-      logsCollapsed ? 'h-[564px] lg:h-[714px]' : 'h-[724px] lg:h-[874px]'
-    }`}>
+    <div className="bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col">
 
       {/* ── COCKPIT HEADER ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#D4CCBA] gap-3">
@@ -310,52 +306,25 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <Gauge className="w-3.5 h-3.5 text-[#5A7247] shrink-0" aria-hidden="true" />
-              <h2 className="text-[13px] font-black text-[#262A1F] uppercase tracking-wider font-sans leading-none truncate">
+              <h2 className="text-[11px] font-black text-[#262A1F] uppercase tracking-wider font-sans leading-none truncate">
                 Steuer-Cockpit &amp; System-Zentralen
               </h2>
             </div>
-            <p className="text-[11px] text-[#8B8273] font-mono uppercase leading-none mt-1 truncate">
+            <p className="text-[8.5px] text-[#8B8273] font-mono uppercase leading-none mt-1 truncate">
               Rur-Ökomodell · Simulation läuft · Jahr {stats.year} · Q{((stats.round - 1) % 4) + 1}
             </p>
           </div>
         </div>
-        {/* ── Rurtalbahn Ticket action button ───────────────────────── */}
-        {rurtalbahnLeased ? (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 shrink-0 select-none" title="Rurtalbahn-Karte ist aktiv">
-            <span className="text-sm leading-none">🚇</span>
-            <div className="text-left">
-              <div className="text-[10px] font-black uppercase tracking-wide text-indigo-700 leading-none">Rurtalbahn</div>
-              <div className="text-[11px] font-mono font-black text-indigo-900 leading-tight tabular-nums">
-                {rurtalbahnTimeRemaining} Rd. verbleibend
-              </div>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={onLeaseRurtalbahn}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#F3EDE2] border border-[#D4CCBA] hover:bg-indigo-50 hover:border-indigo-300 transition-all active:scale-95 cursor-pointer shrink-0 group"
-            title="Rurtalbahn Sonderticket mieten — ersetzt Aktionsslot 1 für 3 Runden (Kosten: 2 €)"
-          >
-            <span className="text-sm leading-none">🚇</span>
-            <div className="text-left">
-              <div className="text-[10px] font-black uppercase tracking-wide text-[#8B8273] group-hover:text-indigo-700 leading-none transition-colors">Rurtalbahn</div>
-              <div className="text-[11px] font-mono font-black text-[#5C564C] group-hover:text-indigo-900 leading-tight transition-colors">
-                Ticket mieten · 2 €
-              </div>
-            </div>
-          </button>
-        )}
-
         {/* Year / Round pill */}
         <div className="flex items-stretch gap-0 border border-[#D4CCBA] rounded-lg overflow-hidden shrink-0 bg-[#F3EDE2]">
           <div className="px-2.5 py-1.5 text-center">
-            <div className="text-[10px] font-mono text-[#8B8273] uppercase leading-none">Jahr</div>
-            <div className="text-[13px] font-black text-[#2C3322] font-mono tabular-nums leading-tight mt-0.5">{stats.year}</div>
+            <div className="text-[7.5px] font-mono text-[#8B8273] uppercase leading-none">Jahr</div>
+            <div className="text-[12px] font-black text-[#2C3322] font-mono tabular-nums leading-tight mt-0.5">{stats.year}</div>
           </div>
           <div className="w-px bg-[#D4CCBA]" />
           <div className="px-2.5 py-1.5 text-center">
-            <div className="text-[10px] font-mono text-[#8B8273] uppercase leading-none">Runde</div>
-            <div className={`text-[13px] font-black font-mono tabular-nums leading-tight mt-0.5 ${p.text}`}>R{stats.round}</div>
+            <div className="text-[7.5px] font-mono text-[#8B8273] uppercase leading-none">Runde</div>
+            <div className={`text-[12px] font-black font-mono tabular-nums leading-tight mt-0.5 ${p.text}`}>R{stats.round}</div>
           </div>
         </div>
       </div>
@@ -393,7 +362,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
               <div className={`p-1.5 rounded-lg transition-all duration-150 ${isActive ? `${tp.bg} ${tp.text}` : 'text-[#A29A8C]'}`}>
                 <TabIcon className="w-4 h-4" aria-hidden="true" />
               </div>
-              <span className={`text-[11px] font-bold uppercase tracking-wide leading-none transition-colors duration-150 ${isActive ? tp.text : 'text-[#8B8273]'}`}>
+              <span className={`text-[8.5px] font-bold uppercase tracking-wide leading-none transition-colors duration-150 ${isActive ? tp.text : 'text-[#8B8273]'}`}>
                 {tm.sublabel}
               </span>
               {!isActive && (
@@ -421,36 +390,38 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
         >
           {/* Left: zone badge + icon + title */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${p.badge}`}>
+            <div className={`hidden sm:inline-flex items-center gap-1.5 text-[7.5px] font-mono font-black uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0 ${p.badge}`}>
               <span className={`w-1.5 h-1.5 rounded-full ${p.led}`} aria-hidden="true" />
               Bereich {tabsArray.indexOf(activeTab) + 1} — {m.sublabel}
             </div>
             <div className="flex items-center gap-1.5 min-w-0">
               <span className={`shrink-0 ${p.text}`} aria-hidden="true">
-                {React.createElement(m.icon, { className: 'w-4 h-4' })}
+                {React.createElement(m.icon, { className: 'w-3.5 h-3.5' })}
               </span>
-              <span className="text-[11px] font-black text-[#2C3322] truncate font-sans">
+              <span className="text-[10.5px] font-black text-[#2C3322] truncate font-sans">
                 {m.title}
               </span>
             </div>
           </div>
 
-          {/* Right: metric chips + chevron — kept compact to not crowd left title */}
-          <div className="flex items-center gap-2 shrink-0 ml-2">
-            {/* Only 2 key metrics to prevent overflow in narrow column */}
-            <div className="hidden lg:flex items-center gap-2">
-              {metrics.slice(0, 2).map(({ Icon, label, value, suffix, valueColor }) => (
-                <div key={label} className="flex items-center gap-0.5" title={label}>
+          {/* Right: 4 mini metric chips + chevron */}
+          <div className="flex items-center gap-3 shrink-0 ml-4">
+            {/* Compact metric values — visible even when collapsed */}
+            <div className="hidden md:flex items-center gap-3">
+              {metrics.map(({ Icon, label, value, suffix, valueColor }) => (
+                <div key={label} className="flex items-center gap-1" title={label}>
                   <Icon className="w-3 h-3 text-[#B0A898]" aria-hidden="true" />
                   <span className={`text-[9px] font-mono font-bold tabular-nums ${valueColor}`}>
                     {value}{suffix}
                   </span>
                 </div>
               ))}
-              <div className="w-px h-3 bg-[#D4CCBA]" aria-hidden="true" />
             </div>
-            {/* Toggle chevron only — text label removed to save space */}
-            <div className={`flex items-center gap-0.5 text-[9px] font-mono font-bold ${p.text} uppercase tracking-wide`}>
+            {/* Separator */}
+            <div className="hidden md:block w-px h-4 bg-[#D4CCBA]" aria-hidden="true" />
+            {/* Toggle button */}
+            <div className={`flex items-center gap-1 text-[8.5px] font-mono font-bold ${p.text} uppercase tracking-wide`}>
+              <span className="hidden sm:inline">{infoPanelOpen ? 'Ausblenden' : 'Einblenden'}</span>
               {infoPanelOpen
                 ? <ChevronUp   className="w-3.5 h-3.5" aria-hidden="true" />
                 : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />
@@ -463,177 +434,245 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
         {infoPanelOpen && (
           <div
             id="cockpit-info-body"
-            className={`px-4 py-3 ${p.bodyBg} border-t ${p.divider}`}
+            className={`px-4 py-4 ${p.bodyBg} border-t ${p.divider}`}
           >
-            {/* Description + badge in one compact row */}
-            <div className="flex items-center gap-3 mb-3">
-              <p className="text-[9.5px] text-[#6B6356] leading-snug font-sans flex-1 line-clamp-2">
+            {/* Row 1: Description + live status badge */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-4">
+              <p className="text-[10px] text-[#6B6356] leading-relaxed font-sans flex-1">
                 {m.desc}
               </p>
-              <div className={`text-[8.5px] font-mono font-bold px-2 py-1 rounded-md border text-center whitespace-nowrap shrink-0 ${activeBadge.color}`}>
+              <div className={`text-[9px] font-mono font-bold px-3 py-1.5 rounded-lg border text-center whitespace-nowrap shrink-0 ${activeBadge.color}`}>
                 {activeBadge.text}
               </div>
             </div>
 
-            {/* Metric strip — single compact row instead of 4-card grid */}
-            <div className="flex gap-2">
+            {/* Row 2: 4 metric cards in a responsive grid */}
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5">
               {metrics.map(({ Icon, label, unit, value, suffix, barWidth, barColor, valueColor }) => (
                 <div
                   key={label}
-                  className="flex-1 bg-white rounded-lg border border-[#E8E2D6] px-2 py-1.5 min-w-0"
-                  title={`${label} — ${unit}`}
+                  className="bg-white rounded-xl border border-[#E8E2D6] px-3 py-2.5 shadow-xs flex flex-col justify-between min-w-0"
                 >
-                  <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
-                    <Icon className="w-3 h-3 text-[#B0A898] shrink-0" aria-hidden="true" />
-                    <span className={`font-mono font-black text-[10px] tabular-nums leading-none ${valueColor}`}>
+                  {/* Icon + label + value */}
+                  <div className="flex items-center justify-between gap-1.5 mb-2 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <Icon className="w-3.5 h-3.5 text-[#8B8273] shrink-0" aria-hidden="true" />
+                      <span className="text-[9px] font-semibold text-[#5C564C] leading-none truncate" title={label}>
+                        {label}
+                      </span>
+                    </div>
+                    <span className={`font-mono font-black text-[11px] tabular-nums leading-none shrink-0 ${valueColor}`}>
                       {value}{suffix}
                     </span>
                   </div>
-                  <div className="w-full bg-[#EAE4D7] rounded-full h-1 overflow-hidden">
+                  {/* Progress bar */}
+                  <div className="w-full bg-[#EAE4D7] rounded-full h-1.5 overflow-hidden">
                     <div
                       style={{ width: barWidth }}
                       className={`h-full rounded-full transition-all duration-500 ease-out ${barColor}`}
                     />
                   </div>
-                  <div className="text-[7px] text-[#B0A898] font-mono uppercase tracking-wide mt-1 leading-none truncate">
-                    {label}
+                  {/* Unit label */}
+                  <div className="text-[7.5px] text-[#B0A898] font-mono uppercase tracking-wide mt-1.5 leading-none truncate" title={unit}>
+                    {unit}
                   </div>
                 </div>
               ))}
             </div>
 
-          </div>
-        )}
-      </div>
-
-      {/* ── SZENARIEN — compact collapsible strip, always accessible ─────── */}
-      <div className="border-b border-[#D4CCBA]">
-        <button
-          onClick={() => setScenariosOpen(v => !v)}
-          className="w-full flex items-center justify-between px-4 py-2 bg-stone-50/80 hover:bg-stone-100/60 transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-3.5 h-3.5 text-[#8B8273]" aria-hidden="true" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#8B8273]">
-              Zusatz-Szenarien / Schwierigkeit
-            </span>
-            {/* Active indicators */}
-            {invasiveThreatEnabled && (
-              <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded bg-[#5A7247]/10 text-[#5A7247] border border-[#5A7247]/20">
-                Bio: {stats.biosecurity ?? 100}%
-              </span>
-            )}
-            {energyChallengeEnabled && (
-              <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                Energie: {stats.renewableEnergy ?? 25}%
-              </span>
-            )}
-          </div>
-          {scenariosOpen
-            ? <ChevronUp className="w-3.5 h-3.5 text-[#8B8273]" />
-            : <ChevronDown className="w-3.5 h-3.5 text-[#8B8273]" />
-          }
-        </button>
-
-        {scenariosOpen && (
-          <div className="px-3 py-3 bg-stone-50/50 grid grid-cols-2 gap-2">
-            {/* Bio-Sicherheit */}
-            <div className={`p-2.5 rounded-lg border transition-all ${
-              invasiveThreatEnabled
-                ? (stats.biosecurity ?? 100) < 30 ? 'bg-rose-50 border-rose-200'
-                : (stats.biosecurity ?? 100) < 70 ? 'bg-amber-50 border-amber-200'
-                : 'bg-[#5A7247]/5 border-[#5A7247]/20'
-                : 'bg-white border-stone-200/60'
-            }`}>
-              <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <Shield className={`w-3.5 h-3.5 shrink-0 ${invasiveThreatEnabled ? 'text-[#5A7247]' : 'text-stone-400'}`} />
-                  <div>
-                    <div className={`text-[11px] font-black leading-tight ${invasiveThreatEnabled ? 'text-stone-800' : 'text-stone-500'}`}>Bio-Sicherheit</div>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#8B8273]">Invasive Bedrohung</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {invasiveThreatEnabled && (
-                    <button onClick={onShowInvasiveRules} className="w-4 h-4 rounded-full bg-white border border-[#D4CCBA] hover:bg-[#FAF8F5] flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors" title="Regeln">?</button>
-                  )}
-                  <label className="relative inline-flex items-center cursor-pointer select-none">
-                    <input type="checkbox" checked={invasiveThreatEnabled} onChange={e => onToggleInvasive(e.target.checked)} className="sr-only peer" />
-                    <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5A7247]" />
-                  </label>
-                </div>
+            {/* ── ADDITIONAL SCENARIOS ───────────────────────────────────────── */}
+            <div className="mt-4 border-t border-[#D4CCBA]/50 pt-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[9px] font-bold text-[#8B8273] uppercase tracking-wider">
+                  ⚠️ Zusatz-Szenarien / Schwierigkeit
+                </span>
+                <span className="text-[8px] font-mono text-stone-400">
+                  Schalte diese Herausforderungen ein, um die Simulation zu vertiefen
+                </span>
               </div>
-              {invasiveThreatEnabled && (
-                <>
-                  <div className="flex justify-between text-[11px] font-mono mb-1">
-                    <span className="text-stone-400">Stabilität</span>
-                    <span className={`font-black ${(stats.biosecurity ?? 100) >= 70 ? 'text-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'text-amber-700' : 'text-rose-700 animate-pulse'}`}>
-                      {stats.biosecurity ?? 100}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1 overflow-hidden">
-                    <div style={{ width: `${stats.biosecurity ?? 100}%` }} className={`h-full rounded-full transition-all duration-500 ${(stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                  </div>
-                  {(stats.biosecurity ?? 100) < 30 && (
-                    <div className="flex items-center gap-1 text-[11px] text-rose-700 font-bold animate-pulse mt-1">
-                      <AlertTriangle className="w-3 h-3 shrink-0" />Kritisch!
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* 1. Biosecurity Challenge Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  invasiveThreatEnabled
+                    ? (stats.biosecurity ?? 100) < 30 ? 'bg-rose-50/80 border-rose-300'
+                    : (stats.biosecurity ?? 100) < 70 ? 'bg-amber-50/80 border-amber-200'
+                    : 'bg-[#5A7247]/5 border-[#5A7247]/20'
+                    : 'bg-stone-50 border-stone-200/60 opacity-75'
+                }`}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Shield className={`w-4 h-4 shrink-0 ${invasiveThreatEnabled ? 'text-[#5A7247]' : 'text-stone-400'}`} />
+                      <div className="truncate">
+                        <div className={`text-[10px] font-black leading-tight ${invasiveThreatEnabled ? 'text-stone-800' : 'text-stone-500'}`}>
+                          Biologische Sicherheit
+                        </div>
+                        <div className="text-[7.5px] font-bold uppercase tracking-wide text-[#8B8273] font-sans">
+                          Invasive Bedrohung
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
 
-            {/* Energiewende */}
-            <div className={`p-2.5 rounded-lg border transition-all ${
-              energyChallengeEnabled
-                ? (stats.renewableEnergy ?? 25) < 35 ? 'bg-rose-50 border-rose-200'
-                : (stats.renewableEnergy ?? 25) < 70 ? 'bg-amber-50 border-amber-200'
-                : 'bg-emerald-50/50 border-emerald-200'
-                : 'bg-white border-stone-200/60'
-            }`}>
-              <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <Zap className={`w-3.5 h-3.5 shrink-0 ${energyChallengeEnabled ? 'text-amber-500 animate-pulse' : 'text-stone-400'}`} />
-                  <div>
-                    <div className={`text-[11px] font-black leading-tight ${energyChallengeEnabled ? 'text-stone-800' : 'text-stone-500'}`}>Energiewende</div>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#8B8273]">Dürener Dekarbonisierung</div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {invasiveThreatEnabled && (
+                        <button 
+                          onClick={onShowInvasiveRules}
+                          className="w-4 h-4 rounded-full bg-[#FAF8F5] border border-[#D4CCBA] hover:bg-white flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors shadow-3xs"
+                          title="Regeln anzeigen"
+                        >
+                          ?
+                        </button>
+                      )}
+                      
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={invasiveThreatEnabled}
+                          onChange={e => onToggleInvasive(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#5A7247]" />
+                      </label>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {energyChallengeEnabled && (
-                    <button onClick={onShowEnergyRules} className="w-4 h-4 rounded-full bg-white border border-[#D4CCBA] hover:bg-[#FAF8F5] flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors" title="Regeln">?</button>
+
+                  {invasiveThreatEnabled ? (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-baseline text-[10px] font-mono">
+                        <span className="text-stone-500 text-[8.5px]">Stabilität:</span>
+                        <span className={`font-black ${
+                          (stats.biosecurity ?? 100) >= 70 ? 'text-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'text-amber-700' : 'text-rose-700 animate-pulse'
+                        }`}>
+                          {stats.biosecurity ?? 100}% {invasiveThreatEnabled && (
+                            <span className="text-[8px] font-bold">
+                              ({roundInvested ? '+15%' : '-25%'} /Rd)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      
+                      <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          style={{ width: `${stats.biosecurity ?? 100}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            (stats.biosecurity ?? 100) >= 70 ? 'bg-[#5A7247]' : (stats.biosecurity ?? 100) >= 30 ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'
+                          }`}
+                        />
+                      </div>
+
+                      {(stats.biosecurity ?? 100) < 30 ? (
+                        <div className="flex items-center gap-1 text-[8px] text-rose-700 font-bold animate-pulse">
+                          <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                          Regionales Ökosystem droht an Riesenknöterich zu ersticken!
+                        </div>
+                      ) : (
+                        <div className="text-[7.5px] text-[#8B8273] font-medium leading-none">
+                          🌿 Bepflanze leere Acker- oder Wiesenflächen, um die Natur zu stärken.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[8.5px] text-stone-400 font-medium italic mt-1 bg-stone-100/30 p-1.5 rounded">
+                      Inaktives Szenario. Aktiviere, um den biologischen Verdrängungsdruck zu simulieren.
+                    </p>
                   )}
-                  <label className="relative inline-flex items-center cursor-pointer select-none">
-                    <input type="checkbox" checked={energyChallengeEnabled} onChange={e => onToggleEnergy(e.target.checked)} className="sr-only peer" />
-                    <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500" />
-                  </label>
+                </div>
+
+                {/* 2. Decarbonization/Energy Challenge Card */}
+                <div className={`p-3 rounded-xl border transition-all ${
+                  energyChallengeEnabled
+                    ? (stats.renewableEnergy ?? 25) < 35 ? 'bg-rose-50/80 border-rose-300'
+                    : (stats.renewableEnergy ?? 25) < 70 ? 'bg-amber-50/80 border-amber-200'
+                    : 'bg-emerald-50/50 border-emerald-200/50'
+                    : 'bg-stone-50 border-stone-200/60 opacity-75'
+                }`}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Zap className={`w-4 h-4 shrink-0 ${energyChallengeEnabled ? 'text-amber-500 animate-pulse' : 'text-stone-400'}`} />
+                      <div className="truncate">
+                        <div className={`text-[10px] font-black leading-tight ${energyChallengeEnabled ? 'text-stone-800' : 'text-stone-500'}`}>
+                          Klimafreundliche Energie
+                        </div>
+                        <div className="text-[7.5px] font-bold uppercase tracking-wide text-[#8B8273] font-sans">
+                          Dürener Energiewende
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {energyChallengeEnabled && (
+                        <button 
+                          onClick={onShowEnergyRules}
+                          className="w-4 h-4 rounded-full bg-[#FAF8F5] border border-[#D4CCBA] hover:bg-white flex items-center justify-center text-[9px] font-black text-stone-600 transition-colors shadow-3xs"
+                          title="Regeln anzeigen"
+                        >
+                          ?
+                        </button>
+                      )}
+                      
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={energyChallengeEnabled}
+                          onChange={e => onToggleEnergy(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-7 h-4 bg-stone-300 rounded-full peer peer-checked:after:translate-x-3.5 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-amber-500" />
+                      </label>
+                    </div>
+                  </div>
+
+                  {energyChallengeEnabled ? (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-baseline text-[10px] font-mono">
+                        <span className="text-stone-500 text-[8.5px]">Anteil Ökostrom:</span>
+                        <div className="flex items-center gap-1">
+                          <span className={`font-black ${
+                            (stats.renewableEnergy ?? 25) >= 70 ? 'text-emerald-700' : (stats.renewableEnergy ?? 25) >= 35 ? 'text-amber-700' : 'text-rose-700 animate-pulse'
+                          }`}>
+                            {stats.renewableEnergy ?? 25}%
+                          </span>
+                          <span className={`text-[8px] font-bold px-1 rounded ${
+                            energyCalc.netDelta >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {energyCalc.netDelta >= 0 ? '+' : ''}{energyCalc.netDelta}%/Rd
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          style={{ width: `${stats.renewableEnergy ?? 25}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            (stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-500' : (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'
+                          }`}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-[7px] text-[#8B8273] font-mono mt-0.5">
+                        <span>💧 {energyCalc.hydroCount}× Wasserkraft</span>
+                        <span>☀️ {energyCalc.solarCount}× Solar</span>
+                        <span>💨 {energyCalc.windCount}× Wind</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[8.5px] text-stone-400 font-medium italic mt-1 bg-stone-100/30 p-1.5 rounded">
+                      Inaktives Szenario. Aktiviere, um steigenden Netz-Dekarbonisierungsdruck zu simulieren.
+                    </p>
+                  )}
                 </div>
               </div>
-              {energyChallengeEnabled && (
-                <>
-                  <div className="flex justify-between text-[11px] font-mono mb-1">
-                    <span className="text-stone-400">Ökostrom</span>
-                    <span className={`font-black ${(stats.renewableEnergy ?? 25) >= 70 ? 'text-emerald-700' : (stats.renewableEnergy ?? 25) >= 35 ? 'text-amber-700' : 'text-rose-700 animate-pulse'}`}>
-                      {stats.renewableEnergy ?? 25}%
-                      <span className={`ml-1 text-[10px] px-1 rounded ${energyCalc.netDelta >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{energyCalc.netDelta >= 0 ? '+' : ''}{energyCalc.netDelta}%/Rd</span>
-                    </span>
-                  </div>
-                  <div className="w-full bg-[#EAE4D7]/50 rounded-full h-1 overflow-hidden">
-                    <div style={{ width: `${stats.renewableEnergy ?? 25}%` }} className={`h-full rounded-full transition-all duration-500 ${(stats.renewableEnergy ?? 25) >= 70 ? 'bg-emerald-500' : (stats.renewableEnergy ?? 25) >= 35 ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                  </div>
-                </>
-              )}
             </div>
-          </div>
-        )}
 
-        {/* Climate alert — shown when critical, always visible */}
-        {stats.climateRisk >= 55 && (
-          <div className="mx-3 mb-2 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 flex items-center gap-2">
-            <ShieldAlert className="w-3 h-3 text-red-600 shrink-0" aria-hidden="true" />
-            <p className="text-xs text-red-800 font-sans leading-snug">
-              <strong>Klima-Alarm:</strong> Risikostufe {stats.climateRisk}% — Renaturierung priorisieren!
-            </p>
+            {/* Climate alert — shown when critical */}
+            {stats.climateRisk >= 55 && (
+              <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-2.5 flex items-start gap-2">
+                <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
+                <p className="text-[9px] text-red-800 font-sans leading-snug">
+                  <strong>Klima-Alarm:</strong> Risikostufe bei {stats.climateRisk}% — Renaturierungsmaßnahmen sofort priorisieren!
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -642,20 +681,23 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
       <div
         id="cockpit-workspace"
         role="tabpanel"
-        className="flex flex-col flex-1 min-h-0 overflow-hidden bg-[#FAF8F5]"
+        className="flex flex-col overflow-hidden bg-[#FAF8F5]"
       >
         {/* Workspace breadcrumb bar */}
         <div className="bg-white border-b border-[#D4CCBA] px-3.5 py-2 flex items-center justify-between shrink-0">
-          <nav className="flex items-center gap-1.5 text-[10px] font-mono" aria-label="Bereichspfad">
-            <span className="font-bold text-[#5C564C] uppercase tracking-wider">Cockpit</span>
+          <nav className="flex items-center gap-1 text-[9px] font-mono" aria-label="Bereichspfad">
+            <span className="font-bold text-[#5C564C] uppercase">Cockpit</span>
             <ChevronRight className="w-3 h-3 text-[#B0A898]" aria-hidden="true" />
-            <span className={`font-black uppercase tracking-wider ${p.text}`}>{m.label}</span>
+            <span className={`font-black uppercase tracking-wide ${p.text}`}>{m.label}</span>
           </nav>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" aria-hidden="true" />
+          <div className="flex items-center gap-1.5" aria-label="Verbindungsstatus: Aktiv">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+            <span className="text-[7.5px] font-mono font-bold text-emerald-700 uppercase tracking-wide">Live</span>
+          </div>
         </div>
 
-        {/* Scrollable content — flex flex-col propagates height to BuildingCatalog h-full chain */}
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        {/* Scrollable content */}
+        <div className="overflow-y-auto custom-scrollbar min-h-[420px] max-h-[580px]">
           {activeTab === 'map' && (
             <BuildingCatalog
               stats={stats}
@@ -667,6 +709,9 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
               isDemolishMode={isDemolishMode}
               selectedTileInfo={selectedTileInfo}
               onUpgradeBuilding={handleUpgradeBuilding}
+              cards={cards}
+              grid={grid}
+              actionsLeft={maxActionsPerRound !== undefined && actionsUsed !== undefined ? Math.max(0, maxActionsPerRound - actionsUsed) : undefined}
             />
           )}
           {activeTab === 'schoeller' && (
@@ -697,6 +742,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
               onTriggerPdfSim={onTriggerPdfSim}
               pdfSimulated={pdfSimulated}
               grid={grid}
+              roundHistory={roundHistory}
             />
           )}
         </div>

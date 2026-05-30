@@ -15,6 +15,7 @@ export interface TileData {
   hasRiverConnection: boolean;
   upgradeLevel?: number;     // 1 = Basic, 2 = Upgraded, 3 = Expert!
   cityName?: string;         // Name of the town/village on this tile (e.g. Heimbach, Düren)
+  lastModifiedYear?: number; // Year of the last modification (built / renatured / demolished etc.)
 }
 
 export interface BuildingType {

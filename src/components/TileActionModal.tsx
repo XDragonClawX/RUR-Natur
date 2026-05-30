@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import {
-  ActionCard, ActionCardType, BuildingType, ResearchNode, TileData, GameStats, TerrainType
+  ActionCard, ActionCardType, BuildingType, ResearchNode, TileData, GameStats, TerrainType, StakeholderQuest
 } from '../types';
 import {
   X, Lock, Play, Check, TrendingUp, Coins, Microscope, Droplets, Leaf, Hammer,
@@ -16,6 +17,7 @@ interface TileActionModalProps {
   buildingsCatalog: BuildingType[];
   researchTree: ResearchNode[];
   grid: TileData[][];
+  quests: StakeholderQuest[];
   actionsUsed: number;
   maxActionsPerRound: number;
   rurtalbahnLeased: boolean;
@@ -137,6 +139,65 @@ const getCategoryConfig = (cat: 'nature' | 'water' | 'energy') => {
   }
 };
 
+interface CardWithParallaxProps {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+  style?: React.CSSProperties;
+}
+
+const CardWithParallax: React.FC<CardWithParallaxProps> = ({ children, className, onClick, style }) => {
+  const [rotateX, setRotateX] = useState(0);
+  const [rotateY, setRotateY] = useState(0);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const cardEl = e.currentTarget;
+    const rect = cardEl.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = e.clientX - rect.left - width / 2;
+    const mouseY = e.clientY - rect.top - height / 2;
+    
+    // Smooth 3D tilt calculations to follow the mouse (max 15 degrees)
+    const rY = (mouseX / (width / 2)) * 12;
+    const rX = -(mouseY / (height / 2)) * 12;
+    
+    setRotateX(rX);
+    setRotateY(rY);
+  };
+
+  const handleMouseLeave = () => {
+    setRotateX(0);
+    setRotateY(0);
+  };
+
+  return (
+    <motion.div
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onClick={onClick}
+      animate={{ rotateX, rotateY }}
+      style={{
+        transformStyle: 'preserve-3d',
+        perspective: '1000px',
+        ...style
+      }}
+      transition={{ type: 'spring', stiffness: 220, damping: 25 }}
+      className={className}
+    >
+      <div 
+        style={{ 
+          transform: 'translateZ(15px)',
+          transformStyle: 'preserve-3d',
+        }} 
+        className="flex flex-col justify-between h-full w-full"
+      >
+        {children}
+      </div>
+    </motion.div>
+  );
+};
+
 const TERRAIN_META: Record<TerrainType, { label: string; icon: string; bg: string; text: string; border: string }> = {
   Water: { label: 'Rur-Flusslauf', icon: '💧', bg: 'bg-[#EBF5FB]', text: 'text-[#1B4F72]', border: 'border-[#AED6F1]' },
   Wiese: { label: 'Auenwiese', icon: '🌾', bg: 'bg-[#EBF5FB]/40', text: 'text-[#5A7247]', border: 'border-[#D4E0C1]' },
@@ -147,7 +208,7 @@ const TERRAIN_META: Record<TerrainType, { label: string; icon: string; bg: strin
 };
 
 export const TileActionModal: React.FC<TileActionModalProps> = ({
-  x, y, tile, cards, stats, buildingsCatalog, researchTree, grid,
+  x, y, tile, cards, stats, buildingsCatalog, researchTree, grid, quests,
   actionsUsed, maxActionsPerRound, rurtalbahnLeased, onClose,
   onBuild, onDemolish, onUpgrade, onExecutePlant, onExecuteHydrology,
   onExecuteFunding, onExecuteResearch, onUnlockResearch, onExecuteRurtalbahn
@@ -156,7 +217,6 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [buildingCategoryFilter, setBuildingCategoryFilter] = useState<string>('all');
   const [filterOnlyBebaubar, setFilterOnlyBebaubar] = useState<boolean>(false);
-  const [mobileTab, setMobileTab] = useState<'karten' | 'info'>('karten');
   const [hoveredBuilding, setHoveredBuilding] = useState<BuildingType | null>(null);
 
   const getPrognosisValues = (bId: string): {
@@ -333,7 +393,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
       {/* Container */}
-      <div className="bg-[#FAF8F5] border-2 border-[#D4CCBA] rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col animate-in fade-in duration-200">
+      <div className="bg-[#FAF8F5] border-2 border-[#D4CCBA] rounded-2xl max-w-4xl w-full md:max-h-[90vh] overflow-y-auto md:overflow-hidden shadow-2xl flex flex-col animate-in fade-in duration-200">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-[#D4CCBA]">
@@ -347,30 +407,31 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                 <span className="font-mono text-[10px] font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
                   Kachel ({x}, {y})
                 </span>
+                {tile.lastModifiedYear ? (
+                  <span className="text-[8px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded animate-pulse">
+                    🍃 Zuletzt verändert im Jahr {tile.lastModifiedYear}
+                  </span>
+                ) : (
+                  <span className="text-[8px] font-medium text-stone-400 bg-stone-50 border border-stone-200/50 px-1.5 py-0.2 rounded">
+                    🗺️ Ursprünglicher Zustand
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-stone-600 mt-0.5">
-                <span className="sm:hidden">
-                  💶 <strong>{stats.budget} €</strong> · 🧪 <strong>{stats.researchPoints}</strong>
-                </span>
-                <span className="hidden sm:inline">
-                  Untergrund: <strong className={tMeta.text}>{tMeta.label}</strong> • 🧪 Forschung: <strong>{stats.researchPoints}</strong> • 💶 Budget: <strong>{stats.budget} €</strong>
-                </span>
+                Untergrund: <strong className={tMeta.text}>{tMeta.label}</strong> • 🧪 Forschung: <strong>{stats.researchPoints}</strong> • 💶 Budget: <strong>{stats.budget} €</strong>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Action indicator – compact on mobile */}
-            <div className="flex items-center gap-1.5 bg-[#F2EDE4] px-2 sm:px-3 py-1.5 rounded-xl border border-[#D4CCBA] shrink-0">
-              <span className={`hidden sm:block text-[10px] font-bold uppercase ${budgetExhausted ? 'text-rose-600' : 'text-emerald-800'}`}>
+          <div className="flex items-center gap-4">
+            {/* Action Round Budget indicator */}
+            <div className="flex items-center gap-2 bg-[#F2EDE4] px-3 py-1.5 rounded-xl border border-[#D4CCBA] shrink-0">
+              <span className={`text-[10px] font-bold uppercase ${budgetExhausted ? 'text-rose-600' : 'text-emerald-800'}`}>
                 {budgetExhausted ? 'Runde beendet' : `Aktionen: ${actionsLeft}/${maxActionsPerRound}`}
               </span>
-              <span className={`sm:hidden text-[9px] font-black tabular-nums ${budgetExhausted ? 'text-rose-600' : 'text-emerald-800'}`}>
-                {actionsLeft}/{maxActionsPerRound}
-              </span>
-              <div className="flex gap-0.5 sm:gap-1">
+              <div className="flex gap-1">
                 {Array.from({ length: maxActionsPerRound }).map((_, i) => (
-                  <div key={i} className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border transition-colors ${
+                  <div key={i} className={`w-2.5 h-2.5 rounded-full border transition-colors ${
                     i < actionsUsed
                       ? 'bg-stone-400 border-stone-500'
                       : budgetExhausted
@@ -381,10 +442,10 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
               </div>
             </div>
 
-            {/* Sektor-wechsel – hidden on mobile (available in Info-Tab) */}
+            {/* Select another sector button directly in header */}
             <button
               onClick={onClose}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 hover:border-amber-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer shadow-3xs hover:-translate-y-0.5 active:translate-y-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 hover:border-amber-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer shadow-3xs hover:-translate-y-0.5 active:translate-y-0"
             >
               🗺️ Sektor wechseln
             </button>
@@ -398,38 +459,11 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
           </div>
         </div>
 
-        {/* Modal Workspace Body */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-
-          {/* ── Mobile Tab Bar (hidden on md+) ───────────────────────────── */}
-          <div className="md:hidden shrink-0 flex bg-white border-b border-[#D4CCBA]">
-            <button
-              onClick={() => setMobileTab('karten')}
-              className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
-                mobileTab === 'karten'
-                  ? 'text-[#5A7247] bg-[#F5F2EC] border-b-2 border-[#5A7247]'
-                  : 'text-stone-400 hover:text-stone-600 hover:bg-stone-50'
-              }`}
-            >
-              🎴 Aktions-Karten
-            </button>
-            <button
-              onClick={() => setMobileTab('info')}
-              className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
-                mobileTab === 'info'
-                  ? 'text-[#5A7247] bg-[#F5F2EC] border-b-2 border-[#5A7247]'
-                  : 'text-stone-400 hover:text-stone-600 hover:bg-stone-50'
-              }`}
-            >
-              📍 Sektor-Info
-            </button>
-          </div>
-
-          {/* ── Panels (side-by-side on md+, tab-switched on mobile) ──── */}
-          <div className="flex-1 overflow-hidden flex flex-col md:flex-row md:divide-x divide-[#D4CCBA]">
-
+        {/* Modal Workspace Body (Split layout: Detail Info Left / Card System Right) */}
+        <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden divide-y md:divide-y-0 md:divide-x divide-[#D4CCBA]">
+          
           {/* LEFT PANEL: Selected Tile Details & Existing Buildings */}
-          <div className={`w-full md:w-1/3 p-5 overflow-y-auto bg-[#FAF8F5] flex-col gap-3 ${mobileTab === 'info' ? 'flex' : 'hidden'} md:flex`}>
+          <div className="w-full md:w-1/3 p-5 overflow-y-visible md:overflow-y-auto bg-[#FAF8F5] flex flex-col gap-3 shrink-0">
             <button
               onClick={onClose}
               className="w-full py-2 bg-amber-50/70 hover:bg-amber-100/80 border border-dashed border-amber-300 hover:border-amber-400 rounded-xl text-amber-900 font-extrabold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer shadow-3xs"
@@ -639,7 +673,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
           </div>
 
           {/* RIGHT PANEL: Expandable Action Cards for the Round */}
-          <div className={`flex-1 p-4 sm:p-5 overflow-y-auto flex-col gap-4 ${mobileTab === 'karten' ? 'flex' : 'hidden'} md:flex`}>
+          <div className="flex-1 p-5 overflow-y-visible md:overflow-y-auto flex flex-col gap-4">
             <div>
               <span className="text-[9px] font-bold uppercase text-stone-400 tracking-wider">
                 Verfügbare Runden-Karten (Handdeck)
@@ -650,9 +684,9 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
             </div>
 
             {/* Horizontal playing cards list with horizontal scroll support on small screens */}
-            <div className="flex flex-col gap-3 select-none">
-              {/* Continuous Slot Strength Bar – fully responsive, no forced min-width */}
-              <div className="bg-[#FAF9F5] border border-[#D4CCBA]/55 rounded-lg py-1.5 px-3.5 flex items-center justify-between shadow-3xs">
+            <div className="overflow-x-auto pb-2 scrollbar-thin select-none flex flex-col gap-3">
+              {/* Continuous Slot Strength Bar - Compact and Purely Informational */}
+              <div className="min-w-[620px] sm:min-w-full bg-[#FAF9F5] border border-[#D4CCBA]/55 rounded-lg py-1.5 px-3.5 flex items-center justify-between shadow-3xs">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[7.5px] font-black uppercase text-[#8B8273] tracking-widest font-mono">Slot-Handdeck</span>
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -706,8 +740,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                 </div>
               </div>
 
-              <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 pb-2 scrollbar-thin">
-              <div className="flex sm:grid sm:grid-cols-5 gap-3 sm:gap-3.5 min-w-[460px] sm:min-w-full pt-2 pb-1.5 px-0.5">
+              <div className="flex sm:grid sm:grid-cols-5 gap-3.5 min-w-[620px] sm:min-w-full py-1.5 px-0.5">
                 {cards.map((card, idx) => {
                   const isSelected = expandedCardId === card.id;
                   const strength = idx + 1;
@@ -718,26 +751,147 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                   // Locked conditions
                   const cardLocked = budgetExhausted && card.type !== 'BUILD';
 
+                  // Sofort-Bereit check: for BUILD check if at least one structure is affordable and placeable
+                  let buildCardPlayable = true;
+                  if (card.type === 'BUILD') {
+                    const hasWaterAdjacentLocal = (tx: number, ty: number): boolean => {
+                      const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                      for (const [dx, dy] of dirs) {
+                        const nx = tx + dx;
+                        const ny = ty + dy;
+                        if (nx >= 0 && nx < grid[0].length && ny >= 0 && ny < grid.length) {
+                          if (grid[ny][nx]?.terrain === 'Water') {
+                            return true;
+                          }
+                        }
+                      }
+                      return false;
+                    };
+
+                    const constructibleCount = buildingsCatalog
+                      .filter(b => b.id !== 'schoellershammer')
+                      .filter(b => {
+                        const isLockedLocal = (buildingId: string): { locked: boolean; reason?: string } => {
+                          if (buildingId === 'lachs_zucht') {
+                            const researchUnlocked = researchTree.find(r => r.id === 'lachs_nrw')?.unlocked;
+                            if (!researchUnlocked) return { locked: true, reason: 'Forschung "Lachsprogramm NRW" benötigt' };
+                          }
+                          return { locked: false };
+                        };
+                        const lockStatus = isLockedLocal(b.id);
+                        if (lockStatus.locked) return false;
+
+                        const allowedTerrain = b.allowedTerrains.includes(tile.terrain);
+                        const isRiverCheck = !b.isRiverOnly || tile.terrain === 'Water';
+                        const isRiverAdjacentCheck = !b.isRiverAdjacentOnly || hasWaterAdjacentLocal(x, y);
+                        const isEligible = allowedTerrain && isRiverCheck && isRiverAdjacentCheck;
+                        
+                        let costLimit = 4;
+                        if (strength === 2) costLimit = 6;
+                        else if (strength === 3) costLimit = 8;
+                        else if (strength === 4) costLimit = 10;
+                        else if (strength === 5) costLimit = 100;
+                        const strengthFits = b.cost <= costLimit;
+                        
+                        let constructRebate = 0;
+                        if (strength === 3 || strength === 4) constructRebate = 1;
+                        else if (strength === 5) constructRebate = 2;
+                        const discountValue = constructRebate + (activeRailwayBonus ? 1 : 0);
+                        
+                        let acceptanceSurcharge = 0;
+                        if (stats.year > 2026 && stats.citizenAcceptance < 40) {
+                          acceptanceSurcharge = 2;
+                        }
+                        
+                        const finalCost = Math.max(1, b.cost - discountValue + acceptanceSurcharge);
+                        const canAfford = stats.budget >= finalCost;
+                        
+                        return isEligible && strengthFits && canAfford && !tile.buildingId;
+                      }).length;
+                    
+                    buildCardPlayable = constructibleCount > 0 && actionsLeft > 0;
+                  }
+
+                  let cardSolvesQuest = false;
+                  if (card.type === 'BUILD') {
+                    cardSolvesQuest = buildingsCatalog.some(b => {
+                      const solves = quests.some(q => q.status === 'available' && q.requirements.buildingId === b.id);
+                      if (!solves) return false;
+
+                      const allowedTerrain = b.allowedTerrains.includes(tile.terrain);
+                      const isRiverCheck = !b.isRiverOnly || tile.terrain === 'Water';
+                      const hasWaterAdjacentLocal = (tx: number, ty: number): boolean => {
+                        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                        for (const [dx, dy] of dirs) {
+                          const nx = tx + dx;
+                          const ny = ty + dy;
+                          if (nx >= 0 && nx < grid[0].length && ny >= 0 && ny < grid.length) {
+                            if (grid[ny][nx]?.terrain === 'Water') {
+                              return true;
+                            }
+                          }
+                        }
+                        return false;
+                      };
+                      const isRiverAdjacentCheck = !b.isRiverAdjacentOnly || hasWaterAdjacentLocal(x, y);
+                      const isEligible = allowedTerrain && isRiverCheck && isRiverAdjacentCheck;
+
+                      let costLimit = 4;
+                      if (strength === 2) costLimit = 6;
+                      else if (strength === 3) costLimit = 8;
+                      else if (strength === 4) costLimit = 10;
+                      else if (strength === 5) costLimit = 100;
+                      const strengthFits = b.cost <= costLimit;
+
+                      let constructRebate = 0;
+                      if (strength === 3 || strength === 4) constructRebate = 1;
+                      else if (strength === 5) constructRebate = 2;
+                      const discountValue = constructRebate + (activeRailwayBonus ? 1 : 0);
+
+                      let acceptanceSurcharge = 0;
+                      if (stats.year > 2026 && stats.citizenAcceptance < 40) {
+                        acceptanceSurcharge = 2;
+                      }
+
+                      const finalCost = Math.max(1, b.cost - discountValue + acceptanceSurcharge);
+                      const canAfford = stats.budget >= finalCost;
+
+                      return isEligible && strengthFits && canAfford && !tile.buildingId;
+                    }) && actionsLeft > 0;
+                  }
+
+                  const isPlayable = !cardLocked && actionsLeft > 0 && (card.type !== 'BUILD' || buildCardPlayable);
+
                   // Dynamic name clean up to keep it elegant inside tight vertical space
                   const cleanedName = card.name.replace(/^(🏗️|🌱|🌊|💶|🧪|🚇)\s+/, '');
 
                   return (
-                    <div
+                    <CardWithParallax
                       key={card.id}
                       onClick={() => !cardLocked && setExpandedCardId(card.id)}
-                      className={`relative flex flex-col justify-between h-[190px] sm:h-[235px] w-[100px] sm:w-full shrink-0 rounded-xl border-2 transition-all duration-300 ${
+                      className={`relative flex flex-col justify-between h-[235px] w-[115px] sm:w-[130px] md:w-full shrink-0 rounded-xl border-2 transition-all duration-300 ${
                         isSelected
-                          ? `${theme.bg} ${theme.borderActive} sm:-translate-y-2 shadow-xl`
+                          ? `${theme.bg} ${theme.borderActive} -translate-y-2 shadow-lg`
                           : cardLocked
                           ? 'bg-stone-100 border-stone-200 opacity-30 grayscale cursor-not-allowed contrast-75'
-                          : `${theme.bg} cursor-pointer hover:border-[#D4CCBA] sm:hover:-translate-y-1 hover:shadow-md`
+                          : isPlayable
+                          ? cardSolvesQuest
+                            ? `${theme.bg} cursor-pointer border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.55)] ring-2 ring-amber-300 hover:-translate-y-1 hover:shadow-lg animate-pulse`
+                            : `${theme.bg} cursor-pointer border-emerald-500/90 shadow-[0_0_12px_rgba(16,185,129,0.22)] ring-1 ring-emerald-500/20 hover:-translate-y-1 hover:shadow-md animate-pulse`
+                          : `${theme.bg} cursor-pointer hover:border-[#D4CCBA] hover:-translate-y-1 hover:shadow-md`
                       }`}
                     >
                       {/* Unplayable Overlay / Locked state text indicator */}
-                      {cardLocked && (
+                      {cardLocked ? (
                         <div className="absolute top-1.5 right-1.5 bg-rose-600 text-white text-[7px] font-extrabold uppercase px-1.5 py-0.5 rounded-md z-30 tracking-wider shadow-3xs flex items-center gap-0.5">
                           <span>🔒 Gesperrt</span>
                         </div>
+                      ) : (
+                        isPlayable && !isSelected && (
+                          <div className={`absolute top-1.5 right-1.5 text-white text-[7px] font-extrabold uppercase px-1.5 py-0.5 rounded-md z-30 tracking-wider shadow-3xs flex items-center gap-0.5 animate-bounce ${cardSolvesQuest ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-emerald-600'}`}>
+                            <span>{cardSolvesQuest ? '👑 Quest' : '✨ Bereit'}</span>
+                          </div>
+                        )
                       )}
 
                       {/* Subdued Background Logo Watermark */}
@@ -746,7 +900,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                       </span>
 
                       {/* Header block with Slot Badge on top-left and tiny category symbol on top-right */}
-                      <div className="p-2.5 flex items-center justify-between z-10">
+                      <div className="p-2.5 flex items-center justify-between z-10 w-full">
                         <div className={`px-1.5 py-0.5 rounded font-mono text-[9px] font-black tracking-tight flex flex-col items-center leading-none shadow-3xs ${palette.badge}`}>
                           <span className="text-[6.5px] text-stone-500 font-bold uppercase">Slot</span>
                           <span>0{strength}</span>
@@ -757,17 +911,17 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                       </div>
 
                       {/* Middle text: Card Name & short info */}
-                      <div className="px-2 text-center z-10 flex-1 flex flex-col justify-center gap-1">
-                        <h3 className="text-[11px] sm:text-[10.5px] font-black tracking-tight text-stone-800 leading-tight line-clamp-2 uppercase">
+                      <div className="px-2 text-center z-10 flex-grow flex flex-col justify-center gap-1 w-full">
+                        <h3 className="text-[10.5px] font-black tracking-tight text-stone-800 leading-tight line-clamp-2 uppercase">
                           {cleanedName}
                         </h3>
-                        <p className="hidden sm:block text-[8.5px] text-stone-500 leading-snug line-clamp-3 px-0.5">
+                        <p className="text-[8.5px] text-stone-500 leading-snug line-clamp-3 px-0.5">
                           {card.description}
                         </p>
                       </div>
 
                       {/* Bottom Strength Dots & Pill indicator */}
-                      <div className="p-2 pt-0 flex flex-col items-center gap-1 z-10">
+                      <div className="p-2 pt-0 flex flex-col items-center gap-1 z-10 w-full">
                         <div className="flex gap-1">
                           {Array.from({ length: 5 }).map((_, starIdx) => (
                             <div
@@ -785,13 +939,12 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
 
                       {/* Selection glow highlight ring bar on active state-card top edge */}
                       {isSelected && (
-                        <div className={`absolute top-0 inset-x-0 h-1.5 ${theme.cardBgHighlight}`} />
+                        <div className={`absolute top-0 inset-x-0 h-1.5 rounded-t-xl ${theme.cardBgHighlight}`} />
                       )}
-                    </div>
+                    </CardWithParallax>
                   );
                 })}
               </div>
-              </div>{/* end overflow-x-auto card scroll */}
             </div>
 
             {/* DETAILED WORKFLOW IN PLAY-ZONE FOR THE SELECTED ACTIVE CARD */}
@@ -799,7 +952,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
               const card = cards.find(c => c.id === expandedCardId);
               if (!card) {
                 return (
-                  <div className="flex flex-col items-center justify-center text-center p-8 bg-[#FAF8F5]/80 border-2 border-dashed border-[#D4CCBA]/60 rounded-xl mt-1 min-h-[220px]">
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#FAF8F5]/80 border-2 border-dashed border-[#D4CCBA]/60 rounded-xl mt-1 min-h-[220px]">
                     <div className="text-4xl opacity-50 animate-pulse mb-3">🎴</div>
                     <span className="text-xs font-black text-stone-600 uppercase tracking-wider">Wähle eine Spielkarte aus</span>
                     <p className="text-[10.5px] text-stone-500 mt-1.5 max-w-xs leading-relaxed">
@@ -817,7 +970,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
               const theme = CARD_THEME[key];
 
               return (
-                <div className="mt-1 bg-white border border-[#D4CCBA] rounded-xl p-3 shadow-xs flex flex-col gap-2.5 animate-in fade-in duration-200">
+                <div className="flex-1 mt-1 bg-white border border-[#D4CCBA] rounded-xl p-3 shadow-xs flex flex-col gap-2.5 animate-in fade-in duration-200">
                   {/* Card Title Details Line */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1.5 pb-1.5 border-b border-[#D4CCBA]/30">
                     <span className="text-[8.5px] font-black text-[#8B8273] tracking-wider uppercase font-mono sm:text-right">
@@ -843,37 +996,18 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                     {/* Case 1: BUILD Card Options */}
                     {card.type === 'BUILD' && (
                       <div className="flex flex-col gap-2">
-                        {/* Catalog Filtering UI - Elegant Single Line */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 bg-[#FAF8F5] px-2.5 py-1.5 rounded-lg border border-[#D4CCBA]/35">
-                          <span className="text-[8.5px] font-black uppercase tracking-wider text-[#A09787] font-mono">Baukatalog-Filter</span>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <input
-                              type="text"
-                              value={searchTerm}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={e => setSearchTerm(e.target.value)}
-                              placeholder="🔍 Suchen..."
-                              className="px-2 py-1 sm:py-0.5 text-xs sm:text-[9px] font-medium rounded border border-stone-300 bg-white flex-1 min-w-[80px] sm:w-28 placeholder:text-stone-400 focus:outline-none focus:border-amber-400"
-                            />
-                            <select
-                              value={buildingCategoryFilter}
-                              onChange={e => setBuildingCategoryFilter(e.target.value)}
-                              className="px-2 py-1 sm:py-0.5 text-xs sm:text-[9px] font-medium rounded border border-stone-300 bg-white text-stone-700 cursor-pointer focus:outline-none focus:border-amber-400"
-                            >
-                              <option value="all">Alle Arten</option>
-                              <option value="ecology">Natur</option>
-                              <option value="water">Wasser</option>
-                              <option value="fauna">Wildnis</option>
-                              <option value="tourism">Tourismus</option>
-                            </select>
-
+                        {/* Catalog Filtering UI - Elegant Responsive Flex Layout */}
+                        <div className="flex flex-col gap-2 bg-[#FAF8F5] p-2 rounded-lg border border-[#D4CCBA]/35">
+                          {/* Top Row: Title and "Only matching" Toggle */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[8.5px] font-black uppercase tracking-wider text-[#A09787] font-mono">Baukatalog</span>
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setFilterOnlyBebaubar(prev => !prev);
                               }}
-                              className={`px-2 py-1 sm:py-0.5 text-xs sm:text-[9px] font-black rounded border cursor-pointer transition-all ${
+                              className={`px-1.5 py-0.5 text-[8.5px] font-black rounded border cursor-pointer transition-all ${
                                 filterOnlyBebaubar
                                   ? 'bg-[#5A7247] text-white border-[#5A7247] shadow-3xs'
                                   : 'bg-white text-stone-700 border-stone-300 hover:border-amber-400 hover:bg-stone-50'
@@ -883,10 +1017,52 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                               {filterOnlyBebaubar ? '✅ Nur passende' : '🌱 Nur passende?'}
                             </button>
                           </div>
+                          
+                          {/* Bottom Row: Search and Categories */}
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between w-full">
+                            <input
+                              type="text"
+                              value={searchTerm}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={e => setSearchTerm(e.target.value)}
+                              placeholder="🔍 Suchen..."
+                              className="px-1.5 py-0.5 text-[9px] font-medium rounded border border-stone-300 bg-white w-full sm:w-28 placeholder:text-stone-400 focus:outline-none focus:border-amber-400"
+                            />
+                            <div className="flex items-center gap-0.5 bg-stone-100/80 p-0.5 rounded-lg border border-stone-200 overflow-x-auto justify-between sm:justify-start w-full sm:w-auto">
+                              {[
+                                { id: 'all', label: 'Alle', icon: '✨', title: 'Alle anzeigen' },
+                                { id: 'ecology', label: 'Natur', icon: '🍃', title: 'Ökologische Elemente (Biberdamm, etc.)' },
+                                { id: 'water', label: 'Wasser', icon: '💧', title: 'Gewässerschutz (Fischpass, etc.)' },
+                                { id: 'fauna', label: 'Wildnis', icon: '🦫', title: 'Auenwildnis / Fauna' },
+                                { id: 'tourism', label: 'Tourismus', icon: '⛵', title: 'Freizeit & Tourismus' }
+                              ].map((cat) => {
+                                const isSelected = buildingCategoryFilter === cat.id;
+                                return (
+                                  <button
+                                    key={cat.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setBuildingCategoryFilter(cat.id);
+                                    }}
+                                    className={`px-1.5 py-0.5 text-[9px] rounded transition-all flex items-center justify-center gap-0.5 cursor-pointer font-black ${
+                                      isSelected
+                                        ? 'bg-white text-stone-950 shadow-3xs border border-stone-200/50 scale-[1.03] grow'
+                                        : 'text-stone-500 hover:text-stone-800 hover:bg-white/40 grow'
+                                    }`}
+                                    title={cat.title}
+                                  >
+                                    <span className="text-[10px] leading-none mb-0.5">{cat.icon}</span>
+                                    <span className="hidden select-none sm:inline lg:inline text-[8px] leading-none">{cat.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Catalog Cards – immer 2 Spalten; auf Desktop eigener Scroll (4 sichtbare Einträge), auf Mobile scrollt das Panel */}
-                        <div className="grid grid-cols-2 gap-2 md:max-h-52 md:overflow-y-auto md:pr-1 scrollbar-thin">
+                        {/* Highly Compressed Catalog Cards Layout */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
                           {buildingsCatalog
                             .filter(b => b.id !== 'schoellershammer')
                             .filter(b => buildingCategoryFilter === 'all' || b.category === buildingCategoryFilter)
@@ -959,37 +1135,49 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
 
                               const allowedToConstruct = isEligible && strengthFits && canAfford && !tile.buildingId && actionsLeft > 0;
 
+                              const solvesQuest = quests.some(q => q.status === 'available' && q.requirements.buildingId === b.id);
+
                               return (
                                 <div
                                   key={b.id}
                                   onMouseEnter={() => setHoveredBuilding(b)}
                                   onMouseLeave={() => setHoveredBuilding(null)}
-                                  className={`p-2.5 rounded-lg border text-left flex flex-col justify-between gap-1.5 transition-all duration-200 relative min-h-[80px] ${
+                                  className={`p-2 rounded-lg border text-left flex flex-col justify-between gap-1 transition-all duration-200 cursor-help relative overflow-hidden ${
                                     hoveredBuilding?.id === b.id
-                                      ? 'bg-[#FAF8F5] border-amber-500 scale-[1.01] shadow-2xs cursor-help'
+                                      ? solvesQuest
+                                        ? 'bg-amber-50/50 border-amber-500 scale-[1.01] shadow-[0_0_15px_rgba(245,158,11,0.5)] ring-2 ring-amber-400'
+                                        : 'bg-[#FAF8F5] border-amber-500 scale-[1.01] shadow-2xs'
                                       : allowedToConstruct
-                                      ? 'bg-emerald-50/10 border-emerald-500 hover:border-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20 hover:-translate-y-0.5 cursor-pointer'
-                                      : 'bg-stone-50 border-stone-200 opacity-65 cursor-help'
+                                      ? solvesQuest
+                                        ? 'bg-amber-50/30 border-amber-400 hover:border-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.35)] ring-2 ring-amber-300'
+                                        : 'bg-emerald-50/10 border-emerald-500 hover:border-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20 shadow-emerald-500/5 hover:-translate-y-0.5'
+                                      : 'bg-stone-50 border-stone-200 opacity-65'
                                   }`}
                                 >
-                                  {/* Green indicator ping for constructible buildings */}
+                                  {/* Green/Gold indicator ping for constructible buildings */}
                                   {allowedToConstruct && (
                                     <>
-                                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full animate-ping ${solvesQuest ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                                      <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${solvesQuest ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                                     </>
                                   )}
 
                                   <div>
-                                    <div className="flex items-start justify-between gap-1">
-                                      <span className="text-[11px] font-black text-stone-800 leading-tight line-clamp-2">
+                                    {solvesQuest && (
+                                      <div className="text-[7px] font-black text-amber-950 bg-gradient-to-r from-yellow-300 to-amber-400 px-1 py-0.2 rounded border border-amber-500 w-max mb-1 flex items-center gap-0.5 animate-pulse shadow-3xs">
+                                        <span>👑</span>
+                                        <span>QUEST-LÖSUNG</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="text-[10px] font-black text-stone-800 truncate pr-3">
                                         {b.name}
                                       </span>
-                                      <span className="text-[11px] font-black text-amber-700 shrink-0 ml-1">
+                                      <span className="text-[9px] font-black text-amber-700 shrink-0">
                                         {finalCost} €
                                       </span>
                                     </div>
-                                    <p className="text-[10px] text-stone-500 leading-snug line-clamp-2">
+                                    <p className="text-[8.5px] text-stone-500 leading-tight line-clamp-1 mt-0.5">
                                       {b.description}
                                     </p>
                                   </div>
@@ -997,12 +1185,12 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                   {allowedToConstruct ? (
                                     <button
                                       onClick={() => onBuild(b, finalCost)}
-                                      className="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] font-black uppercase text-center transition-colors cursor-pointer"
+                                      className="w-full py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[8.5px] font-black uppercase text-center transition-colors cursor-pointer"
                                     >
-                                      Errichten ({finalCost} €)
+                                      Jetzt errichten (-{finalCost} €)
                                     </button>
                                   ) : (
-                                    <div className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-1 rounded border border-rose-100 text-center leading-snug">
+                                    <div className="text-[8px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 text-center leading-none">
                                       ⚠️ {errText}
                                     </div>
                                   )}
@@ -1250,9 +1438,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
             })()}
           </div>
 
-          </div>{/* end panels container */}
-
-        </div>{/* end body wrapper */}
+        </div>
 
       </div>
     </div>

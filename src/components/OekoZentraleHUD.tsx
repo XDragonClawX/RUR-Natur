@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { GameStats, TileData, BuildingType, StakeholderQuest, ResearchNode } from '../types';
+import { GameStats, TileData, BuildingType, StakeholderQuest, ResearchNode, ActionCard } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
 import { Award, Droplets, ShieldAlert, Sparkles, Check, Zap, Cpu, Activity, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 
@@ -18,6 +18,10 @@ interface OekoZentraleHUDProps {
   checkQuestRequirements?: (q: StakeholderQuest) => boolean;
   completeStakeholderQuest?: (id: string) => void;
   researchTree: ResearchNode[];
+  selectedTileInfo?: { x: number, y: number, building: BuildingType, tile: TileData } | null;
+  cards?: ActionCard[];
+  maxActionsPerRound?: number;
+  actionsUsed?: number;
 }
 
 export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
@@ -35,6 +39,10 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
   checkQuestRequirements,
   completeStakeholderQuest,
   researchTree,
+  selectedTileInfo,
+  cards,
+  maxActionsPerRound,
+  actionsUsed,
 }) => {
   // 1. WASSERQUALITÄT PERCENT
   const [wasserPercent, wasserLabel, wasserColor] = useMemo(() => {
@@ -904,6 +912,65 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
             <div className="grid grid-cols-1 gap-1.5">
               {measuresList.map(measure => {
                 const isSelected = selectedBuilding?.id === measure.id;
+
+                let isSofortBereit = false;
+                let buildStrength = 1;
+                let constructRebate = 0;
+                if (cards) {
+                  const buildCard = cards.find(c => c.type === 'BUILD');
+                  buildStrength = buildCard ? cards.indexOf(buildCard) + 1 : 1;
+                  if (buildStrength === 3 || buildStrength === 4) constructRebate = 1;
+                  else if (buildStrength === 5) constructRebate = 2;
+                }
+
+                const hasRurtalbahnStationNear = false; // default false for quick hud
+                const discountValue = constructRebate + (hasRurtalbahnStationNear ? 1 : 0);
+                let acceptanceSurcharge = 0;
+                if (stats.year > 2026 && stats.citizenAcceptance < 40) {
+                  acceptanceSurcharge = 2;
+                }
+
+                const finalCost = Math.max(1, measure.cost - discountValue + acceptanceSurcharge);
+                const canAfford = stats.budget >= finalCost;
+
+                let costLimit = 4;
+                if (buildStrength === 2) costLimit = 6;
+                else if (buildStrength === 3) costLimit = 8;
+                else if (buildStrength === 4) costLimit = 10;
+                else if (buildStrength === 5) costLimit = 100;
+                const strengthFits = measure.cost <= costLimit;
+
+                if (selectedTileInfo) {
+                  const tile = selectedTileInfo.tile;
+                  const tx = selectedTileInfo.x;
+                  const ty = selectedTileInfo.y;
+
+                  const hasWaterAdj = (): boolean => {
+                    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                    for (const [dx, dy] of dirs) {
+                      const nx = tx + dx;
+                      const ny = ty + dy;
+                      if (nx >= 0 && nx < grid[0].length && ny >= 0 && ny < grid.length) {
+                        if (grid[ny][nx]?.terrain === 'Water') {
+                          return true;
+                        }
+                      }
+                    }
+                    return false;
+                  };
+
+                  const allowedTerrain = measure.allowedTerrains.includes(tile.terrain);
+                  const isRiverCheck = !measure.isRiverOnly || tile.terrain === 'Water';
+                  const isRiverAdjacentCheck = !measure.isRiverAdjacentOnly || hasWaterAdj();
+                  const isEligible = allowedTerrain && isRiverCheck && isRiverAdjacentCheck && !tile.buildingId;
+                  
+                  const actionsLeft = maxActionsPerRound !== undefined && actionsUsed !== undefined
+                    ? Math.max(0, maxActionsPerRound - actionsUsed)
+                    : 1;
+
+                  isSofortBereit = isEligible && strengthFits && canAfford && actionsLeft > 0;
+                }
+
                 return (
                   <button
                     key={measure.id}
@@ -914,12 +981,19 @@ export const OekoZentraleHUD: React.FC<OekoZentraleHUDProps> = ({
                     className={`px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center justify-between border transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-[#4A7A3A] text-white border-transparent shadow-[#4A7A3A]/20'
+                        : isSofortBereit
+                        ? 'bg-[#4A7A3A]/20 text-emerald-300 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.25)] animate-pulse'
                         : 'bg-white/5 hover:bg-white/10 text-white/90 border-white/10'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 overflow-hidden">
                       <span className="text-xs shrink-0">{measure.id === 'fischpass' ? '🐟' : measure.id === 'biber_station' ? '🦫' : measure.id === 'ufer_entfesselung' ? '🌿' : '🏠'}</span>
                       <span className="truncate leading-none">{measure.name}</span>
+                      {isSofortBereit && !isSelected && (
+                        <span className="text-[7.5px] font-extrabold uppercase px-1 py-0.5 rounded bg-emerald-600 text-white leading-none scale-90 tracking-wide animate-pulse">
+                          ✨ Bereit
+                        </span>
+                      )}
                     </div>
                     {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-white" />}
                   </button>

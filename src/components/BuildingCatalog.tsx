@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BuildingType, GameStats, ResearchNode, TerrainType, TileData } from '../types';
+import { BuildingType, GameStats, ResearchNode, TerrainType, TileData, ActionCard } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
 import {
   Euro, Hammer, Trash, Waves, AlertTriangle, Search, X,
@@ -17,6 +17,9 @@ interface BuildingCatalogProps {
   isDemolishMode: boolean;
   selectedTileInfo?: { x: number; y: number; building: BuildingType; tile: TileData } | null;
   onUpgradeBuilding?: (x: number, y: number, costPoints: number) => void;
+  cards?: ActionCard[];
+  grid?: TileData[][];
+  actionsLeft?: number;
 }
 
 // ── Category config ───────────────────────────────────────────────────────────
@@ -61,12 +64,14 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
   onDemolishModeToggle,
   isDemolishMode,
   selectedTileInfo,
-  onUpgradeBuilding
+  onUpgradeBuilding,
+  cards,
+  grid,
+  actionsLeft
 }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryId>('all');
   const [selectedTerrains, setSelectedTerrains] = useState<TerrainType[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showTerrainFilter, setShowTerrainFilter] = useState<boolean>(false);
 
   const isLocked = (buildingId: string): { locked: boolean; reason?: string } => {
     if (buildingId === 'lachs_zucht') {
@@ -90,7 +95,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
   const activeCfg = CATEGORY_CONFIG[activeCategory];
 
   return (
-    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
+    <div className="bg-[#F2EDE4] border border-[#D4CCBA] rounded-xl shadow-sm flex flex-col h-full overflow-hidden">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3 border-b border-[#D4CCBA]/70 flex items-center gap-3 shrink-0">
@@ -202,7 +207,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
             placeholder="Name, Beschreibung oder Wirkung suchen…"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 bg-white/80 hover:bg-white focus:bg-white border border-[#D4CCBA] focus:border-[#5A7247] focus:ring-1 focus:ring-[#5A7247]/25 rounded-xl text-[12px] font-sans text-[#2C3322] placeholder-[#B0A898] outline-none transition-all"
+            className="w-full pl-9 pr-8 py-2 bg-white/80 hover:bg-white focus:bg-white border border-[#D4CCBA] focus:border-[#5A7247] focus:ring-1 focus:ring-[#5A7247]/25 rounded-xl text-[10.5px] font-sans text-[#2C3322] placeholder-[#B0A898] outline-none transition-all"
           />
           {searchTerm && (
             <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B0A898] hover:text-[#6B6356] cursor-pointer">
@@ -212,9 +217,9 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
         </div>
       </div>
 
-      {/* ── Category chips — single scrollable row, no wrap ──────────────── */}
-      <div className="px-4 mt-2 shrink-0">
-        <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+      {/* ── Category chips ────────────────────────────────────────────────── */}
+      <div className="px-4 mt-2.5 shrink-0">
+        <div className="flex flex-wrap gap-1.5">
           {(Object.entries(CATEGORY_CONFIG) as [CategoryId, typeof CATEGORY_CONFIG[CategoryId]][]).map(([id, cfg]) => {
             const isActive = activeCategory === id;
             return (
@@ -222,7 +227,7 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 key={id}
                 onClick={() => { setActiveCategory(id); onSelectBuilding(null); }}
                 className={[
-                  'flex items-center gap-1 px-2 py-1 rounded-xl border text-[11px] font-bold transition-all cursor-pointer active:scale-95 shrink-0',
+                  'flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[9.5px] font-bold transition-all cursor-pointer active:scale-95',
                   isActive
                     ? `${cfg.activeBg} ${cfg.activeText} border-transparent shadow-sm`
                     : `${cfg.inactiveBg} ${cfg.inactiveText} ${cfg.border} hover:brightness-95`,
@@ -236,64 +241,44 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
         </div>
       </div>
 
-      {/* ── Terrain filter — collapsed by default to maximise list space ──── */}
-      <div className="px-4 mt-1.5 mb-1 shrink-0">
-        {/* Toggle row — toggle button + always-visible reset when filters active */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setShowTerrainFilter(v => !v)}
-            className="flex items-center gap-1.5 text-[9px] font-mono font-black text-[#8B8273] uppercase tracking-widest cursor-pointer hover:text-[#5A7247] transition-colors"
-          >
+      {/* ── Terrain filter ────────────────────────────────────────────────── */}
+      <div className="px-4 mt-2.5 mb-1 shrink-0">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest flex items-center gap-1.5">
             <Filter className="w-2.5 h-2.5" />
-            Geländefilter
-            {selectedTerrains.length > 0 && (
-              <span className="ml-1 bg-[#5A7247] text-white rounded-full px-1.5 py-0.5 text-[8px] font-black leading-none">
-                {selectedTerrains.length}
-              </span>
-            )}
-            <span className="text-[8px]">{showTerrainFilter ? '▲' : '▼'}</span>
-          </button>
-
-          {/* Reset — always reachable while filters are active, even when panel collapsed */}
+            Geländetyp-Filter
+          </span>
           {selectedTerrains.length > 0 && (
-            <button
-              onClick={() => setSelectedTerrains([])}
-              className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-[#5A7247] hover:underline cursor-pointer"
-            >
-              <X className="w-2.5 h-2.5" />
+            <button onClick={() => setSelectedTerrains([])} className="text-[8.5px] font-bold text-[#5A7247] hover:underline cursor-pointer">
               Zurücksetzen
             </button>
           )}
         </div>
-
-        {/* Collapsible terrain chips */}
-        {showTerrainFilter && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {TERRAIN_CONFIG.map(terrain => {
-              const isSelected = selectedTerrains.includes(terrain.id);
-              return (
-                <button
-                  key={terrain.id}
-                  onClick={() => setSelectedTerrains(prev =>
-                    prev.includes(terrain.id) ? prev.filter(t => t !== terrain.id) : [...prev, terrain.id]
-                  )}
-                  className={[
-                    'flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all cursor-pointer',
-                    isSelected ? 'text-white border-transparent shadow-sm' : 'bg-white text-[#6B6356] border-[#D4CCBA] hover:bg-[#F2EDE4]',
-                  ].join(' ')}
-                  style={isSelected ? { backgroundColor: terrain.accentColor } : undefined}
-                >
-                  {terrain.icon}
-                  {terrain.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1">
+          {TERRAIN_CONFIG.map(terrain => {
+            const isSelected = selectedTerrains.includes(terrain.id);
+            return (
+              <button
+                key={terrain.id}
+                onClick={() => setSelectedTerrains(prev =>
+                  prev.includes(terrain.id) ? prev.filter(t => t !== terrain.id) : [...prev, terrain.id]
+                )}
+                className={[
+                  'flex items-center gap-1 px-2 py-1 rounded-full border text-[9px] font-semibold transition-all cursor-pointer',
+                  isSelected ? 'text-white border-transparent shadow-sm' : 'bg-white text-[#6B6356] border-[#D4CCBA] hover:bg-[#F2EDE4]',
+                ].join(' ')}
+                style={isSelected ? { backgroundColor: terrain.accentColor } : undefined}
+              >
+                {terrain.icon}
+                {terrain.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* ── Building List — flex-1 fills remaining height within panel ───── */}
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pt-2 pb-3 space-y-2">
+      {/* ── Building List ─────────────────────────────────────────────────── */}
+      <div className="flex-grow overflow-y-auto custom-scrollbar px-4 pt-2 pb-3 space-y-2">
         {filteredBuildings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 space-y-2 bg-[#F7F3ED]/40 rounded-xl border border-dashed border-[#D4CCBA]">
             <Search className="w-8 h-8 text-[#D4CCBA]" />
@@ -311,7 +296,64 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
           filteredBuildings.map(building => {
             const lockStatus = isLocked(building.id);
             const isSelected = selectedBuilding?.id === building.id;
-            const finalCost = hasRurtalbahnStationNear ? Math.max(1, building.cost - 1) : building.cost;
+
+            // --- Determine Sofort-Bereit ---
+            let buildStrength = 1;
+            let constructRebate = 0;
+            if (cards) {
+              const buildCard = cards.find(c => c.type === 'BUILD');
+              buildStrength = buildCard ? cards.indexOf(buildCard) + 1 : 1;
+              if (buildStrength === 3 || buildStrength === 4) constructRebate = 1;
+              else if (buildStrength === 5) constructRebate = 2;
+            }
+
+            const discountValue = constructRebate + (hasRurtalbahnStationNear ? 1 : 0);
+            let acceptanceSurcharge = 0;
+            if (stats.year > 2026 && stats.citizenAcceptance < 40) {
+              acceptanceSurcharge = 2;
+            }
+
+            const finalCost = Math.max(1, building.cost - discountValue + acceptanceSurcharge);
+            const canAfford = stats.budget >= finalCost;
+
+            let costLimit = 4;
+            if (buildStrength === 2) costLimit = 6;
+            else if (buildStrength === 3) costLimit = 8;
+            else if (buildStrength === 4) costLimit = 10;
+            else if (buildStrength === 5) costLimit = 100;
+            const strengthFits = building.cost <= costLimit;
+
+            let isSofortBereit = false;
+            if (selectedTileInfo && !lockStatus.locked) {
+              const tile = selectedTileInfo.tile;
+              const tx = selectedTileInfo.x;
+              const ty = selectedTileInfo.y;
+
+              const hasWaterAdjacentLocal = (cx: number, cy: number): boolean => {
+                if (!grid) return false;
+                const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                for (const [dx, dy] of dirs) {
+                  const nx = cx + dx;
+                  const ny = cy + dy;
+                  if (nx >= 0 && nx < grid[0].length && ny >= 0 && ny < grid.length) {
+                    if (grid[ny][nx]?.terrain === 'Water') {
+                      return true;
+                    }
+                  }
+                }
+                return false;
+              };
+
+              const allowedTerrain = building.allowedTerrains.includes(tile.terrain);
+              const isRiverCheck = !building.isRiverOnly || tile.terrain === 'Water';
+              const isRiverAdjacentCheck = !building.isRiverAdjacentOnly || hasWaterAdjacentLocal(tx, ty);
+              const isEligible = allowedTerrain && isRiverCheck && isRiverAdjacentCheck && !tile.buildingId;
+              
+              const isActionLeft = actionsLeft !== undefined ? actionsLeft > 0 : true;
+
+              isSofortBereit = isEligible && strengthFits && canAfford && isActionLeft;
+            }
+
             const accent = CARD_ACCENT[building.category] ?? '#5C564C';
 
             return (
@@ -319,8 +361,14 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 key={building.id}
                 onClick={() => { if (!lockStatus.locked && !isDemolishMode) onSelectBuilding(isSelected ? null : building); }}
                 className={[
-                  'border-l-4 border rounded-r-xl rounded-l-none p-3.5 transition-colors duration-150',
-                  lockStatus.locked ? 'opacity-50 cursor-not-allowed bg-[#E8E2D6]/40' : isSelected ? 'cursor-pointer bg-white shadow-sm ring-1' : 'cursor-pointer bg-white/70 hover:bg-white hover:border-[#C0B8A8]',
+                  'border-l-4 border rounded-r-xl rounded-l-none p-3 transition-all duration-150 relative',
+                  lockStatus.locked
+                    ? 'opacity-50 cursor-not-allowed bg-[#E8E2D6]/40'
+                    : isSelected
+                    ? 'cursor-pointer bg-white ring-2 ring-emerald-500 shadow-md'
+                    : isSofortBereit
+                    ? 'cursor-pointer bg-white/95 border-emerald-500 hover:bg-white shadow-[0_0_12px_rgba(16,185,129,0.22)] ring-1 ring-emerald-500/10 animate-pulse hover:-translate-y-0.5'
+                    : 'cursor-pointer bg-white/70 hover:bg-white hover:shadow-sm hover:-translate-y-0.5',
                 ].join(' ')}
                 style={{
                   borderLeftColor: accent,
@@ -331,74 +379,74 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 <div className="flex items-start justify-between gap-2 mb-1.5">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[13px] font-black text-[#2C3322] leading-tight">{building.name}</span>
+                      <span className="text-[11px] font-black text-[#2C3322] leading-tight">{building.name}</span>
+                      {isSofortBereit && !isSelected && (
+                        <span className="text-[7.5px] font-extrabold uppercase px-1.5 py-0.5 roundedbg-emerald-600 text-white animate-bounce bg-emerald-600">
+                          ✨ Bereit
+                        </span>
+                      )}
                       <span
-                        className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded uppercase border"
+                        className="text-[8px] font-mono font-black px-1.5 py-0.5 rounded uppercase border"
                         style={{ color: accent, backgroundColor: `${accent}18`, borderColor: `${accent}30` }}
                       >
                         {CATEGORY_CONFIG[building.category as CategoryId]?.label ?? building.category}
                       </span>
                     </div>
-                    <p className={`text-[12px] text-[#6B6356] leading-snug mt-0.5 ${isSelected ? '' : 'line-clamp-1'}`}>{building.description}</p>
+                    <p className="text-[10px] text-[#6B6356] leading-snug mt-0.5">{building.description}</p>
                   </div>
                   {/* Cost */}
                   <div className="shrink-0 text-right">
-                    <div className="flex items-center justify-end gap-0.5 text-[14px] font-mono font-black text-[#2C3322]">
+                    <div className="flex items-center justify-end gap-0.5 text-[12px] font-mono font-black text-[#2C3322]">
                       {finalCost}
-                      <Euro className="w-4 h-4 text-[#5A7247]" />
+                      <Euro className="w-3.5 h-3.5 text-[#5A7247]" />
                     </div>
                     {building.maintenance > 0 && (
-                      <div className="text-[10px] text-[#8B8273] font-mono">-{building.maintenance} €/Rnd</div>
+                      <div className="text-[8.5px] text-[#8B8273] font-mono">-{building.maintenance} €/Rnd</div>
                     )}
                     {hasRurtalbahnStationNear && building.cost > 1 && (
-                      <div className="text-[10px] text-[#5A7247] font-bold bg-[#D4E0C1]/50 px-1 rounded mt-0.5">-1 Gleis</div>
+                      <div className="text-[8px] text-[#5A7247] font-bold bg-[#D4E0C1]/50 px-1 rounded mt-0.5">-1 Gleis</div>
                     )}
                   </div>
                 </div>
 
-                {/* Expanded details — only when this card is selected */}
-                {isSelected && (
-                  <>
-                    {/* Effect */}
-                    <div className="mt-2 bg-[#F7F3ED] border border-[#D4CCBA]/50 rounded-lg px-2.5 py-2 text-[12px]">
-                      <span className="text-[10px] font-mono font-black text-[#8B8273] uppercase tracking-wider mr-1">Wirkung:</span>
-                      <span className="text-[#2C3322]">{building.detailEffect}</span>
-                    </div>
+                {/* Effect */}
+                <div className="bg-[#F7F3ED] border border-[#D4CCBA]/50 rounded-lg px-2 py-1.5 text-[10px]">
+                  <span className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-wider mr-1">Wirkung:</span>
+                  <span className="text-[#2C3322]">{building.detailEffect}</span>
+                </div>
 
-                    {/* Terrain tags */}
-                    <div className="mt-2 flex flex-wrap gap-1 items-center">
-                      <span className="text-[10.5px] text-[#8B8273] font-mono">Boden:</span>
-                      {building.allowedTerrains.map(t => {
-                        const tc = TERRAIN_CONFIG.find(x => x.id === t);
-                        const isHighlighted = selectedTerrains.includes(t);
-                        return (
-                          <span
-                            key={t}
-                            className={[
-                              'flex items-center gap-0.5 text-[10.5px] px-2 py-0.5 rounded-full border font-semibold transition-all',
-                              isHighlighted ? 'text-white border-transparent' : 'bg-[#F2EDE4] text-[#6B6356] border-[#D4CCBA]',
-                            ].join(' ')}
-                            style={isHighlighted && tc ? { backgroundColor: tc.accentColor } : undefined}
-                          >
-                            {tc?.icon}
-                            {tc?.label ?? t}
-                          </span>
-                        );
-                      })}
-                      {building.isRiverOnly && (
-                        <span className="text-[10.5px] bg-[#D4E0C1] text-[#2C3322] px-2 rounded-full font-bold border border-[#5A7247]/20">Im Fluss</span>
-                      )}
-                      {building.isRiverAdjacentOnly && (
-                        <span className="text-[10.5px] bg-[#D4E0C1] text-[#2C3322] px-2 rounded-full font-bold border border-[#5A7247]/20">Ufernah</span>
-                      )}
-                    </div>
-                  </>
-                )}
+                {/* Terrain tags */}
+                <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+                  <span className="text-[8.5px] text-[#8B8273] font-mono">Boden:</span>
+                  {building.allowedTerrains.map(t => {
+                    const tc = TERRAIN_CONFIG.find(x => x.id === t);
+                    const isHighlighted = selectedTerrains.includes(t);
+                    return (
+                      <span
+                        key={t}
+                        className={[
+                          'flex items-center gap-0.5 text-[8.5px] px-1.5 py-0.5 rounded-full border font-semibold transition-all',
+                          isHighlighted ? 'text-white border-transparent' : 'bg-[#F2EDE4] text-[#6B6356] border-[#D4CCBA]',
+                        ].join(' ')}
+                        style={isHighlighted && tc ? { backgroundColor: tc.accentColor } : undefined}
+                      >
+                        {tc?.icon}
+                        {tc?.label ?? t}
+                      </span>
+                    );
+                  })}
+                  {building.isRiverOnly && (
+                    <span className="text-[8.5px] bg-[#D4E0C1] text-[#2C3322] px-1.5 rounded-full font-bold border border-[#5A7247]/20">Im Fluss</span>
+                  )}
+                  {building.isRiverAdjacentOnly && (
+                    <span className="text-[8.5px] bg-[#D4E0C1] text-[#2C3322] px-1.5 rounded-full font-bold border border-[#5A7247]/20">Ufernah</span>
+                  )}
+                </div>
 
-                {/* Lock notice — always visible */}
+                {/* Lock notice */}
                 {lockStatus.locked && (
-                  <div className="mt-2 flex items-center gap-1.5 text-[11px] bg-red-50 text-red-800 border border-red-200 p-2 rounded-lg">
-                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  <div className="mt-2 flex items-center gap-1.5 text-[9px] bg-red-50 text-red-800 border border-red-200 p-1.5 rounded-lg">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0" />
                     {lockStatus.reason}
                   </div>
                 )}
@@ -415,12 +463,12 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
           style={{ borderLeftColor: CARD_ACCENT[selectedBuilding.category] ?? '#5A7247' }}
         >
           <div>
-            <div className="text-[10px] font-mono font-black text-[#5A7247] uppercase tracking-widest">Platzierung bereit</div>
-            <div className="text-[12px] font-black text-[#2C3322]">{selectedBuilding.name}</div>
+            <div className="text-[8px] font-mono font-black text-[#5A7247] uppercase tracking-widest">Platzierung bereit</div>
+            <div className="text-[10.5px] font-black text-[#2C3322]">{selectedBuilding.name}</div>
           </div>
           <button
             onClick={() => onSelectBuilding(null)}
-            className="flex items-center gap-1 text-[11px] font-bold text-[#6B6356] bg-white hover:bg-[#F2EDE4] px-2.5 py-1.5 rounded-lg border border-[#D4CCBA] cursor-pointer transition-colors"
+            className="flex items-center gap-1 text-[9px] font-bold text-[#6B6356] bg-white hover:bg-[#F2EDE4] px-2.5 py-1.5 rounded-lg border border-[#D4CCBA] cursor-pointer transition-colors"
           >
             <X className="w-3 h-3" />
             Abbrechen

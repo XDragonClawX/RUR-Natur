@@ -15,12 +15,11 @@ import { OekoZentraleHUD } from './components/OekoZentraleHUD';
 import { SystemControlDock } from './components/SystemControlDock';
 import { RegulatoryModals } from './components/RegulatoryModals';
 import { audio } from './utils/audio';
-import HistoricalChart from './components/HistoricalChart';
 import {
   Sun, CloudRain, Award, Info, Calendar, Zap, RotateCcw,
   TrendingUp, Coins, ShieldAlert, Wrench, BookOpen, HeartHandshake, HelpCircle,
   X, Save, FolderOpen, MessageSquare, ScrollText, RefreshCw,
-  Hammer, Factory, Microscope, Leaf, FileText, ChevronDown, ChevronUp
+  Hammer, Factory, Microscope, Leaf, FileText, ChevronDown, ChevronUp, Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -111,7 +110,6 @@ export default function App() {
   // --- Game State Systems ---
   const [grid, setGrid] = useState<TileData[][]>([]);
   const [history, setHistory] = useState<GameStateSnapshot[]>([]);
-  const [statsHistory, setStatsHistory] = useState<GameStats[]>([]);
   const [stats, setStats] = useState<GameStats>({
     round: 1,
     year: 2026,
@@ -174,6 +172,10 @@ export default function App() {
   const [showWrrlModal, setShowWrrlModal] = useState<boolean>(false);
   const [logsCollapsed, setLogsCollapsed] = useState<boolean>(false);
   const [logToasts, setLogToasts] = useState<GameLog[]>([]);
+
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
+  const [isHudExpanded, setIsHudExpanded] = useState<boolean>(false);
+  const [foliageParticles, setFoliageParticles] = useState<Array<{ id: number; x: number; y: number; scale: number; rot: number; duration: number; delay: number }>>([]);
 
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
@@ -594,7 +596,6 @@ export default function App() {
       if (loadedState.hasOwnProperty('activeYearChallengeModal')) setActiveYearChallengeModal(loadedState.activeYearChallengeModal);
       
       setHistory([]);
-      setStatsHistory([]);
       addLog('📂 Spielstand erfolgreich geladen!', 'success');
     } catch (e) {
       addLog('❌ Fehler beim Laden des Spielstands. Daten korrupt?', 'error');
@@ -887,6 +888,23 @@ export default function App() {
         text: `Du hast deine erste Aktionskarte '${card.name}' ausgespielt! Wichtig: Pro Runde ist nur eine Aktion erlaubt. Je länger eine Karte unberührt bleibt, desto höher ihre Stärke (1–5). Warte auf Stärke 4–5, bevor du wertvolle Karten spielst – das ist das Herzstück der Arche-Nova-Mechanik!`
       });
       setSeenTips(prev => [...prev, 'actionCard']);
+    }
+
+    // Pay lease toll duration ticker if active
+    if (rurtalbahnLeased) {
+      const nextRemaining = rurtalbahnTimeRemaining - 1;
+      setRurtalbahnTimeRemaining(nextRemaining);
+      if (nextRemaining <= 0) {
+        setRurtalbahnLeased(false);
+        // Recover previous card back to Slot 1 position
+        if (preLeaseCard) {
+          setCards(prev => {
+            const nextList = prev.filter(c => c.id !== 'rurtalbahn_card');
+            return [preLeaseCard, ...nextList];
+          });
+          addLog('Rurtalbahn Charterverkehr beendet. Standard-Aktionskarte wieder bereit.', 'info');
+        }
+      }
     }
 
     if (card.id === 'rurtalbahn_card') {
@@ -1255,6 +1273,25 @@ export default function App() {
     }
   };
 
+  const triggerRenatureFoliage = () => {
+    const list: any[] = [];
+    for (let i = 0; i < 20; i++) {
+      list.push({
+        id: Math.random() + i,
+        x: Math.random() * 80 + 10,
+        y: Math.random() * 30 + 60,
+        scale: Math.random() * 0.6 + 0.6,
+        rot: Math.random() * 360,
+        duration: Math.random() * 3.2 + 2.4,
+        delay: Math.random() * 0.3
+      });
+    }
+    setFoliageParticles(list);
+    setTimeout(() => {
+      setFoliageParticles([]);
+    }, 6000);
+  };
+
   const executePendingPlacement = () => {
     if (!placementConfirmation) return;
 
@@ -1370,6 +1407,7 @@ export default function App() {
 
     if (building.category === 'ecology' || building.category === 'fauna') {
       setRoundInvested(true);
+      triggerRenatureFoliage();
     }
 
     addLog(`🏗️ ERFOLG: '${building.name}' auf Feld (${x}, ${y}) errichtet. Kosten: ${finalCost} € (Rabatt: -${finalRebate} €)`, 'success');
@@ -1426,6 +1464,7 @@ export default function App() {
               upgradeLevel: nextLevel,
               ffh_value: updatedFfh,
               wrrl_quality: updatedWrrl,
+              lastModifiedYear: stats.year,
             };
           }
           return tile;
@@ -1466,27 +1505,9 @@ export default function App() {
 
   // --- ADVANCE NEXT ROUND/YEAR TURNS ---
   const handleNextRound = () => {
-    // Record current stats into statsHistory so the chart shows progression
-    setStatsHistory(prev => [...prev, JSON.parse(JSON.stringify(stats))].slice(-40));
-
     // Clear history on new round to avoid cross-round rollbacks
     setHistory([]);
     setActionsUsed(0);
-
-    // Rurtalbahn lease countdown — tick down once per round
-    if (rurtalbahnLeased) {
-      const nextRemaining = rurtalbahnTimeRemaining - 1;
-      if (nextRemaining <= 0) {
-        setRurtalbahnLeased(false);
-        setRurtalbahnTimeRemaining(0);
-        if (preLeaseCard) {
-          setCards(prev => [preLeaseCard, ...prev.filter(c => c.id !== 'rurtalbahn_card')]);
-        }
-        addLog('🚇 Rurtalbahn Charterverkehr beendet. Standard-Aktionskarte wieder bereit.', 'info');
-      } else {
-        setRurtalbahnTimeRemaining(nextRemaining);
-      }
-    }
 
     // 1. Calculate and advance seasons
     const nextRound = stats.round + 1;
@@ -2154,7 +2175,6 @@ export default function App() {
       setEnergyChallengeEnabled(false);
       setShowEnergyRules(false);
       setActiveYearChallengeModal(null);
-      setStatsHistory([]);
       addLog('Simulation zurückgesetzt.', 'info');
     }
   };
@@ -2368,10 +2388,10 @@ export default function App() {
             style={{ background: 'rgba(0,0,0,0.11)', filter: 'blur(10px)' }}
           />
 
-          <header className="bg-white/96 backdrop-blur-md border border-[#D4E0C1]/60 rounded-2xl shadow-[0_2px_18px_rgba(0,0,0,0.08),0_1px_4px_rgba(74,122,58,0.05)] flex items-stretch gap-0 overflow-hidden">
+          <header className="bg-white/96 backdrop-blur-md border border-[#D4E0C1]/60 rounded-2xl shadow-[0_2px_18px_rgba(0,0,0,0.08),0_1px_4px_rgba(74,122,58,0.05)] flex flex-col md:flex-row md:items-stretch gap-0 overflow-hidden">
 
-            {/* ── Stat-Chips ────────────────────────────────────────────── */}
-            <div className="flex-1 flex flex-wrap items-center gap-2 px-4 py-2">
+            {/* DESKTOP STATUS BAR CHIPS LAYOUT (shown on md and above) */}
+            <div className="hidden md:flex flex-1 items-center gap-2 px-4 py-2 flex-wrap">
 
               {/* Zeitschritt — popover: Saison-Info */}
               <button
@@ -2506,11 +2526,117 @@ export default function App() {
               </button>
             </div>
 
+            {/* MOBILE ADAPTIVE COMPACT HUD DOCK (shown on screens < md) */}
+            <div className="flex md:hidden flex-col w-full text-[11px]">
+              
+              {/* PRIMARY ROW (Always visible metrics) */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[#D4E0C1]/50 bg-stone-50/60">
+                
+                {/* Micro logo or quick title */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="font-extrabold text-[#3D6B2E]">RUR</span>
+                  <span className="font-mono text-[9px] text-[#8B8273]">R{stats.round}</span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {/* Budget */}
+                  <button
+                    onClick={e => openStatPopover('budget', e)}
+                    className="flex items-center gap-1 px-1.5 py-1 rounded-lg border border-amber-200/80 bg-amber-50/80 text-amber-950 font-black shrink-0"
+                  >
+                    <Coins className="w-2.5 h-2.5 text-amber-700" />
+                    <span className="font-mono text-[9.5px]">{stats.budget}€</span>
+                  </button>
+
+                  {/* Forschung */}
+                  <button
+                    onClick={e => openStatPopover('research', e)}
+                    className="flex items-center gap-1 px-1.5 py-1 rounded-lg border border-sky-200/80 bg-sky-50/80 text-sky-950 font-black shrink-0"
+                  >
+                    <Zap className="w-2.5 h-2.5 text-sky-600" />
+                    <span className="font-mono text-[9.5px]">{stats.researchPoints}🧪</span>
+                  </button>
+
+                  {/* Öko-Naturpunkte */}
+                  <button
+                    onClick={e => openStatPopover('nature', e)}
+                    className="flex items-center gap-1 px-1.5 py-1 rounded-lg border border-emerald-200/80 bg-emerald-50/10 text-emerald-950 font-black shrink-0"
+                  >
+                    <Award className="w-2.5 h-2.5 text-emerald-700" />
+                    <span className="font-mono text-[9.5px]">{stats.naturePoints}🌿</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {/* End Round Action directly reachable */}
+                  <button
+                    onClick={handleNextRound}
+                    className="px-2 py-1 rounded-lg bg-[#3D6B2E] text-white font-mono text-[9.5px] font-bold uppercase tracking-wider shadow-xs border border-emerald-800 active:scale-95 transition-all flex items-center gap-1 shrink-0"
+                  >
+                    <span>Beenden</span>
+                    <span className="text-[8px]">↩</span>
+                  </button>
+
+                  {/* More / Less Toggle Chevron */}
+                  <button
+                    onClick={() => setIsHudExpanded(!isHudExpanded)}
+                    className="p-1 px-1.5 rounded-lg border border-stone-200 hover:bg-stone-100 flex items-center justify-center transition-colors text-stone-600 active:scale-95"
+                    title="Weitere Metriken anzeigen"
+                  >
+                    {isHudExpanded ? <ChevronUp className="w-3 h-3 text-stone-700" /> : <ChevronDown className="w-3 h-3 text-slate-700" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* EXPANDABLE COLLAPSIBLE SUBDOCK PANEL (Zeitschritt, WRRL, CO2) */}
+              <AnimatePresence>
+                {isHudExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="overflow-hidden border-b border-[#D4E0C1]/50 bg-stone-50/30 grid grid-cols-3 divide-x divide-stone-200/85 px-1.5 py-2 text-center items-center gap-x-1"
+                  >
+                    {/* Zeitschritt */}
+                    <button
+                      onClick={e => openStatPopover('season', e)}
+                      className="flex flex-col items-center justify-center gap-0.5 p-1 hover:bg-[#FAF8F5] rounded-xl cursor-pointer"
+                    >
+                      <span className="text-[7.5px] uppercase tracking-wider text-[#3D6B2E] font-black flex items-center gap-0.5">
+                        <Calendar className="w-2 h-2" /> Zeitschritt
+                      </span>
+                      <span className="font-mono text-[9px] text-[#2C3322] font-black">{currentSeasonString} {stats.year}</span>
+                    </button>
+
+                    {/* WRRL */}
+                    <button
+                      onClick={e => openStatPopover('wrrl', e)}
+                      className="flex flex-col items-center justify-center gap-0.5 p-1 hover:bg-[#FAF8F5] rounded-xl cursor-pointer"
+                    >
+                      <span className="text-[7.5px] uppercase tracking-wider text-[#457b9d] font-black">💧 WRRL-Index</span>
+                      <span className="font-mono text-[9px] text-sky-900 font-extrabold">{stats.globalWrrl.toFixed(2)}</span>
+                    </button>
+
+                    {/* CO2 */}
+                    <button
+                      onClick={e => openStatPopover('co2', e)}
+                      className="flex flex-col items-center justify-center gap-0.5 p-1 hover:bg-[#FAF8F5] rounded-xl cursor-pointer"
+                    >
+                      <span className="text-[7.5px] uppercase tracking-wider text-green-700 font-black">🌱 CO₂</span>
+                      <span className="font-mono text-[9px] text-emerald-800 font-black">{(stats.co2Footprint ?? 190).toFixed(1)} t</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+            </div>
+
             {/* Divider Mitte | Rechts */}
-            <div className="w-px self-stretch bg-brand-green/15 my-2 shrink-0" />
+            <div className="hidden md:block w-px self-stretch bg-brand-green/15 my-2 shrink-0" />
 
             {/* ── Toolbar ───────────────────────────────────────────────── */}
-            <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
+            <div className="hidden md:flex items-center gap-1.5 px-4 py-2.5 shrink-0">
 
               {/* Primäre Aktion: Runde beenden */}
               <button
@@ -2874,6 +3000,89 @@ export default function App() {
               }
             />
 
+            {/* RISING GREEN LEAVES (FOLIAGE PARTICLES) ON RENATURATION */}
+            {foliageParticles.map((p) => (
+              <motion.div
+                key={p.id}
+                initial={{ opacity: 0, y: '100%', x: `${p.x}%`, rotate: p.rot, scale: p.scale }}
+                animate={{
+                  opacity: [0, 0.9, 0.9, 0],
+                  y: ['80%', '0%'],
+                  rotate: p.rot + 180,
+                  x: [`${p.x}%`, `${p.x + (Math.random() * 10 - 5)}%`]
+                }}
+                transition={{
+                  duration: p.duration,
+                  delay: p.delay,
+                  ease: "easeOut"
+                }}
+                className="absolute text-emerald-400 text-lg pointer-events-none select-none z-30 font-sans"
+              >
+                🍃
+              </motion.div>
+            ))}
+
+            {/* HEAT SHIMMER / HEAT HAZE / RED GLOW OVERLAY FOR DROUGHT */}
+            {activeEvent?.id === 'duerre' && (
+              <div className="absolute inset-0 border-[3px] border-amber-600/50 shadow-[inset_0_0_40px_rgba(230,92,0,0.4)] pointer-events-none z-20 flex flex-col items-center justify-center">
+                {/* Rising smoke/embers particles */}
+                {Array.from({ length: 15 }).map((_, i) => (
+                  <motion.div
+                    key={`smoke-${i}`}
+                    initial={{ opacity: 0, y: '90%', x: `${10 + i * 6}%`, scale: Math.random() * 0.5 + 0.5 }}
+                    animate={{
+                      opacity: [0, 0.4, 0.4, 0],
+                      y: ['90%', '10%'],
+                      x: [`${10 + i * 6}%`, `${10 + i * 6 + (Math.random() * 12 - 6)}%`],
+                      scale: [1, 2.5]
+                    }}
+                    transition={{
+                      duration: Math.random() * 4 + 4,
+                      repeat: Infinity,
+                      delay: i * 0.3,
+                      ease: "linear"
+                    }}
+                    className="absolute bg-orange-600/10 backdrop-blur-xs rounded-full w-4 h-4 pointer-events-none"
+                  />
+                ))}
+                {/* Red warning subtle light bar */}
+                <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-rose-950/85 px-2 py-1 text-red-300 font-mono text-[9px] uppercase font-black tracking-widest border border-red-500/30 rounded-lg shadow-sm animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                  <span>Dürrekatastrophe</span>
+                </div>
+              </div>
+            )}
+
+            {/* FLOOD OVERLAY WITH BLUE GLOW AND HEAVY DEEP WEATHER EFFECTS */}
+            {activeEvent?.id === 'hochwasser' && (
+              <div className="absolute inset-0 border-[3px] border-blue-600/50 shadow-[inset_0_0_40px_rgba(30,144,255,0.4)] pointer-events-none z-20 overflow-hidden">
+                {/* Falling rain streaks */}
+                {Array.from({ length: 25 }).map((_, i) => (
+                  <motion.div
+                    key={`rain-${i}`}
+                    initial={{ opacity: 0, y: '-10%', x: `${i * 4}%` }}
+                    animate={{
+                      opacity: [0, 0.6, 0.6, 0],
+                      y: ['-10%', '110%'],
+                      x: [`${i * 4}%`, `${i * 4 - 8}%`]
+                    }}
+                    transition={{
+                      duration: Math.random() * 1.2 + 0.8,
+                      repeat: Infinity,
+                      delay: i * 0.1,
+                      ease: "linear"
+                    }}
+                    className="absolute bg-sky-200/40 w-[1px] h-10 pointer-events-none rotate-[15deg]"
+                  />
+                ))}
+                {/* Blue warning subtle light bar */}
+                <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-blue-950/85 px-2 py-1 text-blue-300 font-mono text-[9px] uppercase font-black tracking-widest border border-blue-500/30 rounded-lg shadow-sm animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                  <span>Hochwasserwarnung</span>
+                </div>
+              </div>
+            )}
+
             {/* Floating visual notice if constructing elements */}
             {selectedBuilding && (
               <div className="absolute top-16 left-4 z-20 bg-[#D4E0C1] text-[#2C3322] px-3 py-2 rounded-lg text-xs font-semibold border border-[#5A7247]/40 shadow-sm flex items-center gap-2">
@@ -2970,17 +3179,10 @@ export default function App() {
             )}
           </div>
 
-          {/* Historical chart below simulation log */}
-          {!logsCollapsed && (
-            <div className="mt-3">
-              <HistoricalChart series={[...statsHistory, stats]} />
-            </div>
-          )}
-
         </div>
 
         {/* RIGHT COLUMN: Sidebar Companion Manual & Historical Logs Journal */}
-        <div className="w-full lg:w-[36%] shrink-0 flex flex-col gap-6 lg:sticky lg:top-[60px] lg:self-start">
+        <div className="hidden lg:flex w-full lg:w-[36%] shrink-0 flex flex-col gap-6">
           
           {/* COCKPIT NAVIGATION DECK */}
           <ActiveSimulationPanel
@@ -3028,14 +3230,121 @@ export default function App() {
             onShowInvasiveRules={() => setShowInvasiveRules(true)}
             onShowEnergyRules={() => setShowEnergyRules(true)}
             roundInvested={roundInvested}
-            rurtalbahnLeased={rurtalbahnLeased}
-            rurtalbahnTimeRemaining={rurtalbahnTimeRemaining}
-            onLeaseRurtalbahn={handleLeaseRurtalbahn}
-            logsCollapsed={logsCollapsed}
+            cards={cards}
+            maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
+            actionsUsed={actionsUsed}
           />
 
         </div>
       </main>
+
+      {/* FLOATING ACTION BUTTON (FAB) FOR SIDEBAR DRAWER ON MOBILE */}
+      <div className="lg:hidden fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => setIsMobileDrawerOpen(true)}
+          className="flex items-center gap-2 bg-[#3D6B2E] text-white px-4 py-3.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.3)] hover:bg-[#325825] border border-emerald-800 transition-all duration-150 active:scale-95 cursor-pointer text-xs uppercase font-extrabold tracking-widest"
+          title="Öko-Zentrale & Quest-Konsole öffnen"
+        >
+          <Menu className="w-4 h-4" />
+          <span>Konsole</span>
+        </button>
+      </div>
+
+      {/* COLLAPSIBLE SIDEBAR DRAWER FOR MOBILE DEVICES (< lg) */}
+      <AnimatePresence>
+        {isMobileDrawerOpen && (
+          <>
+            {/* Backdrop layer */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileDrawerOpen(false)}
+              className="lg:hidden fixed inset-0 bg-black z-45"
+            />
+
+            {/* Sliding Drawer sidebar sheet container */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 24, stiffness: 220 }}
+              className="lg:hidden fixed top-0 right-0 bottom-0 w-[85vw] max-w-sm bg-[#FAF8F5] shadow-2xl z-50 flex flex-col border-l-2 border-[#D4CCBA] p-4 overflow-y-auto"
+            >
+              {/* Drawer header */}
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#D4CCBA]/60">
+                <span className="font-display font-black text-xs text-brand-dark uppercase tracking-widest flex items-center gap-1">
+                  🌿 Öko-Cockpit & Status
+                </span>
+                <button
+                  onClick={() => setIsMobileDrawerOpen(false)}
+                  className="p-1 px-2.5 rounded-lg border border-stone-200 hover:bg-stone-100 flex items-center justify-center font-bold text-xs hover:text-red-700 transition"
+                  title="Schließen"
+                >
+                  X
+                </button>
+              </div>
+
+              {/* Mounted panel */}
+              <div className="flex-1 overflow-y-auto">
+                <ActiveSimulationPanel
+                  activeTab={activeTab}
+                  setActiveTab={(tab) => {
+                    setActiveTab(tab);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  stats={stats}
+                  grid={grid}
+                  researchTree={researchTree}
+                  speciesList={speciesList}
+                  selectedBuilding={selectedBuilding}
+                  onSelectBuilding={setSelectedBuilding}
+                  checkRurtalbahnDiscountActiveOnMap={checkRurtalbahnDiscountActiveOnMap}
+                  onDemolishModeToggle={() => {
+                    setSelectedBuilding(null);
+                    setIsDemolishMode(!isDemolishMode);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  isDemolishMode={isDemolishMode}
+                  selectedTileInfo={selectedTileInfo}
+                  handleUpgradeBuilding={handleUpgradeBuilding}
+                  handleChangePaperFactoryMode={handleChangePaperFactoryMode}
+                  handleUnlockResearch={handleUnlockResearch}
+                  handleTriggerPdfSim={handleTriggerPdfSim}
+                  pdfSimulated={pdfSimulated}
+                  logs={logs}
+                  invasiveThreatEnabled={invasiveThreatEnabled}
+                  energyChallengeEnabled={energyChallengeEnabled}
+                  onToggleInvasive={(enabled) => {
+                    setInvasiveThreatEnabled(enabled);
+                    if (enabled) {
+                      setShowInvasiveRules(true);
+                      addLog('🚨 BIOLOGISCHER STRESSOR-MODUS AKTIVIERT: Biologische Sicherheit sinkt nun und bricht bei Vernachlässigung zusammen!', 'warning');
+                    } else {
+                      addLog('🛡️ Biologischer Stressor-Modus deaktiviert. Biologische Sicherheit stabilisiert.', 'success');
+                    }
+                  }}
+                  onToggleEnergy={(enabled) => {
+                    setEnergyChallengeEnabled(enabled);
+                    if (enabled) {
+                      setShowEnergyRules(true);
+                      addLog('⚡ ENERGIEWENDE GELADEN: Dürens Industrie gerät unter Dekarbonisierungsdruck! Baue grüne Kraftwerke zur Versorgung.', 'warning');
+                    } else {
+                      addLog('🛡️ Energiewende-Szenario deaktiviert. Ökostromversorgung stabilisiert.', 'success');
+                    }
+                  }}
+                  onShowInvasiveRules={() => setShowInvasiveRules(true)}
+                  onShowEnergyRules={() => setShowEnergyRules(true)}
+                  roundInvested={roundInvested}
+                  cards={cards}
+                  maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
+                  actionsUsed={actionsUsed}
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Dynamic bottom central HUD */}
       <div className="px-6 pb-6 shrink-0 relative">
@@ -3164,6 +3473,10 @@ export default function App() {
           checkQuestRequirements={checkQuestRequirements}
           completeStakeholderQuest={completeStakeholderQuest}
           researchTree={researchTree}
+          selectedTileInfo={selectedTileInfo}
+          cards={cards}
+          maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
+          actionsUsed={actionsUsed}
         />
       </div>
 
@@ -3484,6 +3797,7 @@ export default function App() {
           buildingsCatalog={BUILDIONS_CATALOG}
           researchTree={researchTree}
           grid={grid}
+          quests={quests}
           actionsUsed={actionsUsed}
           maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
           rurtalbahnLeased={rurtalbahnLeased}
@@ -3504,7 +3818,8 @@ export default function App() {
                     return {
                       ...tile,
                       buildingId: null,
-                      terrain: tile.baseTerrain
+                      terrain: tile.baseTerrain,
+                      lastModifiedYear: stats.year
                     };
                   }
                   return tile;
@@ -3567,7 +3882,8 @@ export default function App() {
                       ...tile,
                       buildingId: building.id,
                       ffh_value: updatedFfh,
-                      wrrl_quality: updatedWrrl
+                      wrrl_quality: updatedWrrl,
+                      lastModifiedYear: stats.year
                     };
                   }
                   return tile;
@@ -3647,7 +3963,8 @@ export default function App() {
                           ...tile,
                           terrain: 'Wiese',
                           ffh_value: Math.min(100, tile.ffh_value + 20),
-                          wrrl_quality: Math.max(1.0, tile.wrrl_quality - 0.5)
+                          wrrl_quality: Math.max(1.0, tile.wrrl_quality - 0.5),
+                          lastModifiedYear: stats.year
                         };
                       }
                       if (tile.terrain === 'Wiese' && pStrength >= 3) {
@@ -3656,7 +3973,8 @@ export default function App() {
                           terrain: 'Auwald',
                           ffh_value: Math.min(100, tile.ffh_value + 35),
                           moisture: Math.min(100, tile.moisture + 30),
-                          flood_risk: Math.max(0, tile.flood_risk - 15)
+                          flood_risk: Math.max(0, tile.flood_risk - 15),
+                          lastModifiedYear: stats.year
                         };
                       }
                     }
@@ -3707,7 +4025,8 @@ export default function App() {
                       return {
                         ...tile,
                         wrrl_quality: Math.max(1.0, tile.wrrl_quality - 0.4),
-                        ffh_value: Math.min(100, tile.ffh_value + 15)
+                        ffh_value: Math.min(100, tile.ffh_value + 15),
+                        lastModifiedYear: stats.year
                       };
                     }
                     return tile;

@@ -13,6 +13,7 @@ interface DashboardReportsProps {
   onTriggerPdfSim: () => void;
   pdfSimulated: boolean;
   grid: TileData[][];
+  roundHistory: any[];
 }
 
 export const DashboardReports: React.FC<DashboardReportsProps> = ({
@@ -21,9 +22,13 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
   logs,
   onTriggerPdfSim,
   pdfSimulated,
-  grid
+  grid,
+  roundHistory
 }) => {
   const [reportType, setReportType] = useState<'real_data' | 'pdf' | 'achievements'>('real_data');
+  const [gisSubView, setGisSubView] = useState<'current_river' | 'historical_timeline'>('current_river');
+  const [selectedMetric, setSelectedMetric] = useState<'ffh' | 'co2' | 'acceptance' | 'budget'>('ffh');
+  const [timelineHoverIdx, setTimelineHoverIdx] = useState<number | null>(null);
   const [hoveredSector, setHoveredSector] = useState<any | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
@@ -227,76 +232,345 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
         {/* GIS Data Tab */}
         {reportType === 'real_data' && (
           <div className="space-y-3">
-            <div className="bg-white rounded-xl border border-[#D4CCBA]/70 p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest flex items-center gap-1.5">
-                  <Activity className="w-2.5 h-2.5" />
-                  D3.js Gewässergüteschnitt
-                </div>
-                <span className="text-[8px] font-mono bg-[#E8E2D6] px-1.5 py-0.5 rounded text-[#6B6356] border border-[#D4CCBA]">
-                  Obermaubach → Jülich
-                </span>
-              </div>
-              <p className="text-[10px] text-[#6B6356] leading-snug">
-                Echtzeit-Längsschnitt der 16 Hauptsektoren des Rurtals. Höhere Balken = reichere Fischhabitate (WRRL-Klasse II oder besser).
-              </p>
-              <div className="w-full bg-[#F7F3ED]/40 rounded-lg p-1 border border-[#D4CCBA]/30">
-                <svg ref={svgRef} className="w-full h-auto" />
-              </div>
-              {/* Hover detail panel */}
-              <div className="bg-[#F7F3ED] border border-[#D4CCBA]/60 rounded-xl p-3 min-h-[64px] flex flex-col justify-center">
-                {hoveredSector ? (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <span className="font-black text-[#2C3311] text-[11px] uppercase tracking-wide">
-                        {hoveredSector.label}
-                      </span>
-                      <span className="font-mono text-[8px] bg-[#D4E0C1] px-1.5 py-0.5 rounded text-[#2C3311] font-bold border border-[#5A7247]/20">
-                        Y={hoveredSector.y}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 text-[10px] pt-1 border-t border-[#D4CCBA]/30">
-                      <div>
-                        <span className="text-[#6B6356] block text-[8px] uppercase tracking-wider font-mono mb-0.5">WRRL-Klasse</span>
-                        <span className="font-black">
-                          {hoveredSector.wrrl.toFixed(2)}
-                          <span className="text-[9px] font-semibold text-[#6B6356] ml-1">
-                            ({hoveredSector.wrrl <= 2.0 ? 'Exzellent' : hoveredSector.wrrl <= 2.8 ? 'Gut' : hoveredSector.wrrl <= 3.8 ? 'Mäßig' : 'Kritisch'})
-                          </span>
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[#6B6356] block text-[8px] uppercase tracking-wider font-mono mb-0.5">Bebauung</span>
-                        <span className="font-bold text-[#2C3311]">
-                          {hoveredSector.buildingId ? (
-                            <span className="text-[#5A7247] flex items-center gap-1">
-                              <Sparkles className="w-3 h-3" /> {hoveredSector.buildingId}
-                            </span>
-                          ) : 'Naturbett'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center text-[#8B8273] text-[10px] flex items-center justify-center gap-1.5">
-                    <Info className="w-3.5 h-3.5" />
-                    Fahre über die Balken für Sektor-Details
-                  </div>
-                )}
-              </div>
+            {/* GIS Sub-navigation Header tab deck */}
+            <div className="grid grid-cols-2 gap-1 bg-[#E8E2D6]/60 rounded-lg p-1.5 border border-[#D4CCBA]/40">
+              <button
+                type="button"
+                onClick={() => setGisSubView('current_river')}
+                className={`text-[9px] font-black uppercase py-1 rounded transition-all cursor-pointer ${
+                  gisSubView === 'current_river'
+                    ? 'bg-[#5A7247] text-white shadow-xs'
+                    : 'text-[#6B6356] hover:text-[#2C3322]'
+                }`}
+              >
+                💧 Fluss-Längsschnitt
+              </button>
+              <button
+                type="button"
+                onClick={() => setGisSubView('historical_timeline')}
+                className={`text-[9px] font-black uppercase py-1 rounded transition-all cursor-pointer ${
+                  gisSubView === 'historical_timeline'
+                    ? 'bg-[#5A7247] text-white shadow-xs'
+                    : 'text-[#6B6356] hover:text-[#2C3322]'
+                }`}
+              >
+                📈 Strategie-Verlauf
+              </button>
             </div>
 
-            {/* Sector legend */}
-            <div className="bg-white rounded-xl border border-[#D4CCBA]/70 p-3">
-              <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest mb-2">
-                Sektoren Einteilung
+            {gisSubView === 'current_river' && (
+              <div className="space-y-3">
+                <div className="bg-white rounded-xl border border-[#D4CCBA]/70 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest flex items-center gap-1.5">
+                      <Activity className="w-2.5 h-2.5" />
+                      D3.js Gewässergüteschnitt
+                    </div>
+                    <span className="text-[8px] font-mono bg-[#E8E2D6] px-1.5 py-0.5 rounded text-[#6B6356] border border-[#D4CCBA]">
+                      Obermaubach → Jülich
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#6B6356] leading-snug">
+                    Echtzeit-Längsschnitt der 16 Hauptsektoren des Rurtals. Höhere Balken = reichere Fischhabitate (WRRL-Klasse II oder besser).
+                  </p>
+                  <div className="w-full bg-[#F7F3ED]/40 rounded-lg p-1 border border-[#D4CCBA]/30">
+                    <svg ref={svgRef} className="w-full h-auto" />
+                  </div>
+                  {/* Hover detail panel */}
+                  <div className="bg-[#F7F3ED] border border-[#D4CCBA]/60 rounded-xl p-3 min-h-[64px] flex flex-col justify-center">
+                    {hoveredSector ? (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="font-black text-[#2C3311] text-[11px] uppercase tracking-wide">
+                            {hoveredSector.label}
+                          </span>
+                          <span className="font-mono text-[8px] bg-[#D4E0C1] px-1.5 py-0.5 rounded text-[#2C3311] font-bold border border-[#5A7247]/20">
+                            Y={hoveredSector.y}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-[10px] pt-1 border-t border-[#D4CCBA]/30">
+                          <div>
+                            <span className="text-[#6B6356] block text-[8px] uppercase tracking-wider font-mono mb-0.5">WRRL-Klasse</span>
+                            <span className="font-black">
+                              {hoveredSector.wrrl.toFixed(2)}
+                              <span className="text-[9px] font-semibold text-[#6B6356] ml-1">
+                                ({hoveredSector.wrrl <= 2.0 ? 'Exzellent' : hoveredSector.wrrl <= 2.8 ? 'Gut' : hoveredSector.wrrl <= 3.8 ? 'Mäßig' : 'Kritisch'})
+                              </span>
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[#6B6356] block text-[8px] uppercase tracking-wider font-mono mb-0.5">Bebauung</span>
+                            <span className="font-bold text-[#2C3311]">
+                              {hoveredSector.buildingId ? (
+                                <span className="text-[#5A7247] flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3" /> {hoveredSector.buildingId}
+                                </span>
+                              ) : 'Naturbett'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-[#8B8273] text-[10px] flex items-center justify-center gap-1.5">
+                        <Info className="w-3.5 h-3.5" />
+                        Fahre über die Balken für Sektor-Details
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sector legend */}
+                <div className="bg-white rounded-xl border border-[#D4CCBA]/70 p-3">
+                  <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest mb-2">
+                    Sektoren Einteilung
+                  </div>
+                  <div className="space-y-1.5 text-[10px] text-[#6B6356]">
+                    <p><strong className="text-[#2C3322]">Heimbach / Maubach (3–0):</strong> Hohes Gefälle, reines Wasser (WRRL II), Biberschutzgebiete.</p>
+                    <p><strong className="text-[#2C3322]">Kreuzau / Düren-City (4–10):</strong> Hohe Versiegelung, historische Kanalisierung durch Wehre und Industrie.</p>
+                    <p><strong className="text-[#2C3322]">Jülich S. / Kirchberg (11–15):</strong> Ackerebenen, hoher Nährstoffeintrag aus Landwirtschaft, Hochwassergebiet.</p>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5 text-[10px] text-[#6B6356]">
-                <p><strong className="text-[#2C3322]">Heimbach / Maubach (0–4):</strong> Hohes Gefälle, reines Wasser (WRRL II), Biberschutzgebiete.</p>
-                <p><strong className="text-[#2C3322]">Kreuzau / Düren-City (5–10):</strong> Hohe Versiegelung, historische Kanalisierung durch Wehre und Industrie.</p>
-                <p><strong className="text-[#2C3322]">Jülich (11–15):</strong> Ackerebenen, hoher Nährstoffeintrag aus Landwirtschaft, Hochwassergebiet.</p>
+            )}
+
+            {gisSubView === 'historical_timeline' && (
+              <div className="bg-white rounded-xl border border-[#D4CCBA]/70 p-3.5 space-y-3.5 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest flex items-center gap-1.5">
+                    <Activity className="w-2.5 h-2.5" />
+                    Strategischer Zeitverlauf
+                  </div>
+                  <span className="text-[8px] font-mono bg-[#5A7247]/10 px-1.5 py-0.5 rounded text-[#5A7247] border border-[#5A7247]/20 font-bold">
+                    Runde 1 - {stats.round}
+                  </span>
+                </div>
+
+                <p className="text-[10px] text-[#6B6356] leading-snug">
+                  Entwicklung deiner Kernmetriken über die Zeit. Wähle eine Metrik aus, um langfristige Effekte deiner Renaturierungsmaßnahmen zu analysieren.
+                </p>
+
+                {/* Metric Selector Tabs */}
+                <div className="grid grid-cols-4 gap-1 bg-[#F2EDE4] p-1 rounded-lg">
+                  {([
+                    { id: 'ffh', name: '🌿 FFH' },
+                    { id: 'co2', name: '🏭 CO₂' },
+                    { id: 'acceptance', name: '👥 Bürger' },
+                    { id: 'budget', name: '💶 Geld' }
+                  ] as const).map(met => (
+                    <button
+                      key={met.id}
+                      type="button"
+                      onClick={() => setSelectedMetric(met.id)}
+                      className={`py-1 text-[9px] font-black rounded-md border text-center transition-all cursor-pointer ${
+                        selectedMetric === met.id
+                          ? 'bg-[#5A7247] text-white shadow-xs border-[#5A7247]'
+                          : 'bg-transparent border-transparent text-stone-600 hover:text-stone-900 border-none'
+                      }`}
+                    >
+                      {met.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom SVG Bezier Area Chart */}
+                <div className="relative w-full bg-[#F7F3ED]/40 rounded-lg p-2 border border-[#D4CCBA]/30">
+                  {roundHistory.length < 2 ? (
+                    <div className="h-[140px] flex flex-col items-center justify-center text-[#8B8273] text-[10px] italic text-center p-4">
+                      <span>Rundenverlauf wird ab Runde 2 aufgezeichnet.</span>
+                      <strong className="text-[#5A7247] mt-1">Beende deine erste Runde im Hauptcockpit!</strong>
+                    </div>
+                  ) : (
+                    <div>
+                      {/* Calculate coordinates for svg */}
+                      {(() => {
+                        const width = 480;
+                        const height = 130;
+                        const padding = { top: 15, right: 15, bottom: 20, left: 30 };
+                        
+                        const data = roundHistory;
+                        const getVal = (d: any) => {
+                          if (selectedMetric === 'ffh') return d.ffh;
+                          if (selectedMetric === 'co2') return d.co2;
+                          if (selectedMetric === 'acceptance') return d.acceptance;
+                          return d.budget;
+                        };
+
+                        // Range calculation
+                        const vals = data.map(getVal);
+                        const minVal = Math.max(0, Math.min(...vals) * 0.85);
+                        const maxVal = Math.max(...vals, 10) * 1.15;
+                        const valRange = maxVal - minVal || 1;
+
+                        const points = data.map((d, index) => {
+                          const x = padding.left + (index / (data.length - 1)) * (width - padding.left - padding.right);
+                          const y = height - padding.bottom - ((getVal(d) - minVal) / valRange) * (height - padding.top - padding.bottom);
+                          return { x, y, round: d.round, value: getVal(d), year: d.year };
+                        });
+
+                        // Draw path and area
+                        let linePath = `M ${points[0].x} ${points[0].y} `;
+                        for (let i = 1; i < points.length; i++) {
+                          // Cubic bezier interpolation for smooth curves
+                          const cpX1 = points[i-1].x + (points[i].x - points[i-1].x) / 3;
+                          const cpY1 = points[i-1].y;
+                          const cpX2 = points[i].x - (points[i].x - points[i-1].x) / 3;
+                          const cpY2 = points[i].y;
+                          linePath += `C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i].x} ${points[i].y} `;
+                        }
+
+                        const areaPath = `${linePath} L ${points[points.length-1].x} ${height - padding.bottom} L ${points[0].x} ${height - padding.bottom} Z`;
+
+                        // Metric info
+                        const labelMap = { ffh: 'FFH-Flora (%)', co2: 'CO₂-Ausstoß (t CO2/Runde)', acceptance: 'Bürgerakzeptanz (%)', budget: 'Körperschafts-Budget (€)' };
+                        const colorMap = { ffh: '#10B981', co2: '#F59E0B', acceptance: '#EF4444', budget: '#6366F1' };
+                        const activeColor = colorMap[selectedMetric];
+
+                        return (
+                          <div className="space-y-1.5">
+                            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+                              <defs>
+                                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor={activeColor} stopOpacity="0.25" />
+                                  <stop offset="100%" stopColor={activeColor} stopOpacity="0.01" />
+                                </linearGradient>
+                              </defs>
+
+                              {/* Y Gridlines and Labels */}
+                              {[0, 0.25, 0.5, 0.75, 1.0].map((ratio, gridIdx) => {
+                                const gridVal = minVal + ratio * (maxVal - minVal);
+                                const gridY = height - padding.bottom - ratio * (height - padding.top - padding.bottom);
+                                return (
+                                  <g key={gridIdx}>
+                                    <line
+                                      x1={padding.left}
+                                      x2={width - padding.right}
+                                      y1={gridY}
+                                      y2={gridY}
+                                      stroke="rgba(44, 51, 17, 0.08)"
+                                      strokeWidth="0.8"
+                                      strokeDasharray="4,4"
+                                    />
+                                    <text
+                                      x={padding.left - 6}
+                                      y={gridY + 3.2}
+                                      textAnchor="end"
+                                      style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '7px', fill: '#8B8273', fontWeight: 'bold' }}
+                                    >
+                                      {gridVal.toFixed(0)}
+                                    </text>
+                                  </g>
+                                );
+                              })}
+
+                              {/* Target Marker Lines for guidance */}
+                              {selectedMetric === 'ffh' && (
+                                <g>
+                                  {/* FFH target threshold of 65% */}
+                                  {(() => {
+                                    const threshRatio = (65 - minVal) / valRange;
+                                    if (threshRatio >= 0 && threshRatio <= 1) {
+                                      const yIdx = height - padding.bottom - threshRatio * (height - padding.top - padding.bottom);
+                                      return (
+                                        <g>
+                                          <line x1={padding.left} x2={width - padding.right} y1={yIdx} y2={yIdx} stroke="#10B981" strokeWidth="1" strokeDasharray="3,1" opacity="0.6" />
+                                          <text x={width - padding.right - 2} y={yIdx - 3} textAnchor="end" style={{ fontFamily: 'sans-serif', fontWeight: 'bold', fontSize: '6.5px', fill: '#059669' }}>FFH-Flora Ziel: 65%</text>
+                                        </g>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
+                                </g>
+                              )}
+
+                              {/* Area under the Bezier Curve */}
+                              <path d={areaPath} fill="url(#chartGrad)" />
+
+                              {/* Bezier Path */}
+                              <path d={linePath} fill="none" stroke={activeColor} strokeWidth="2.2" strokeLinecap="round" />
+
+                              {/* Hover / Point Circles & X Labels */}
+                              {points.map((pt, index) => {
+                                const isPointHovered = timelineHoverIdx === index;
+                                return (
+                                  <g key={index} className="cursor-pointer">
+                                    {/* X labels (Rounds) */}
+                                    <text
+                                      x={pt.x}
+                                      y={height - 6}
+                                      textAnchor="middle"
+                                      style={{ 
+                                        fontFamily: 'JetBrains Mono, monospace', 
+                                        fontSize: '7.5px', 
+                                        fill: '#6B6356',
+                                        fontWeight: isPointHovered ? 'black' : 'bold' 
+                                      }}
+                                    >
+                                      R{pt.round}
+                                    </text>
+
+                                    {/* Vertical guideline */}
+                                    {isPointHovered && (
+                                      <line
+                                        x1={pt.x}
+                                        x2={pt.x}
+                                        y1={padding.top}
+                                        y2={height - padding.bottom}
+                                        stroke={activeColor}
+                                        strokeWidth="0.8"
+                                        strokeDasharray="2,2"
+                                        opacity="0.5"
+                                      />
+                                    )}
+
+                                    {/* Data bullet */}
+                                    <circle
+                                      cx={pt.x}
+                                      cy={pt.y}
+                                      r={isPointHovered ? 4.5 : 2.8}
+                                      fill={isPointHovered ? '#FFFFFF' : activeColor}
+                                      stroke={isPointHovered ? activeColor : '#FFFFFF'}
+                                      strokeWidth={isPointHovered ? 2.5 : 1}
+                                      onMouseOver={() => setTimelineHoverIdx(index)}
+                                      onMouseOut={() => setTimelineHoverIdx(null)}
+                                    />
+                                  </g>
+                                );
+                              })}
+                            </svg>
+
+                            {/* Active Point Card Details */}
+                            <div className="bg-[#FAF8F5] border border-[#D4CCBA]/60 rounded-xl p-2.5 min-h-[58px] flex flex-col justify-center shadow-2xs">
+                              {timelineHoverIdx !== null && points[timelineHoverIdx] ? (
+                                <div className="flex justify-between items-center text-[10px]">
+                                  <div>
+                                    <span className="text-[#8B8273] block text-[8px] uppercase tracking-wider font-mono">Quartal / Jahr</span>
+                                    <span className="font-extrabold text-[#2C3311]">
+                                      Runde {points[timelineHoverIdx].round} ({points[timelineHoverIdx].year})
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-[#8B8273] block text-[8px] uppercase tracking-wider font-mono">{labelMap[selectedMetric]}</span>
+                                    <span className="font-black" style={{ color: activeColor }}>
+                                      {points[timelineHoverIdx].value.toFixed(1)}
+                                      {selectedMetric === 'ffh' || selectedMetric === 'acceptance' ? '%' : selectedMetric === 'budget' ? ' €' : ' t'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-center text-[#8B8273] text-[9.5px] italic flex items-center justify-center gap-1.5 leading-none">
+                                  <Info className="w-3.5 h-3.5" />
+                                  Bewege den Cursor über die Punkte, um Runden-Messwerte anzuzeigen
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
