@@ -156,6 +156,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [buildingCategoryFilter, setBuildingCategoryFilter] = useState<string>('all');
   const [filterOnlyBebaubar, setFilterOnlyBebaubar] = useState<boolean>(false);
+  const [mobileTab, setMobileTab] = useState<'karten' | 'info'>('karten');
   const [hoveredBuilding, setHoveredBuilding] = useState<BuildingType | null>(null);
 
   const getPrognosisValues = (bId: string): {
@@ -348,20 +349,28 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-stone-600 mt-0.5">
-                Untergrund: <strong className={tMeta.text}>{tMeta.label}</strong> • 🧪 Forschung: <strong>{stats.researchPoints}</strong> • 💶 Budget: <strong>{stats.budget} €</strong>
+                <span className="sm:hidden">
+                  💶 <strong>{stats.budget} €</strong> · 🧪 <strong>{stats.researchPoints}</strong>
+                </span>
+                <span className="hidden sm:inline">
+                  Untergrund: <strong className={tMeta.text}>{tMeta.label}</strong> • 🧪 Forschung: <strong>{stats.researchPoints}</strong> • 💶 Budget: <strong>{stats.budget} €</strong>
+                </span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Action Round Budget indicator */}
-            <div className="flex items-center gap-2 bg-[#F2EDE4] px-3 py-1.5 rounded-xl border border-[#D4CCBA] shrink-0">
-              <span className={`text-[10px] font-bold uppercase ${budgetExhausted ? 'text-rose-600' : 'text-emerald-800'}`}>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Action indicator – compact on mobile */}
+            <div className="flex items-center gap-1.5 bg-[#F2EDE4] px-2 sm:px-3 py-1.5 rounded-xl border border-[#D4CCBA] shrink-0">
+              <span className={`hidden sm:block text-[10px] font-bold uppercase ${budgetExhausted ? 'text-rose-600' : 'text-emerald-800'}`}>
                 {budgetExhausted ? 'Runde beendet' : `Aktionen: ${actionsLeft}/${maxActionsPerRound}`}
               </span>
-              <div className="flex gap-1">
+              <span className={`sm:hidden text-[9px] font-black tabular-nums ${budgetExhausted ? 'text-rose-600' : 'text-emerald-800'}`}>
+                {actionsLeft}/{maxActionsPerRound}
+              </span>
+              <div className="flex gap-0.5 sm:gap-1">
                 {Array.from({ length: maxActionsPerRound }).map((_, i) => (
-                  <div key={i} className={`w-2.5 h-2.5 rounded-full border transition-colors ${
+                  <div key={i} className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border transition-colors ${
                     i < actionsUsed
                       ? 'bg-stone-400 border-stone-500'
                       : budgetExhausted
@@ -372,10 +381,10 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
               </div>
             </div>
 
-            {/* Select another sector button directly in header */}
+            {/* Sektor-wechsel – hidden on mobile (available in Info-Tab) */}
             <button
               onClick={onClose}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 hover:border-amber-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer shadow-3xs hover:-translate-y-0.5 active:translate-y-0"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 hover:border-amber-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-150 cursor-pointer shadow-3xs hover:-translate-y-0.5 active:translate-y-0"
             >
               🗺️ Sektor wechseln
             </button>
@@ -389,11 +398,38 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
           </div>
         </div>
 
-        {/* Modal Workspace Body (Split layout: Detail Info Left / Card System Right) */}
-        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-[#D4CCBA]">
+        {/* Modal Workspace Body */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+
+          {/* ── Mobile Tab Bar (hidden on md+) ───────────────────────────── */}
+          <div className="md:hidden shrink-0 flex bg-white border-b border-[#D4CCBA]">
+            <button
+              onClick={() => setMobileTab('karten')}
+              className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                mobileTab === 'karten'
+                  ? 'text-[#5A7247] bg-[#F5F2EC] border-b-2 border-[#5A7247]'
+                  : 'text-stone-400 hover:text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              🎴 Aktions-Karten
+            </button>
+            <button
+              onClick={() => setMobileTab('info')}
+              className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                mobileTab === 'info'
+                  ? 'text-[#5A7247] bg-[#F5F2EC] border-b-2 border-[#5A7247]'
+                  : 'text-stone-400 hover:text-stone-600 hover:bg-stone-50'
+              }`}
+            >
+              📍 Sektor-Info
+            </button>
+          </div>
+
+          {/* ── Panels (side-by-side on md+, tab-switched on mobile) ──── */}
+          <div className="flex-1 overflow-hidden flex flex-col md:flex-row md:divide-x divide-[#D4CCBA]">
 
           {/* LEFT PANEL: Selected Tile Details & Existing Buildings */}
-          <div className="w-full md:w-1/3 p-5 md:overflow-y-auto bg-[#FAF8F5] flex flex-col gap-3">
+          <div className={`w-full md:w-1/3 p-5 overflow-y-auto bg-[#FAF8F5] flex-col gap-3 ${mobileTab === 'info' ? 'flex' : 'hidden'} md:flex`}>
             <button
               onClick={onClose}
               className="w-full py-2 bg-amber-50/70 hover:bg-amber-100/80 border border-dashed border-amber-300 hover:border-amber-400 rounded-xl text-amber-900 font-extrabold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer shadow-3xs"
@@ -603,7 +639,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
           </div>
 
           {/* RIGHT PANEL: Expandable Action Cards for the Round */}
-          <div className="flex-1 p-5 md:overflow-y-auto flex flex-col gap-4">
+          <div className={`flex-1 p-4 sm:p-5 overflow-y-auto flex-col gap-4 ${mobileTab === 'karten' ? 'flex' : 'hidden'} md:flex`}>
             <div>
               <span className="text-[9px] font-bold uppercase text-stone-400 tracking-wider">
                 Verfügbare Runden-Karten (Handdeck)
@@ -614,9 +650,9 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
             </div>
 
             {/* Horizontal playing cards list with horizontal scroll support on small screens */}
-            <div className="overflow-x-auto pb-2 scrollbar-thin select-none flex flex-col gap-3">
-              {/* Continuous Slot Strength Bar - Compact and Purely Informational */}
-              <div className="min-w-[620px] sm:min-w-full bg-[#FAF9F5] border border-[#D4CCBA]/55 rounded-lg py-1.5 px-3.5 flex items-center justify-between shadow-3xs">
+            <div className="flex flex-col gap-3 select-none">
+              {/* Continuous Slot Strength Bar – fully responsive, no forced min-width */}
+              <div className="bg-[#FAF9F5] border border-[#D4CCBA]/55 rounded-lg py-1.5 px-3.5 flex items-center justify-between shadow-3xs">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[7.5px] font-black uppercase text-[#8B8273] tracking-widest font-mono">Slot-Handdeck</span>
                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -670,7 +706,8 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex sm:grid sm:grid-cols-5 gap-3.5 min-w-[520px] sm:min-w-full pt-3 pb-2 px-0.5">
+              <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 pb-2 scrollbar-thin">
+              <div className="flex sm:grid sm:grid-cols-5 gap-3 sm:gap-3.5 min-w-[460px] sm:min-w-full pt-2 pb-1.5 px-0.5">
                 {cards.map((card, idx) => {
                   const isSelected = expandedCardId === card.id;
                   const strength = idx + 1;
@@ -754,6 +791,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                   );
                 })}
               </div>
+              </div>{/* end overflow-x-auto card scroll */}
             </div>
 
             {/* DETAILED WORKFLOW IN PLAY-ZONE FOR THE SELECTED ACTIVE CARD */}
@@ -806,21 +844,21 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                     {card.type === 'BUILD' && (
                       <div className="flex flex-col gap-2">
                         {/* Catalog Filtering UI - Elegant Single Line */}
-                        <div className="flex items-center justify-between gap-1.5 bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#D4CCBA]/35">
-                          <span className="text-[8.5px] font-black uppercase tracking-wider text-[#A09787] font-mono">Baukatalog</span>
-                          <div className="flex items-center gap-1.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 bg-[#FAF8F5] px-2.5 py-1.5 rounded-lg border border-[#D4CCBA]/35">
+                          <span className="text-[8.5px] font-black uppercase tracking-wider text-[#A09787] font-mono">Baukatalog-Filter</span>
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <input
                               type="text"
                               value={searchTerm}
                               onClick={(e) => e.stopPropagation()}
                               onChange={e => setSearchTerm(e.target.value)}
                               placeholder="🔍 Suchen..."
-                              className="px-1.5 py-0.5 text-[9px] font-medium rounded border border-stone-300 bg-white w-20 sm:w-28 placeholder:text-stone-400 focus:outline-none focus:border-amber-400"
+                              className="px-2 py-1 sm:py-0.5 text-xs sm:text-[9px] font-medium rounded border border-stone-300 bg-white flex-1 min-w-[80px] sm:w-28 placeholder:text-stone-400 focus:outline-none focus:border-amber-400"
                             />
                             <select
                               value={buildingCategoryFilter}
                               onChange={e => setBuildingCategoryFilter(e.target.value)}
-                              className="px-1 py-0.5 text-[9px] font-medium rounded border border-stone-300 bg-white text-stone-700 cursor-pointer focus:outline-none focus:border-amber-400"
+                              className="px-2 py-1 sm:py-0.5 text-xs sm:text-[9px] font-medium rounded border border-stone-300 bg-white text-stone-700 cursor-pointer focus:outline-none focus:border-amber-400"
                             >
                               <option value="all">Alle Arten</option>
                               <option value="ecology">Natur</option>
@@ -835,7 +873,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                 e.stopPropagation();
                                 setFilterOnlyBebaubar(prev => !prev);
                               }}
-                              className={`px-1.5 py-0.5 text-[9px] font-black rounded border cursor-pointer transition-all ${
+                              className={`px-2 py-1 sm:py-0.5 text-xs sm:text-[9px] font-black rounded border cursor-pointer transition-all ${
                                 filterOnlyBebaubar
                                   ? 'bg-[#5A7247] text-white border-[#5A7247] shadow-3xs'
                                   : 'bg-white text-stone-700 border-stone-300 hover:border-amber-400 hover:bg-stone-50'
@@ -847,8 +885,8 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Highly Compressed Catalog Cards Layout */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                        {/* Catalog Cards – single column on mobile (panel scrolls), 2-col on desktop */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-1.5 sm:max-h-40 sm:overflow-y-auto sm:pr-1">
                           {buildingsCatalog
                             .filter(b => b.id !== 'schoellershammer')
                             .filter(b => buildingCategoryFilter === 'all' || b.category === buildingCategoryFilter)
@@ -926,7 +964,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                   key={b.id}
                                   onMouseEnter={() => setHoveredBuilding(b)}
                                   onMouseLeave={() => setHoveredBuilding(null)}
-                                  className={`p-2 rounded-lg border text-left flex flex-col justify-between gap-1 transition-all duration-200 cursor-help relative overflow-hidden ${
+                                  className={`p-3 sm:p-2 rounded-lg border text-left flex flex-col justify-between gap-2 sm:gap-1 transition-all duration-200 cursor-help relative overflow-hidden ${
                                     hoveredBuilding?.id === b.id
                                       ? 'bg-[#FAF8F5] border-amber-500 scale-[1.01] shadow-2xs'
                                       : allowedToConstruct
@@ -944,14 +982,14 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
 
                                   <div>
                                     <div className="flex items-center justify-between gap-1">
-                                      <span className="text-[10px] font-black text-stone-800 truncate pr-3">
+                                      <span className="text-sm sm:text-[10px] font-black text-stone-800 truncate pr-3">
                                         {b.name}
                                       </span>
-                                      <span className="text-[9px] font-black text-amber-700 shrink-0">
+                                      <span className="text-sm sm:text-[9px] font-black text-amber-700 shrink-0">
                                         {finalCost} €
                                       </span>
                                     </div>
-                                    <p className="text-[8.5px] text-stone-500 leading-tight line-clamp-1 mt-0.5">
+                                    <p className="text-[11px] sm:text-[8.5px] text-stone-500 leading-snug line-clamp-2 sm:line-clamp-1 mt-0.5">
                                       {b.description}
                                     </p>
                                   </div>
@@ -959,12 +997,12 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                   {allowedToConstruct ? (
                                     <button
                                       onClick={() => onBuild(b, finalCost)}
-                                      className="w-full py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[8.5px] font-black uppercase text-center transition-colors cursor-pointer"
+                                      className="w-full py-2 sm:py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs sm:text-[8.5px] font-black uppercase text-center transition-colors cursor-pointer"
                                     >
                                       Jetzt errichten (-{finalCost} €)
                                     </button>
                                   ) : (
-                                    <div className="text-[8px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 text-center leading-none">
+                                    <div className="text-[10px] sm:text-[8px] font-bold text-rose-700 bg-rose-50 px-1.5 py-1 sm:py-0.5 rounded border border-rose-100 text-center leading-snug">
                                       ⚠️ {errText}
                                     </div>
                                   )}
@@ -1212,7 +1250,9 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
             })()}
           </div>
 
-        </div>
+          </div>{/* end panels container */}
+
+        </div>{/* end body wrapper */}
 
       </div>
     </div>
