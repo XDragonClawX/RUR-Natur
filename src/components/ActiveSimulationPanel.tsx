@@ -293,7 +293,7 @@ export const ActiveSimulationPanel: React.FC<ActiveSimulationPanelProps> = ({
   ];
 
   return (
-    <div className="bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col h-[724px] lg:h-[874px]">
+    <div className="bg-[#FAF8F5] border border-[#D4CCBA] rounded-xl shadow-md overflow-hidden flex flex-col h-[724px] lg:h-[874px] max-h-[calc(100vh-72px)]">
 
       {/* ── COCKPIT HEADER ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#D4CCBA] gap-3">

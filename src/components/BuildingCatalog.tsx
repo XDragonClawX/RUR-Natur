@@ -238,20 +238,33 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
 
       {/* ── Terrain filter — collapsed by default to maximise list space ──── */}
       <div className="px-4 mt-1.5 mb-1 shrink-0">
-        {/* Toggle row */}
-        <button
-          onClick={() => setShowTerrainFilter(v => !v)}
-          className="flex items-center gap-1.5 text-[9px] font-mono font-black text-[#8B8273] uppercase tracking-widest cursor-pointer hover:text-[#5A7247] transition-colors"
-        >
-          <Filter className="w-2.5 h-2.5" />
-          Geländefilter
+        {/* Toggle row — toggle button + always-visible reset when filters active */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowTerrainFilter(v => !v)}
+            className="flex items-center gap-1.5 text-[9px] font-mono font-black text-[#8B8273] uppercase tracking-widest cursor-pointer hover:text-[#5A7247] transition-colors"
+          >
+            <Filter className="w-2.5 h-2.5" />
+            Geländefilter
+            {selectedTerrains.length > 0 && (
+              <span className="ml-1 bg-[#5A7247] text-white rounded-full px-1.5 py-0.5 text-[8px] font-black leading-none">
+                {selectedTerrains.length}
+              </span>
+            )}
+            <span className="text-[8px]">{showTerrainFilter ? '▲' : '▼'}</span>
+          </button>
+
+          {/* Reset — always reachable while filters are active, even when panel collapsed */}
           {selectedTerrains.length > 0 && (
-            <span className="ml-1 bg-[#5A7247] text-white rounded-full px-1.5 py-0.5 text-[8px] font-black leading-none">
-              {selectedTerrains.length}
-            </span>
+            <button
+              onClick={() => setSelectedTerrains([])}
+              className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-[#5A7247] hover:underline cursor-pointer"
+            >
+              <X className="w-2.5 h-2.5" />
+              Zurücksetzen
+            </button>
           )}
-          <span className="ml-auto text-[8px]">{showTerrainFilter ? '▲' : '▼'}</span>
-        </button>
+        </div>
 
         {/* Collapsible terrain chips */}
         {showTerrainFilter && (
@@ -275,11 +288,6 @@ export const BuildingCatalog: React.FC<BuildingCatalogProps> = ({
                 </button>
               );
             })}
-            {selectedTerrains.length > 0 && (
-              <button onClick={() => setSelectedTerrains([])} className="text-[9px] font-bold text-[#5A7247] hover:underline cursor-pointer ml-1">
-                Zurücksetzen
-              </button>
-            )}
           </div>
         )}
       </div>
