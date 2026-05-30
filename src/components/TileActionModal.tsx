@@ -885,8 +885,8 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Catalog Cards – single column on mobile (panel scrolls), 2-col on desktop */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-1.5 sm:max-h-40 sm:overflow-y-auto sm:pr-1">
+                        {/* Catalog Cards – immer 2 Spalten; auf Desktop eigener Scroll (4 sichtbare Einträge), auf Mobile scrollt das Panel */}
+                        <div className="grid grid-cols-2 gap-2 md:max-h-52 md:overflow-y-auto md:pr-1 scrollbar-thin">
                           {buildingsCatalog
                             .filter(b => b.id !== 'schoellershammer')
                             .filter(b => buildingCategoryFilter === 'all' || b.category === buildingCategoryFilter)
@@ -964,12 +964,12 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                   key={b.id}
                                   onMouseEnter={() => setHoveredBuilding(b)}
                                   onMouseLeave={() => setHoveredBuilding(null)}
-                                  className={`p-3 sm:p-2 rounded-lg border text-left flex flex-col justify-between gap-2 sm:gap-1 transition-all duration-200 cursor-help relative overflow-hidden ${
+                                  className={`p-2.5 rounded-lg border text-left flex flex-col justify-between gap-1.5 transition-all duration-200 relative min-h-[80px] ${
                                     hoveredBuilding?.id === b.id
-                                      ? 'bg-[#FAF8F5] border-amber-500 scale-[1.01] shadow-2xs'
+                                      ? 'bg-[#FAF8F5] border-amber-500 scale-[1.01] shadow-2xs cursor-help'
                                       : allowedToConstruct
-                                      ? 'bg-emerald-50/10 border-emerald-500 hover:border-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20 shadow-emerald-500/5 hover:-translate-y-0.5'
-                                      : 'bg-stone-50 border-stone-200 opacity-65'
+                                      ? 'bg-emerald-50/10 border-emerald-500 hover:border-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20 hover:-translate-y-0.5 cursor-pointer'
+                                      : 'bg-stone-50 border-stone-200 opacity-65 cursor-help'
                                   }`}
                                 >
                                   {/* Green indicator ping for constructible buildings */}
@@ -981,15 +981,15 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                   )}
 
                                   <div>
-                                    <div className="flex items-center justify-between gap-1">
-                                      <span className="text-sm sm:text-[10px] font-black text-stone-800 truncate pr-3">
+                                    <div className="flex items-start justify-between gap-1">
+                                      <span className="text-[11px] font-black text-stone-800 leading-tight line-clamp-2">
                                         {b.name}
                                       </span>
-                                      <span className="text-sm sm:text-[9px] font-black text-amber-700 shrink-0">
+                                      <span className="text-[11px] font-black text-amber-700 shrink-0 ml-1">
                                         {finalCost} €
                                       </span>
                                     </div>
-                                    <p className="text-[11px] sm:text-[8.5px] text-stone-500 leading-snug line-clamp-2 sm:line-clamp-1 mt-0.5">
+                                    <p className="text-[10px] text-stone-500 leading-snug line-clamp-2">
                                       {b.description}
                                     </p>
                                   </div>
@@ -997,12 +997,12 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                   {allowedToConstruct ? (
                                     <button
                                       onClick={() => onBuild(b, finalCost)}
-                                      className="w-full py-2 sm:py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs sm:text-[8.5px] font-black uppercase text-center transition-colors cursor-pointer"
+                                      className="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] font-black uppercase text-center transition-colors cursor-pointer"
                                     >
-                                      Jetzt errichten (-{finalCost} €)
+                                      Errichten ({finalCost} €)
                                     </button>
                                   ) : (
-                                    <div className="text-[10px] sm:text-[8px] font-bold text-rose-700 bg-rose-50 px-1.5 py-1 sm:py-0.5 rounded border border-rose-100 text-center leading-snug">
+                                    <div className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-1 rounded border border-rose-100 text-center leading-snug">
                                       ⚠️ {errText}
                                     </div>
                                   )}
