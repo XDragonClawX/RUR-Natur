@@ -633,3 +633,74 @@ export const DRAFT_CARDS: DraftCard[] = [
   { id:'draft_danger_krise',       name:'Stakeholder-Krise',      icon:'😤', category:'danger', is_danger:true, cost:0, description:'Lokale Interessenkonflikte blockieren Renaturierungsmaßnahmen.',  effects:{ citizen_acceptance:-15, nature_points:-5 } },
 ];
 
+// Tutorial-Onboarding-Schritte (Intro-Karussell beim Spielstart)
+export const TUTORIAL_STEPS = [
+  {
+    title: "Willkommen an der Rur! 🌿",
+    tagline: "RENATURIERUNGS-SIMULATOR KREIS DÜREN",
+    icon: "🗺️",
+    description: "Als leitender Umweltbeauftragter bist du für die ökologische Qualität der Rur verantwortlich. Deine Karte zeigt den Flusslauf von der Eifel bis zur Jülicher Tiefebene.",
+    bullets: [
+      "📌 Der Fluss entspringt am landschaftlich idyllischen Stausee Obermaubach (Süden) und meandert hinunter gen Norden.",
+      "⚠️ Belastungs-Hotspots: Im Mittelteil (Düren) belasten Industrieanlagen wie die Papierfabrik den Fluss immens.",
+      "🎯 Deine Mission: Verbessere die Gewässergüte (WRRL), maximiere den Artenschutz-Fokus (FFH) und schaffe Durchgängigkeit für bedrohte Tierarten!"
+    ]
+  },
+  {
+    title: "Das Aktionskarten-Prinzip 🎴",
+    tagline: "BRETTCON KENNERSPIEL-LAYOUT",
+    icon: "🎰",
+    description: "Das Spiel nutzt die Aktionsreihen-Mechanik aus Arche Nova:",
+    bullets: [
+      "🃏 Pro Runde darfst du genau eine Aktionskarte ausspielen — wähle sie mit Bedacht!",
+      "↩️ Die gespielte Karte rutscht zurück auf Stärke 1. Die anderen vier Karten rücken nach rechts und werden kräftiger!",
+      "🧠 Kernstrategie: Widerstehe dem Drang, starke Karten früh zu spielen — eine Karte auf Stärke 5 entfaltet maximale Wirkung und entscheidet Runden!"
+    ]
+  },
+  {
+    title: "Effizientes Bauen & Materialrabatte 🏗️",
+    tagline: "KOSTENFREIGABEN & DESIGN",
+    icon: "👷",
+    description: "Deine Bauen-Aktionskarte steuert direkt das Baukontingent auf der Isometric-Karte:",
+    bullets: [
+      "💶 Bauen auf Stärke 1-2 limitiert das Projektguthaben (€) massiv: Du darfst nur einfachste Renaturierungen platzieren.",
+      "🔨 Auf Stärke 3-4 erhältst du einen Materialrabatt von 1 € und eine Freigabe für mittlere bis fortgeschrittene Bauten.",
+      "👑 Elite-Bauen (Stärke 5): Ermöglicht den Bau beliebiger Großbauprojekte mit einem fetten Materialrabatt von 2 €!"
+    ]
+  },
+  {
+    title: "Gewässergüte-Layer & Biotopwerte 🌊",
+    tagline: "KARTIERE DIE LEBENSRÄUME",
+    icon: "📊",
+    description: "Nutze die umschaltbaren Layer-Anzeigen direkt oben rechts auf der Karte, um Analysen zu fahren:",
+    bullets: [
+      "💧 WRRL-Qualität: Zeigt Farbskalen der ökologischen Güteklasse. Dunkelgrün ist top; braun/orange Zonen verlangen dringende Renaturierungen.",
+      "🦅 FFH-Biotopschutz: Zeigt das unberührte Artenschutzpotenzial. Schütze diese Zonen oder werte sie massiv auf.",
+      "🏠 Hochwasserrisiko: Durch Klimaphänomene steigen die Fluten. Baue Auwälder und Altarme als Puffer!"
+    ]
+  },
+  {
+    title: "Papierfabrik & Wissenschaft 🔬",
+    tagline: "EINHEIT VON NATUR & WIRTSCHAFT",
+    icon: "🏭",
+    description: "Nur durch technologische Meisterleistung gelingt die Rettung der Ökosysteme:",
+    bullets: [
+      "🏭 Die Dürener Papierfabrik Schoellershammer spült viel Steuergeld in die Kasse, verpestet aber die Gewässergüte lokal dramatisch.",
+      "🧪 Erforsche im Tech-Baum wegweisende Entwürfe wie Fischtreppen, Biberreviere und Hochwasserschutz.",
+      "🐟 Mit Abschluss des finalen Patents kannst du Schoellershammer auf Öko-Innovation umrüsten, um Lachse wieder heimisch zu machen!"
+    ]
+  },
+  {
+    title: "Baum- & Forschungskaskade 🪜",
+    tagline: "ABHÄNGIGKEITS- UND FREISCHALTDIAGRAMM",
+    icon: "🪜",
+    description: "Hier siehst du die Kaskade der Bau- und Forschungsmöglichkeiten. Projekte hängen voneinander ab und schalten neue Optionen frei:",
+    bullets: [
+      "🟢 Stufe I (Grundlagen): Beginne mit Biber-Management, Sohlgleiten oder dem NRW-Lachsprogramm im Labor.",
+      "🔵 Stufe II (Aufbau): Erforsche Auen-Vitalisierung (erfordert Biber-Plan) oder verbesserte Klärwerk-Filter.",
+      "🟣 Stufe III (Transformation): Das Fabrik-Transformationskonzept erfordert Abwasserreinigung + Lachsprogramm und ermöglicht die vollständige Papierfabrik-Renaturierung!"
+    ],
+    showCascadeDiagram: true
+  }
+];
+

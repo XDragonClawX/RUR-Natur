@@ -1,14 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { GameStats, Species, GameLog, TileData } from '../types';
 import {
   BarChart3, Medal, Info, Download, Printer, Database,
   Sparkles, AlertTriangle, CheckCircle2, Circle, Activity
 } from 'lucide-react';
-import * as d3 from 'd3';
 import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
+  Cell,
+  ReferenceLine,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -39,7 +42,10 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
   const [selectedMetric, setSelectedMetric] = useState<'ffh' | 'co2' | 'acceptance' | 'budget'>('ffh');
   const [timelineHoverIdx, setTimelineHoverIdx] = useState<number | null>(null);
   const [hoveredSector, setHoveredSector] = useState<any | null>(null);
-  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  // Farbskala für die Gewässergüte (WRRL-Klasse)
+  const wrrlColor = (wrrl: number) =>
+    wrrl <= 2.0 ? '#457B9D' : wrrl <= 2.8 ? '#5A7247' : wrrl <= 3.8 ? '#BC6C25' : '#C94A4A';
 
   const riverData = Array.from({ length: 16 }, (_, y) => {
     const row = grid[y] || [];
@@ -50,83 +56,17 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
       8: 'Birkesdorf', 9: 'Merken', 10: 'Huch.-Melnik', 11: 'Altenburg',
       12: 'Jülich S.', 13: 'Jülich', 14: 'Broich', 15: 'Kirchberg'
     };
+    const wrrl = riverTile ? riverTile.wrrl_quality : 3.0;
     return {
       y, x: riverTile ? riverTile.x : 0,
       label: labels[y] || `Sektor ${y}`,
-      wrrl: riverTile ? riverTile.wrrl_quality : 3.0,
+      wrrl,
+      // Invertierter Wert: höherer Balken = saubereres Wasser (WRRL-Klasse 1 = beste Güte)
+      cleanScore: 5 - wrrl,
       buildingId: riverTile ? riverTile.buildingId : null,
       tile: riverTile
     };
   });
-
-  useEffect(() => {
-    if (reportType !== 'real_data' || !svgRef.current) return;
-    const svgElement = svgRef.current;
-    d3.select(svgElement).selectAll('*').remove();
-
-    const margin = { top: 25, right: 15, bottom: 40, left: 35 };
-    const width = 530, height = 180;
-    const chartWidth = width - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
-
-    const svg = d3.select(svgElement)
-      .attr('viewBox', `0 0 ${width} ${height}`)
-      .attr('width', '100%').attr('height', '100%')
-      .style('display', 'block');
-
-    const g = svg.append('g').attr('transform', `translate(${margin.left}, ${margin.top})`);
-
-    const xScale = d3.scaleBand().domain(riverData.map(d => d.label)).range([0, chartWidth]).padding(0.25);
-    const yScale = d3.scaleLinear().domain([5.0, 1.0]).range([chartHeight, 0]);
-
-    [1, 2, 3, 4, 5].forEach(c => {
-      g.append('line')
-        .attr('x1', 0).attr('x2', chartWidth)
-        .attr('y1', yScale(c)).attr('y2', yScale(c))
-        .attr('stroke', 'rgba(44, 51, 17, 0.08)')
-        .attr('stroke-width', 0.8)
-        .attr('stroke-dasharray', c === 2 ? '4,4' : 'none');
-    });
-
-    g.append('line')
-      .attr('x1', 0).attr('x2', chartWidth)
-      .attr('y1', yScale(2.0)).attr('y2', yScale(2.0))
-      .attr('stroke', '#5A7247').attr('stroke-width', 1.2).attr('stroke-dasharray', '3,3');
-
-    g.append('g').attr('transform', `translate(0, ${chartHeight})`).call(d3.axisBottom(xScale))
-      .selectAll('text')
-      .style('text-anchor', 'end').attr('dx', '-.5em').attr('dy', '.15em')
-      .attr('transform', 'rotate(-30)')
-      .style('font-family', 'JetBrains Mono, SFMono-Regular, monospace')
-      .style('font-size', '7px').style('fill', '#6B6356');
-
-    g.append('g').call(d3.axisLeft(yScale).tickValues([1, 2, 3, 4, 5]).tickFormat(d => `${d}.0`))
-      .selectAll('text')
-      .style('font-family', 'JetBrains Mono, SFMono-Regular, monospace')
-      .style('font-size', '7px').style('fill', '#6B6356');
-
-    svg.append('text').attr('x', 12).attr('y', 14).attr('text-anchor', 'start')
-      .style('font-family', 'JetBrains Mono, monospace').style('font-weight', 'bold')
-      .style('font-size', '7px').style('fill', '#8B8273')
-      .text('▲ Gewässergüte (Klasse 1-5; höherer Balken = sauberes Wasser!)');
-
-    const bars = g.selectAll('.rur-bar').data(riverData).enter().append('rect')
-      .attr('class', 'rur-bar')
-      .attr('x', d => xScale(d.label) || 0).attr('width', xScale.bandwidth())
-      .attr('y', d => yScale(d.wrrl)).attr('height', d => Math.max(2, chartHeight - yScale(d.wrrl)))
-      .attr('rx', 2.5)
-      .attr('fill', d => d.wrrl <= 2.0 ? '#457B9D' : d.wrrl <= 2.8 ? '#5A7247' : d.wrrl <= 3.8 ? '#BC6C25' : '#C94A4A')
-      .attr('opacity', 0.85).style('cursor', 'pointer');
-
-    bars.on('mouseover', function(event, d) {
-      d3.select(this).attr('opacity', 1.0).attr('stroke', '#2C3311').attr('stroke-width', 1.5)
-        .attr('y', yScale(d.wrrl) - 2).attr('height', Math.max(2, chartHeight - yScale(d.wrrl)) + 2);
-      setHoveredSector(d);
-    }).on('mouseout', function(event, d) {
-      d3.select(this).attr('opacity', 0.85).attr('stroke', 'none')
-        .attr('y', yScale(d.wrrl)).attr('height', Math.max(2, chartHeight - yScale(d.wrrl)));
-    });
-  }, [grid, reportType, stats.round]);
 
   const achievements = [
     {
@@ -273,7 +213,7 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="text-[8px] font-mono font-black text-[#8B8273] uppercase tracking-widest flex items-center gap-1.5">
                       <Activity className="w-2.5 h-2.5" />
-                      D3.js Gewässergüteschnitt
+                      Gewässergüteschnitt
                     </div>
                     <span className="text-[8px] font-mono bg-[#E8E2D6] px-1.5 py-0.5 rounded text-[#6B6356] border border-[#D4CCBA]">
                       Obermaubach → Jülich
@@ -282,8 +222,55 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
                   <p className="text-[10px] text-[#6B6356] leading-snug">
                     Echtzeit-Längsschnitt der 16 Hauptsektoren des Rurtals. Höhere Balken = reichere Fischhabitate (WRRL-Klasse II oder besser).
                   </p>
-                  <div className="w-full bg-[#F7F3ED]/40 rounded-lg p-1 border border-[#D4CCBA]/30">
-                    <svg ref={svgRef} className="w-full h-auto" />
+                  <div className="text-[7px] font-mono font-bold text-[#8B8273] leading-none -mb-1">
+                    ▲ Gewässergüte (Klasse 1–5; höherer Balken = sauberes Wasser!)
+                  </div>
+                  <div className="w-full h-[180px] bg-[#F7F3ED]/40 rounded-lg p-1 border border-[#D4CCBA]/30">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={riverData}
+                        margin={{ top: 8, right: 6, left: -24, bottom: 18 }}
+                        onMouseLeave={() => setHoveredSector(null)}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(44, 51, 17, 0.08)" vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          interval={0}
+                          angle={-30}
+                          textAnchor="end"
+                          height={40}
+                          stroke="#8B8273"
+                          tickLine={false}
+                          style={{ fontSize: '7px', fontFamily: 'JetBrains Mono, monospace', fill: '#6B6356' }}
+                        />
+                        <YAxis
+                          domain={[0, 4]}
+                          ticks={[0, 1, 2, 3, 4]}
+                          tickFormatter={(v) => `${(5 - v).toFixed(1)}`}
+                          stroke="#8B8273"
+                          tickLine={false}
+                          style={{ fontSize: '7px', fontFamily: 'JetBrains Mono, monospace', fill: '#6B6356' }}
+                        />
+                        {/* Zielwert WRRL-Klasse 2.0 ("gut") = cleanScore 3.0 */}
+                        <ReferenceLine y={3} stroke="#5A7247" strokeWidth={1.2} strokeDasharray="3 3" />
+                        <Bar
+                          dataKey="cleanScore"
+                          radius={[2.5, 2.5, 0, 0]}
+                          isAnimationActive={false}
+                          onMouseOver={(d: any) => setHoveredSector(d?.payload ?? d)}
+                        >
+                          {riverData.map((d) => (
+                            <Cell
+                              key={d.y}
+                              fill={wrrlColor(d.wrrl)}
+                              fillOpacity={hoveredSector?.y === d.y ? 1 : 0.85}
+                              stroke={hoveredSector?.y === d.y ? '#2C3311' : 'none'}
+                              strokeWidth={hoveredSector?.y === d.y ? 1.5 : 0}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                   {/* Hover detail panel */}
                   <div className="bg-[#F7F3ED] border border-[#D4CCBA]/60 rounded-xl p-3 min-h-[64px] flex flex-col justify-center">

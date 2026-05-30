@@ -222,6 +222,7 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
   const [buildingCategoryFilter, setBuildingCategoryFilter] = useState<string>('all');
   const [filterOnlyBebaubar, setFilterOnlyBebaubar] = useState<boolean>(false);
   const [hoveredBuilding, setHoveredBuilding] = useState<BuildingType | null>(null);
+  const [showAllBuildings, setShowAllBuildings] = useState<boolean>(false);
 
   const getPrognosisValues = (bId: string): {
     wrrl?: number;
@@ -1076,9 +1077,17 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                           </div>
                         </div>
 
+                        {/* Zurück zur Kartenauswahl */}
+                        <button
+                          onClick={() => setExpandedCardId(null)}
+                          className="mb-2 flex items-center gap-1.5 text-[8.5px] font-black uppercase tracking-wider text-[#5A7247] hover:text-[#3d4f28] transition-colors cursor-pointer"
+                        >
+                          ◀ Zurück zur Kartenauswahl
+                        </button>
+
                         {/* Highly Compressed Catalog Cards Layout */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
-                          {buildingsCatalog
+                        {(() => {
+                          const filteredBuildings = buildingsCatalog
                             .filter(b => b.id !== 'schoellershammer')
                             .filter(b => buildingCategoryFilter === 'all' || b.category === buildingCategoryFilter)
                             .filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()) || b.description.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -1105,8 +1114,13 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                               const finalCost = Math.max(1, b.cost - discountValue + acceptanceSurcharge);
                               const canAfford = stats.budget >= finalCost;
                               return isEligible && strengthFits && canAfford && !tile.buildingId && actionsLeft > 0;
-                            })
-                            .map(b => {
+                            });
+                          const ITEMS_PER_PAGE = 4;
+                          const visibleBuildings = showAllBuildings ? filteredBuildings : filteredBuildings.slice(0, ITEMS_PER_PAGE);
+                          const hasMore = filteredBuildings.length > ITEMS_PER_PAGE;
+                          return (<>
+                        <div className="grid grid-cols-2 gap-2 pr-1">
+                          {visibleBuildings.map(b => {
                               // Adjacency and placement allowance validations
                               const allowedTerrain = b.allowedTerrains.includes(tile.terrain);
                               const isRiverCheck = !b.isRiverOnly || tile.terrain === 'Water';
@@ -1215,8 +1229,19 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                                   )}
                                 </div>
                               );
-                            })}
+                          })}
                         </div>
+                        {hasMore && (
+                          <button
+                            onClick={() => setShowAllBuildings(prev => !prev)}
+                            className="mt-1.5 w-full py-1 rounded-lg border border-[#D4CCBA] bg-[#FAF8F5] hover:bg-[#F0EBE1] text-[8.5px] font-black uppercase text-[#5A7247] tracking-wider transition-colors cursor-pointer"
+                          >
+                            {showAllBuildings
+                              ? `▲ Weniger anzeigen`
+                              : `▼ Alle ${filteredBuildings.length} Gebäude anzeigen`}
+                          </button>
+                        )}
+                        </>); })()}
 
                         {/* Interactive Building Impact Preview & Prognosis Box */}
                         <div className="mt-1 border border-[#D4CCBA]/55 rounded-lg bg-[#FAF9F5] p-2 transition-all duration-300 shadow-3xs min-h-[64px] flex flex-col justify-center">
