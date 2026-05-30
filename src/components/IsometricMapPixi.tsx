@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Application, Container, Graphics, Assets, Texture, TilingSprite, Sprite } from 'pixi.js';
+import { Application, Container, Graphics, Assets, Texture, TilingSprite, Sprite, Text } from 'pixi.js';
 import { TileData, BuildingType, TerrainType } from '../types';
+import { BUILDIONS_CATALOG } from '../gameData';
 import waterRiverUrl from '../assets/images/tile_river_middle_1779350583496.png';
 import waterDeepUrl from '../assets/images/tile_deep_water_1779350607495.png';
 import waterShallowUrl from '../assets/images/tile_shallow_water_1779350629775.png';
@@ -91,6 +92,34 @@ const sideColor = (tile: TileData, layer: string): number => {
 const darkSideColor = (tile: TileData, layer: string): number => {
   if (layer !== 'normal') return adjustColor('#C8BFA8', offsetFor(tile));
   return adjustColor(DARK_SIDE_COLORS[tile.terrain] ?? '#B0A793', offsetFor(tile));
+};
+
+// Building category → roof colour + icon glyph
+const CATEGORY_STYLE: Record<string, { roof: number; body: number; icon: string }> = {
+  ecology:        { roof: 0x5a7247, body: 0x6f8a54, icon: '🌿' },
+  water:          { roof: 0x2f7da0, body: 0x4596b8, icon: '🌊' },
+  fauna:          { roof: 0xb9742a, body: 0xd08a3e, icon: '🦫' },
+  economy:        { roof: 0x6b6359, body: 0x877e72, icon: '🏭' },
+  infrastructure: { roof: 0x7c5aa0, body: 0x9474b8, icon: '🚇' },
+  tourism:        { roof: 0x12a594, body: 0x2bc0ad, icon: '🏕️' },
+};
+const BUILDING_BY_ID = new Map(BUILDIONS_CATALOG.map((b) => [b.id, b]));
+
+// Data-layer overlay colour + value label for a tile
+const overlayFor = (
+  tile: TileData,
+  layer: 'wrrl' | 'ffh' | 'flood'
+): { color: number; alpha: number; label: string } => {
+  if (layer === 'wrrl') {
+    const q = tile.wrrl_quality;
+    const color = q <= 2 ? 0x457b9d : q <= 2.8 ? 0x5a7247 : q <= 3.8 ? 0xbc6c25 : 0xc94a4a;
+    return { color, alpha: 0.7, label: q.toFixed(1) };
+  }
+  if (layer === 'ffh') {
+    return { color: 0x5a7247, alpha: 0.15 + Math.min(0.75, tile.ffh_value / 130), label: `${tile.ffh_value}` };
+  }
+  // flood
+  return { color: 0x3282b4, alpha: 0.12 + Math.min(0.78, tile.flood_risk / 130), label: `${tile.flood_risk}` };
 };
 
 // Hexagon points (pointy top & bottom) relative to a centre
@@ -294,12 +323,18 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Redraw when data/visual props change ───────────────────────────────────
+  // Rebuild the full tile layer only when the board data / layer changes
   useEffect(() => {
     rebuildTiles();
     drawHighlight();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid, selectedLayer, selectedTile, hoveredTile, selectedBuilding, isDemolishMode]);
+  }, [grid, selectedLayer, selectedBuilding, isDemolishMode]);
+
+  // Hover & selection only redraw the lightweight highlight overlay
+  useEffect(() => {
+    drawHighlight();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoveredTile, selectedTile]);
 
   // ── Helpers bound to the live Pixi scene ───────────────────────────────────
   const clientToWorld = (clientX: number, clientY: number) => {
@@ -459,6 +494,51 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
     }
   };
 
+  // Isometric building body + category icon, returned as its own container
+  const buildBuildingNode = (tile: TileData, cx: number, top: number): Container => {
+    const node = new Container();
+    const def = BUILDING_BY_ID.get(tile.buildingId!);
+    const style = (def && CATEGORY_STYLE[def.category]) || CATEGORY_STYLE.economy;
+    const bw = 14, bd = 8, bh = 16;
+
+    // Ground shadow
+    node.addChild(new Graphics().ellipse(cx, top + 4, 17, 7).fill({ color: 0x000000, alpha: 0.22 }));
+
+    const box = new Graphics();
+    // Left face
+    box.poly([cx - bw, top - bh, cx, top - bh + bd, cx, top + bd, cx - bw, top]).fill(style.body);
+    // Right face (darker)
+    box.poly([cx, top - bh + bd, cx + bw, top - bh, cx + bw, top, cx, top + bd])
+      .fill({ color: style.body, alpha: 1 });
+    box.poly([cx, top - bh + bd, cx + bw, top - bh, cx + bw, top, cx, top + bd])
+      .fill({ color: 0x000000, alpha: 0.22 });
+    // Roof (top diamond)
+    box.poly([cx, top - bh - bd, cx + bw, top - bh, cx, top - bh + bd, cx - bw, top - bh]).fill(style.roof);
+    box.poly([cx, top - bh - bd, cx + bw, top - bh, cx, top - bh + bd, cx - bw, top - bh])
+      .stroke({ width: 1, color: 0x000000, alpha: 0.18 });
+    node.addChild(box);
+
+    // Category icon
+    const icon = new Text({
+      text: style.icon,
+      style: { fontSize: 15, fontFamily: 'sans-serif' },
+    });
+    icon.anchor.set(0.5);
+    icon.position.set(cx, top - bh + 1);
+    node.addChild(icon);
+
+    // Upgrade badge (level 2/3) — small gold pips
+    const lvl = tile.upgradeLevel ?? 1;
+    if (lvl >= 2) {
+      const pips = new Graphics();
+      for (let i = 0; i < lvl - 1; i++) {
+        pips.star(cx - 6 + i * 6, top - bh - bd - 5, 4, 3, 1.4).fill(0xf5c542);
+      }
+      node.addChild(pips);
+    }
+    return node;
+  };
+
   const rebuildTiles = () => {
     const layer = tileLayerRef.current;
     const g = gridRef.current;
@@ -540,9 +620,41 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
         // ── Procedural land details (hybrid look) ────────────────────────────
         if (lay === 'normal') drawLandDetails(gfx, tile, cx, top);
 
-        // Lightweight building placeholder (replaced by sprites in Phase 3)
+        // ── Data-layer overlay (WRRL / FFH / Flood) ──────────────────────────
+        if (lay !== 'normal') {
+          const ov = overlayFor(tile, lay as 'wrrl' | 'ffh' | 'flood');
+          gfx.poly(hexPoints(cx, top)).fill({ color: ov.color, alpha: ov.alpha });
+          const valText = new Text({
+            text: ov.label,
+            style: { fontSize: 10, fontFamily: 'monospace', fontWeight: 'bold', fill: 0x2c3322 },
+          });
+          valText.anchor.set(0.5);
+          valText.position.set(cx, top);
+          layer.addChild(valText);
+        }
+
+        // ── Build-eligibility highlight (when a building is selected) ─────────
+        const selB = selectedBuilding;
+        if (lay === 'normal' && selB && !tile.buildingId && selB.allowedTerrains.includes(tile.terrain)) {
+          gfx.poly(hexPoints(cx, top)).fill({ color: 0x7dd957, alpha: 0.28 });
+          gfx.poly(hexPoints(cx, top)).stroke({ width: 2, color: 0x9be86a, alpha: 0.9 });
+        }
+
+        // Building (isometric body + category icon)
         if (tile.buildingId) {
-          gfx.rect(cx - 13, top - 14, 26, 22).fill(0x1e293b).stroke({ width: 1, color: 0x475569 });
+          layer.addChild(buildBuildingNode(tile, cx, top));
+        }
+
+        // ── City / village name label ────────────────────────────────────────
+        if (lay === 'normal' && tile.cityName) {
+          const lbl = new Text({
+            text: tile.cityName,
+            style: { fontSize: 9, fontFamily: 'sans-serif', fontWeight: 'bold', fill: 0xfaf6ee,
+              stroke: { color: 0x3e2a12, width: 3 } },
+          });
+          lbl.anchor.set(0.5);
+          lbl.position.set(cx, top - 26);
+          layer.addChild(lbl);
         }
       }
     }
