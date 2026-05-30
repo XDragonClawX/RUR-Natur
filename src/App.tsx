@@ -166,6 +166,8 @@ export default function App() {
   const [pdfSimulated, setPdfSimulated] = useState<boolean>(false);
   const [showTutorial, setShowTutorial] = useState<boolean>(true);
   const [tutorialStep, setTutorialStep] = useState<number>(0);
+  const [tourActive, setTourActive] = useState<boolean>(false);
+  const [tourStep, setTourStep] = useState<'select_tile' | 'click_card' | 'choose_building' | 'place_confirm' | 'end_round' | 'completed'>('select_tile');
   const [showSpielregeln, setShowSpielregeln] = useState<boolean>(false);
   const [showKurzanleitung, setShowKurzanleitung] = useState<boolean>(false);
   const [showNatura2000Modal, setShowNatura2000Modal] = useState<boolean>(false);
@@ -1263,6 +1265,9 @@ export default function App() {
 
     // Default flow: click any tile to open Action-Cockpit (the premium overlay round system options)
     setActiveActionTile({ x, y });
+    if (tourActive && tourStep === 'select_tile') {
+      setTourStep('click_card');
+    }
     if (targetTile.buildingId) {
       const matchedBuilding = BUILDIONS_CATALOG.find(b => b.id === targetTile.buildingId);
       if (matchedBuilding) {
@@ -1505,6 +1510,10 @@ export default function App() {
 
   // --- ADVANCE NEXT ROUND/YEAR TURNS ---
   const handleNextRound = () => {
+    if (tourActive && tourStep === 'end_round') {
+      setTourStep('completed');
+    }
+
     // Clear history on new round to avoid cross-round rollbacks
     setHistory([]);
     setActionsUsed(0);
@@ -2571,7 +2580,11 @@ export default function App() {
                   {/* End Round Action directly reachable */}
                   <button
                     onClick={handleNextRound}
-                    className="px-2 py-1 rounded-lg bg-[#3D6B2E] text-white font-mono text-[9.5px] font-bold uppercase tracking-wider shadow-xs border border-emerald-800 active:scale-95 transition-all flex items-center gap-1 shrink-0"
+                    className={`px-2 py-1 rounded-lg font-mono text-[9.5px] font-bold uppercase tracking-wider shadow-xs active:scale-95 transition-all flex items-center gap-1 shrink-0 ${
+                      tourActive && tourStep === 'end_round'
+                        ? 'bg-amber-500 text-white ring-2 ring-amber-300 animate-pulse border-amber-600 scale-105'
+                        : 'bg-[#3D6B2E] text-white border border-emerald-800'
+                    }`}
                   >
                     <span>Beenden</span>
                     <span className="text-[8px]">↩</span>
@@ -2641,7 +2654,11 @@ export default function App() {
               {/* Primäre Aktion: Runde beenden */}
               <button
                 onClick={handleNextRound}
-                className="px-4 py-2 rounded-xl bg-brand-green hover:bg-[#3d6830] text-white font-bold text-[11px] uppercase tracking-wide border border-brand-green/40 hover:border-[#5a9248] shadow-sm hover:shadow-md transition-all duration-150 active:scale-[0.97] cursor-pointer flex items-center gap-2 whitespace-nowrap"
+                className={`px-4 py-2 rounded-xl text-white font-bold text-[11px] uppercase tracking-wide shadow-sm hover:shadow-md transition-all duration-150 active:scale-[0.97] cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+                  tourActive && tourStep === 'end_round'
+                    ? 'bg-amber-500 ring-4 ring-amber-300 animate-pulse border-2 border-amber-600 scale-[1.05] hover:bg-amber-600'
+                    : 'bg-brand-green hover:bg-[#3d6830] border border-brand-green/40 hover:border-[#5a9248]'
+                }`}
               >
                 <span>Runde beenden</span>
                 <span className="opacity-75 text-xs">↩</span>
@@ -3801,6 +3818,9 @@ export default function App() {
           actionsUsed={actionsUsed}
           maxActionsPerRound={MAX_ACTIONS_PER_ROUND}
           rurtalbahnLeased={rurtalbahnLeased}
+          tourActive={tourActive}
+          tourStep={tourStep}
+          onAdvanceTourStep={(step) => setTourStep(step)}
           onClose={() => setActiveActionTile(null)}
           onDemolish={() => {
             const tx = activeActionTile.x;
@@ -3929,6 +3949,10 @@ export default function App() {
 
             addLog(`Erfolg: '${building.name}' an Position (${tx}, ${ty}) errichtet. Baukosten: ${finalCost} € finanziert.`, 'success');
             audio.playSuccess();
+
+            if (tourActive && tourStep === 'choose_building') {
+              setTourStep('end_round');
+            }
 
             // Rotate Slot
             const buildCard = cards.find(c => c.type === 'BUILD');
@@ -4430,6 +4454,8 @@ export default function App() {
                       setTutorialStep(prev => prev + 1);
                     } else {
                       setShowTutorial(false);
+                      setTourActive(true);
+                      setTourStep('select_tile');
                     }
                   }}
                   className="px-5 py-2.5 bg-[#5A7247] hover:bg-[#4E613C] text-white text-xs font-black uppercase rounded-lg cursor-pointer shadow-md transition-transform transform active:scale-95"
@@ -5154,11 +5180,95 @@ export default function App() {
         handleUndo={handleUndo}
         historyLength={history.length}
         undoActionName={history.length > 0 ? history[0].actionName : undefined}
-        onStartTutorial={() => { setTutorialStep(0); setShowTutorial(true); }}
+        onStartTutorial={() => { setTutorialStep(0); setShowTutorial(true); setTourActive(false); }}
         onShowRules={() => setShowSpielregeln(true)}
         onShowQuickGuide={() => setShowKurzanleitung(true)}
         onShowFeedback={() => { setShowFeedback(true); setFeedbackSubmitted(false); }}
       />
+
+      {/* INTERACTIVE ONBOARDING TOUR HUD/BANNER */}
+      {tourActive && tourStep !== 'completed' && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-18 left-1/2 -translate-x-1/2 z-[40] w-[90%] max-w-xl bg-[#F2EDE4] border-3 border-amber-500 rounded-2xl shadow-xl p-4 flex flex-col sm:flex-row items-center gap-3"
+        >
+          <div className="bg-amber-100 p-2.5 rounded-xl border border-amber-300">
+            <span className="text-2xl select-none">
+              {tourStep === 'select_tile' && "🗺️"}
+              {tourStep === 'click_card' && "🎴"}
+              {tourStep === 'choose_building' && "🏗️"}
+              {tourStep === 'end_round' && "⏳"}
+            </span>
+          </div>
+          <div className="flex-1 text-center sm:text-left">
+            <span className="text-[9px] font-mono font-black uppercase text-amber-700 tracking-wider">
+              Interaktiver Erste-Schritte-Guide · Schritt {tourStep === 'select_tile' ? '1 von 4' : tourStep === 'click_card' ? '2 von 4' : tourStep === 'choose_building' ? '3 von 4' : '4 von 4'}
+            </span>
+            <h4 className="text-sm font-black text-[#2C3311] leading-tight">
+              {tourStep === 'select_tile' && "Sektor auf der Karte wählen"}
+              {tourStep === 'click_card' && "Aktionskarte 'Bauen' wählen"}
+              {tourStep === 'choose_building' && "Gebäude oder Schutzmaßnahme errichten"}
+              {tourStep === 'end_round' && "Runde beenden & Steuern verbuchen"}
+            </h4>
+            <p className="text-[11px] text-stone-600 leading-snug mt-1">
+              {tourStep === 'select_tile' && "Klicke auf ein beliebiges Feld im Flussbecken (Rundensystem-Karte), um das Aktions-Cockpit zu öffnen."}
+              {tourStep === 'click_card' && "In der Aktionsleiste ist die Karte 'Bauen & Errichten' gold hervorgehoben. Klicke darauf, um deine baufähigen Optionen anzuzeigen."}
+              {tourStep === 'choose_building' && "Wähle eines der grün oder gold markierten Renaturierungs-Projekte aus der Liste und bestätige den Bau."}
+              {tourStep === 'end_round' && "Hervorragend platziert! Klicke nun ordentlich rechts im Cockpit oder auf dem Hauptbildschirm auf den orangefarbenen Button 'Runde beenden', um Steuern einzutreiben."}
+            </p>
+          </div>
+          <button
+            onClick={() => setTourActive(false)}
+            className="px-3 py-1.5 bg-[#FAF8F5] border border-[#D4CCBA] rounded-lg text-[9px] text-[#2C3311] hover:text-white hover:bg-rose-600 hover:border-rose-700 font-bold transition-all uppercase cursor-pointer"
+            title="Tour abbrechen"
+          >
+            Abbrechen
+          </button>
+        </motion.div>
+      )}
+
+      {/* TOUR COMPLETION MODAL */}
+      {tourActive && tourStep === 'completed' && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-[#F2EDE4] border-4 border-[#5A7247] rounded-3xl w-full max-w-lg p-6 flex flex-col gap-4 text-center relative overflow-hidden shadow-2xl animate-scale-up"
+          >
+            {/* Elegant Background Decoration */}
+            <div className="absolute -right-16 -top-16 w-36 h-36 bg-[#5A7247]/10 rounded-full blur-xl pointer-events-none" />
+            <div className="absolute -left-16 -bottom-16 w-36 h-36 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
+
+            <div className="text-5xl my-2">🏆</div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#5A7247] uppercase font-black block font-sans">QUALIFIKATION BESTANDEN!</span>
+              <h3 className="text-xl font-black text-[#2C3311] leading-tight">Glückwunsch! Erste Schritte erfolgreich abgeschlossen! 🌿</h3>
+            </div>
+            
+            <p className="text-xs text-stone-600 leading-relaxed max-w-sm mx-auto">
+              Du hast die grundlegenden Mechanismen des Renaturierungs-Simulators gemeistert. Jetzt weißt du, wie man Renaturierungen plant, Aktionskarten optimal ausspielt und die Runden wechselt, um Steuern einzunehmen!
+            </p>
+
+            <div className="bg-[#FAF8F5] p-3 rounded-xl border border-[#D4CCBA]/60 text-left flex flex-col gap-2">
+              <span className="text-[10px] font-mono font-black text-[#5A7247]">NÄCHSTE SCHRITTE &amp; TIPPS:</span>
+              <ul className="text-[11px] text-stone-700 flex flex-col gap-1 list-disc pl-4 font-sans">
+                <li>Bringe die <b>Gewässergüte-Layer</b> zum Einsatz, um ökologische Belastungspunkte gezielt zu lokalisieren.</li>
+                <li>Behalte dein <b>Budget</b> im Auge — Renovierungen kosten Geld, das über Steuern eingenommen wird.</li>
+                <li>Besuche den <b>Wissenschafts-Baum</b>, um fortschrittliche Filteranlagen freizuschalten!</li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => setTourActive(false)}
+              className="mt-2 w-full py-3 bg-[#5A7247] hover:bg-[#4E613C] text-white font-extrabold text-xs uppercase rounded-xl shadow-md transition-transform transform active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Umgang mit RurNova starten! 🚀</span>
+            </button>
+          </motion.div>
+        </div>
+      )}
 
       {/* REGULATORY TARGET OVERLAYS (NATURA 2000 & EU-WRRL DIRECTIVES) */}
       <RegulatoryModals

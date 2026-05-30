@@ -31,6 +31,9 @@ interface TileActionModalProps {
   onExecuteResearch: (card: ActionCard, strength: number) => void;
   onUnlockResearch: (nodeId: string) => void;
   onExecuteRurtalbahn: (card: ActionCard, strength: number) => void;
+  tourActive?: boolean;
+  tourStep?: string;
+  onAdvanceTourStep?: (step: 'select_tile' | 'click_card' | 'choose_building' | 'place_confirm' | 'end_round' | 'completed') => void;
 }
 
 // ── Color palette per strength ────────────────────────────────────────────────
@@ -211,7 +214,8 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
   x, y, tile, cards, stats, buildingsCatalog, researchTree, grid, quests,
   actionsUsed, maxActionsPerRound, rurtalbahnLeased, onClose,
   onBuild, onDemolish, onUpgrade, onExecutePlant, onExecuteHydrology,
-  onExecuteFunding, onExecuteResearch, onUnlockResearch, onExecuteRurtalbahn
+  onExecuteFunding, onExecuteResearch, onUnlockResearch, onExecuteRurtalbahn,
+  tourActive, tourStep, onAdvanceTourStep
 }) => {
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -865,12 +869,23 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
                   // Dynamic name clean up to keep it elegant inside tight vertical space
                   const cleanedName = card.name.replace(/^(🏗️|🌱|🌊|💶|🧪|🚇)\s+/, '');
 
+                  const isTourCardHighlight = tourActive && tourStep === 'click_card' && card.type === 'BUILD';
+
                   return (
                     <CardWithParallax
                       key={card.id}
-                      onClick={() => !cardLocked && setExpandedCardId(card.id)}
+                      onClick={() => {
+                        if (!cardLocked) {
+                          setExpandedCardId(card.id);
+                          if (tourActive && tourStep === 'click_card' && card.type === 'BUILD' && onAdvanceTourStep) {
+                            onAdvanceTourStep('choose_building');
+                          }
+                        }
+                      }}
                       className={`relative flex flex-col justify-between h-[235px] w-[115px] sm:w-[130px] md:w-full shrink-0 rounded-xl border-2 transition-all duration-300 ${
-                        isSelected
+                        isTourCardHighlight
+                          ? 'bg-[#FCF6E8] border-amber-500 scale-[1.03] shadow-[0_0_25px_rgba(245,158,11,0.9)] ring-4 ring-amber-400 animate-pulse'
+                          : isSelected
                           ? `${theme.bg} ${theme.borderActive} -translate-y-2 shadow-lg`
                           : cardLocked
                           ? 'bg-stone-100 border-stone-200 opacity-30 grayscale cursor-not-allowed contrast-75'
@@ -1137,13 +1152,17 @@ export const TileActionModal: React.FC<TileActionModalProps> = ({
 
                               const solvesQuest = quests.some(q => q.status === 'available' && q.requirements.buildingId === b.id);
 
+                              const isTourBuildingHighlight = tourActive && tourStep === 'choose_building' && allowedToConstruct;
+
                               return (
                                 <div
                                   key={b.id}
                                   onMouseEnter={() => setHoveredBuilding(b)}
                                   onMouseLeave={() => setHoveredBuilding(null)}
                                   className={`p-2 rounded-lg border text-left flex flex-col justify-between gap-1 transition-all duration-200 cursor-help relative overflow-hidden ${
-                                    hoveredBuilding?.id === b.id
+                                    isTourBuildingHighlight
+                                      ? 'bg-[#FCF6E8] border-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.7)] ring-2 ring-amber-400 animate-pulse scale-[1.01]'
+                                      : hoveredBuilding?.id === b.id
                                       ? solvesQuest
                                         ? 'bg-amber-50/50 border-amber-500 scale-[1.01] shadow-[0_0_15px_rgba(245,158,11,0.5)] ring-2 ring-amber-400'
                                         : 'bg-[#FAF8F5] border-amber-500 scale-[1.01] shadow-2xs'

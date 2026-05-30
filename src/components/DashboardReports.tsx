@@ -5,6 +5,15 @@ import {
   Sparkles, AlertTriangle, CheckCircle2, Circle, Activity
 } from 'lucide-react';
 import * as d3 from 'd3';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+} from 'recharts';
 
 interface DashboardReportsProps {
   stats: GameStats;
@@ -372,7 +381,7 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
                   ))}
                 </div>
 
-                {/* Custom SVG Bezier Area Chart */}
+                {/* Recharts Area Chart */}
                 <div className="relative w-full bg-[#F7F3ED]/40 rounded-lg p-2 border border-[#D4CCBA]/30">
                   {roundHistory.length < 2 ? (
                     <div className="h-[140px] flex flex-col items-center justify-center text-[#8B8273] text-[10px] italic text-center p-4">
@@ -381,12 +390,7 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
                     </div>
                   ) : (
                     <div>
-                      {/* Calculate coordinates for svg */}
                       {(() => {
-                        const width = 480;
-                        const height = 130;
-                        const padding = { top: 15, right: 15, bottom: 20, left: 30 };
-                        
                         const data = roundHistory;
                         const getVal = (d: any) => {
                           if (selectedMetric === 'ffh') return d.ffh;
@@ -395,163 +399,93 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
                           return d.budget;
                         };
 
-                        // Range calculation
                         const vals = data.map(getVal);
                         const minVal = Math.max(0, Math.min(...vals) * 0.85);
                         const maxVal = Math.max(...vals, 10) * 1.15;
-                        const valRange = maxVal - minVal || 1;
 
-                        const points = data.map((d, index) => {
-                          const x = padding.left + (index / (data.length - 1)) * (width - padding.left - padding.right);
-                          const y = height - padding.bottom - ((getVal(d) - minVal) / valRange) * (height - padding.top - padding.bottom);
-                          return { x, y, round: d.round, value: getVal(d), year: d.year };
-                        });
-
-                        // Draw path and area
-                        let linePath = `M ${points[0].x} ${points[0].y} `;
-                        for (let i = 1; i < points.length; i++) {
-                          // Cubic bezier interpolation for smooth curves
-                          const cpX1 = points[i-1].x + (points[i].x - points[i-1].x) / 3;
-                          const cpY1 = points[i-1].y;
-                          const cpX2 = points[i].x - (points[i].x - points[i-1].x) / 3;
-                          const cpY2 = points[i].y;
-                          linePath += `C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${points[i].x} ${points[i].y} `;
-                        }
-
-                        const areaPath = `${linePath} L ${points[points.length-1].x} ${height - padding.bottom} L ${points[0].x} ${height - padding.bottom} Z`;
-
-                        // Metric info
                         const labelMap = { ffh: 'FFH-Flora (%)', co2: 'CO₂-Ausstoß (t CO2/Runde)', acceptance: 'Bürgerakzeptanz (%)', budget: 'Körperschafts-Budget (€)' };
                         const colorMap = { ffh: '#10B981', co2: '#F59E0B', acceptance: '#EF4444', budget: '#6366F1' };
                         const activeColor = colorMap[selectedMetric];
 
+                        // Create custom tooltip render
+                        const CustomTooltipMsg = ({ active, payload }: any) => {
+                          if (active && payload && payload.length) {
+                            const d = payload[0].payload;
+                            return (
+                              <div className="bg-[#FAF8F5] border-2 border-[#D4CCBA] p-2.5 rounded-xl text-[10px] shadow-lg font-sans">
+                                <p className="font-extrabold text-[#2C3311] border-b border-[#D4CCBA] pb-0.5 mb-1 font-mono">
+                                  Runde {d.round} ({d.year})
+                                </p>
+                                <p className="font-semibold text-stone-700">
+                                  {labelMap[selectedMetric]}: <span className="font-black" style={{ color: activeColor }}>{payload[0].value.toFixed(1)}</span>
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        };
+
                         return (
-                          <div className="space-y-1.5">
-                            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
-                              <defs>
-                                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor={activeColor} stopOpacity="0.25" />
-                                  <stop offset="100%" stopColor={activeColor} stopOpacity="0.01" />
-                                </linearGradient>
-                              </defs>
-
-                              {/* Y Gridlines and Labels */}
-                              {[0, 0.25, 0.5, 0.75, 1.0].map((ratio, gridIdx) => {
-                                const gridVal = minVal + ratio * (maxVal - minVal);
-                                const gridY = height - padding.bottom - ratio * (height - padding.top - padding.bottom);
-                                return (
-                                  <g key={gridIdx}>
-                                    <line
-                                      x1={padding.left}
-                                      x2={width - padding.right}
-                                      y1={gridY}
-                                      y2={gridY}
-                                      stroke="rgba(44, 51, 17, 0.08)"
-                                      strokeWidth="0.8"
-                                      strokeDasharray="4,4"
-                                    />
-                                    <text
-                                      x={padding.left - 6}
-                                      y={gridY + 3.2}
-                                      textAnchor="end"
-                                      style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '7px', fill: '#8B8273', fontWeight: 'bold' }}
-                                    >
-                                      {gridVal.toFixed(0)}
-                                    </text>
-                                  </g>
-                                );
-                              })}
-
-                              {/* Target Marker Lines for guidance */}
-                              {selectedMetric === 'ffh' && (
-                                <g>
-                                  {/* FFH target threshold of 65% */}
-                                  {(() => {
-                                    const threshRatio = (65 - minVal) / valRange;
-                                    if (threshRatio >= 0 && threshRatio <= 1) {
-                                      const yIdx = height - padding.bottom - threshRatio * (height - padding.top - padding.bottom);
-                                      return (
-                                        <g>
-                                          <line x1={padding.left} x2={width - padding.right} y1={yIdx} y2={yIdx} stroke="#10B981" strokeWidth="1" strokeDasharray="3,1" opacity="0.6" />
-                                          <text x={width - padding.right - 2} y={yIdx - 3} textAnchor="end" style={{ fontFamily: 'sans-serif', fontWeight: 'bold', fontSize: '6.5px', fill: '#059669' }}>FFH-Flora Ziel: 65%</text>
-                                        </g>
-                                      );
+                          <div className="space-y-1.5 font-sans">
+                            <div className="w-full h-[155px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart
+                                  data={data}
+                                  margin={{ top: 10, right: 10, left: -22, bottom: 0 }}
+                                  onMouseMove={(state: any) => {
+                                    if (state && state.activeTooltipIndex !== undefined && state.activeTooltipIndex !== null) {
+                                      setTimelineHoverIdx(state.activeTooltipIndex);
                                     }
-                                    return null;
-                                  })()}
-                                </g>
-                              )}
-
-                              {/* Area under the Bezier Curve */}
-                              <path d={areaPath} fill="url(#chartGrad)" />
-
-                              {/* Bezier Path */}
-                              <path d={linePath} fill="none" stroke={activeColor} strokeWidth="2.2" strokeLinecap="round" />
-
-                              {/* Hover / Point Circles & X Labels */}
-                              {points.map((pt, index) => {
-                                const isPointHovered = timelineHoverIdx === index;
-                                return (
-                                  <g key={index} className="cursor-pointer">
-                                    {/* X labels (Rounds) */}
-                                    <text
-                                      x={pt.x}
-                                      y={height - 6}
-                                      textAnchor="middle"
-                                      style={{ 
-                                        fontFamily: 'JetBrains Mono, monospace', 
-                                        fontSize: '7.5px', 
-                                        fill: '#6B6356',
-                                        fontWeight: isPointHovered ? 'black' : 'bold' 
-                                      }}
-                                    >
-                                      R{pt.round}
-                                    </text>
-
-                                    {/* Vertical guideline */}
-                                    {isPointHovered && (
-                                      <line
-                                        x1={pt.x}
-                                        x2={pt.x}
-                                        y1={padding.top}
-                                        y2={height - padding.bottom}
-                                        stroke={activeColor}
-                                        strokeWidth="0.8"
-                                        strokeDasharray="2,2"
-                                        opacity="0.5"
-                                      />
-                                    )}
-
-                                    {/* Data bullet */}
-                                    <circle
-                                      cx={pt.x}
-                                      cy={pt.y}
-                                      r={isPointHovered ? 4.5 : 2.8}
-                                      fill={isPointHovered ? '#FFFFFF' : activeColor}
-                                      stroke={isPointHovered ? activeColor : '#FFFFFF'}
-                                      strokeWidth={isPointHovered ? 2.5 : 1}
-                                      onMouseOver={() => setTimelineHoverIdx(index)}
-                                      onMouseOut={() => setTimelineHoverIdx(null)}
-                                    />
-                                  </g>
-                                );
-                              })}
-                            </svg>
+                                  }}
+                                  onMouseLeave={() => setTimelineHoverIdx(null)}
+                                >
+                                  <defs>
+                                    <linearGradient id="rechartsGrad" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor={activeColor} stopOpacity={0.3}/>
+                                      <stop offset="95%" stopColor={activeColor} stopOpacity={0.01}/>
+                                    </linearGradient>
+                                  </defs>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(44, 51, 17, 0.08)" />
+                                  <XAxis 
+                                    dataKey="round" 
+                                    tickFormatter={(v) => `R${v}`}
+                                    stroke="#8B8273"
+                                    style={{ fontSize: '8px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 'bold' }}
+                                  />
+                                  <YAxis 
+                                    stroke="#8B8273"
+                                    style={{ fontSize: '8px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 'bold' }}
+                                    domain={[minVal, maxVal]}
+                                    tickFormatter={(v) => v.toFixed(0)}
+                                  />
+                                  <RechartsTooltip content={<CustomTooltipMsg />} />
+                                  <Area 
+                                    type="monotone" 
+                                    dataKey={selectedMetric === 'ffh' ? 'ffh' : selectedMetric === 'co2' ? 'co2' : selectedMetric === 'acceptance' ? 'acceptance' : 'budget'} 
+                                    stroke={activeColor} 
+                                    strokeWidth={2.2}
+                                    fillOpacity={1} 
+                                    fill="url(#rechartsGrad)" 
+                                    activeDot={{ r: 5, strokeWidth: 1 }}
+                                  />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
 
                             {/* Active Point Card Details */}
                             <div className="bg-[#FAF8F5] border border-[#D4CCBA]/60 rounded-xl p-2.5 min-h-[58px] flex flex-col justify-center shadow-2xs">
-                              {timelineHoverIdx !== null && points[timelineHoverIdx] ? (
-                                <div className="flex justify-between items-center text-[10px]">
+                              {timelineHoverIdx !== null && data[timelineHoverIdx] ? (
+                                <div className="flex justify-between items-center text-[10px] font-sans">
                                   <div>
                                     <span className="text-[#8B8273] block text-[8px] uppercase tracking-wider font-mono">Quartal / Jahr</span>
                                     <span className="font-extrabold text-[#2C3311]">
-                                      Runde {points[timelineHoverIdx].round} ({points[timelineHoverIdx].year})
+                                      Runde {data[timelineHoverIdx].round} ({data[timelineHoverIdx].year})
                                     </span>
                                   </div>
                                   <div className="text-right">
                                     <span className="text-[#8B8273] block text-[8px] uppercase tracking-wider font-mono">{labelMap[selectedMetric]}</span>
                                     <span className="font-black" style={{ color: activeColor }}>
-                                      {points[timelineHoverIdx].value.toFixed(1)}
+                                      {getVal(data[timelineHoverIdx]).toFixed(1)}
                                       {selectedMetric === 'ffh' || selectedMetric === 'acceptance' ? '%' : selectedMetric === 'budget' ? ' €' : ' t'}
                                     </span>
                                   </div>
@@ -559,7 +493,7 @@ export const DashboardReports: React.FC<DashboardReportsProps> = ({
                               ) : (
                                 <div className="text-center text-[#8B8273] text-[9.5px] italic flex items-center justify-center gap-1.5 leading-none">
                                   <Info className="w-3.5 h-3.5" />
-                                  Bewege den Cursor über die Punkte, um Runden-Messwerte anzuzeigen
+                                  Bewege den Cursor über das Diagramm, um Runden-Messwerte anzuzeigen
                                 </div>
                               )}
                             </div>
