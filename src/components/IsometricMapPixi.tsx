@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Application, Container, Graphics, Assets, Texture, TilingSprite, Sprite, Text, ColorMatrixFilter } from 'pixi.js';
+import { Application, Container, Graphics, Assets, Texture, TilingSprite, Sprite, Text, ColorMatrixFilter, Rectangle } from 'pixi.js';
 import { AdvancedBloomFilter } from 'pixi-filters';
 import { TileData, BuildingType, TerrainType } from '../types';
 import { BUILDIONS_CATALOG } from '../gameData';
@@ -239,11 +239,19 @@ export const IsometricMapPixi: React.FC<IsometricMapPixiProps> = ({
         Assets.load([waterRiverUrl, waterDeepUrl, waterShallowUrl, valleyBgUrl, wieseUrl])
           .then((loaded) => {
             if (disposed) return;
+            // tile_wiese.png (1190×1322) is a full iso tile: meadow top face +
+            // 3D soil base. Crop just the grassy top-face band so it maps cleanly
+            // onto our pointy-top hex (the soil/sides come from our own geometry).
+            const wieseTex = loaded[wieseUrl] as Texture;
+            const meadowCrop = new Texture({
+              source: wieseTex.source,
+              frame: new Rectangle(210, 250, 770, 410),
+            });
             texturesRef.current = {
               river: loaded[waterRiverUrl],
               deep: loaded[waterDeepUrl],
               shallow: loaded[waterShallowUrl],
-              meadow: loaded[wieseUrl],
+              meadow: meadowCrop,
             };
             valleyBg.texture = loaded[valleyBgUrl];
             placeValleyBg();
